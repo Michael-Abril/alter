@@ -1,139 +1,134 @@
 /**
  * OWNER: Person 3 (Royce/OpenClaw)
- * PURPOSE: GET: generate/return morning brief — aggregates overnight actions and generates summary
- * DEPENDENCIES: Prisma, Claude API, @clerk/nextjs
- * STATUS: Scaffold — returns mock data, needs real implementation
+ * PURPOSE: GET: generate/return morning brief — aggregates real project data and chat stats
+ * DEPENDENCIES: Prisma, @clerk/nextjs
+ * STATUS: LIVE — returns real data from projects + chat history, falls back to starter brief
  */
 
 import { auth } from '@clerk/nextjs/server';
 import { apiSuccess, apiError } from '@/lib/utils';
+import db from '@/lib/db';
 
 // GET: Generate and return morning brief
 export async function GET() {
   const { userId } = await auth();
   if (!userId) return apiError('Unauthorized', 401);
 
-  // TODO: Person 3 (Royce) — Replace with real data from Action model
-  // This should aggregate overnight actions, flagged items, and generate a summary
-  // 1. Fetch all actions since user's last wake time
-  // 2. Separate completed vs flagged actions
-  // 3. Use Claude to generate a natural-language summary
-  // 4. Detect suggested focus items based on flagged items and project deadlines
+  try {
+    // Find the user
+    const user = await db.user.findUnique({ where: { clerkId: userId } });
 
-  const mockBrief = {
-    summary:
-      'While you slept, I finished the Fanzley proposal doc, sent 3 follow-up emails, and flagged 2 items for review.',
-    actionsCompleted: 5,
-    flaggedForReview: 2,
-    completedActions: [
-      {
-        id: 'act_1',
-        userId: 'user_1',
-        type: 'email_sent',
-        title: 'Follow-up email to Sarah Chen',
-        description: 'Sent re: Q2 marketing timeline — confirmed Tuesday meeting',
-        app: 'gmail',
-        confidence: 0.92,
-        status: 'completed',
-        metadata: null,
-        createdAt: new Date(Date.now() - 3600000 * 3).toISOString(),
-      },
-      {
-        id: 'act_2',
-        userId: 'user_1',
-        type: 'doc_edited',
-        title: 'Fanzley Proposal — Final Draft',
-        description: 'Completed sections 3-5, added pricing table, formatted for review',
-        app: 'gdocs',
-        confidence: 0.87,
-        status: 'completed',
-        metadata: null,
-        createdAt: new Date(Date.now() - 3600000 * 5).toISOString(),
-      },
-      {
-        id: 'act_3',
-        userId: 'user_1',
-        type: 'email_sent',
-        title: 'Reply to Mike about API specs',
-        description: 'Sent technical specification summary per his request',
-        app: 'gmail',
-        confidence: 0.89,
-        status: 'completed',
-        metadata: null,
-        createdAt: new Date(Date.now() - 3600000 * 4).toISOString(),
-      },
-      {
-        id: 'act_4',
-        userId: 'user_1',
-        type: 'email_sent',
-        title: 'Weekly standup notes to team',
-        description: 'Sent compiled standup notes from this week',
-        app: 'gmail',
-        confidence: 0.94,
-        status: 'completed',
-        metadata: null,
-        createdAt: new Date(Date.now() - 3600000 * 2).toISOString(),
-      },
-      {
-        id: 'act_5',
-        userId: 'user_1',
-        type: 'task_completed',
-        title: 'Updated project timeline in Notion',
-        description: 'Adjusted milestones based on new deadline',
-        app: 'notion',
-        confidence: 0.85,
-        status: 'completed',
-        metadata: null,
-        createdAt: new Date(Date.now() - 3600000 * 1).toISOString(),
-      },
-    ],
-    flaggedItems: [
-      {
-        id: 'act_6',
-        userId: 'user_1',
-        type: 'flagged',
-        title: 'Email from CEO — urgent tone detected',
-        description:
-          'Received at 2:14 AM. Appears to need a personalized response. Draft created but held for your review.',
-        app: 'gmail',
-        confidence: 0.45,
-        status: 'flagged',
-        metadata: null,
-        createdAt: new Date(Date.now() - 3600000 * 6).toISOString(),
-      },
-      {
-        id: 'act_7',
-        userId: 'user_1',
-        type: 'flagged',
-        title: 'Merge conflict in feature branch',
-        description:
-          'Detected conflict in src/api/auth.ts. Unable to auto-resolve — needs manual review.',
-        app: 'github',
-        confidence: 0.3,
-        status: 'flagged',
-        metadata: null,
-        createdAt: new Date(Date.now() - 3600000 * 4).toISOString(),
-      },
-    ],
-    suggestedFocus: [
-      {
-        title: 'Review CEO email draft',
-        reason: 'Flagged as high-priority — response expected this morning',
-        priority: 'high',
-      },
-      {
-        title: 'Resolve merge conflict',
-        reason: 'Blocking CI pipeline — needs manual attention',
-        priority: 'high',
-      },
-      {
-        title: 'Review Fanzley proposal',
-        reason: 'Auto-completed overnight — verify before sending to client',
-        priority: 'medium',
-      },
-    ],
-    generatedAt: new Date().toISOString(),
-  };
+    // Get real projects
+    const projects = user ? await db.project.findMany({
+      where: { userId: user.id },
+      orderBy: { lastActive: 'desc' },
+    }) : [];
 
-  return apiSuccess(mockBrief);
+    // Get chat stats
+    const chatCount = user ? await db.chatMessage.count({
+      where: { userId: user.id },
+    }) : 0;
+
+    const embeddedCount = user ? await db.chatMessage.count({
+      where: { userId: user.id, embedded: true },
+    }) : 0;
+
+    // Get unique sessions
+    const sessions = user ? await db.chatMessage.groupBy({
+      by: ['sessionId'],
+      where: { userId: user.id },
+    }) : [];
+
+    // Build real brief from detected projects
+    const inProgress = projects.filter(p => p.status === 'in_progress');
+    const completed = projects.filter(p => p.status === 'completed');
+    const stalled = projects.filter(p => p.status === 'stalled');
+
+    // Generate summary from real data
+    const summaryParts: string[] = [];
+    if (projects.length > 0) {
+      summaryParts.push(`I've analyzed ${chatCount} chat messages across ${sessions.length} conversations and detected ${projects.length} projects.`);
+      if (inProgress.length > 0) {
+        summaryParts.push(`${inProgress.length} project${inProgress.length > 1 ? 's are' : ' is'} in progress.`);
+      }
+      if (completed.length > 0) {
+        summaryParts.push(`${completed.length} project${completed.length > 1 ? 's appear' : ' appears'} completed.`);
+      }
+      if (stalled.length > 0) {
+        summaryParts.push(`${stalled.length} project${stalled.length > 1 ? 's need' : ' needs'} attention.`);
+      }
+    } else {
+      summaryParts.push('No projects detected yet. Run the project detector to analyze your chat history.');
+    }
+
+    // Build completed actions from completed projects
+    const completedActions = completed.map(p => {
+      const ctx = p.context ? JSON.parse(p.context) : {};
+      return {
+        id: p.id,
+        userId: p.userId,
+        type: 'task_completed' as const,
+        title: p.name,
+        description: p.description || ctx.nextStep || 'Project completed',
+        app: 'claude',
+        confidence: (p.progress / 100),
+        status: 'completed' as const,
+        metadata: null,
+        createdAt: p.updatedAt.toISOString(),
+      };
+    });
+
+    // Build flagged items from stalled projects
+    const flaggedItems = stalled.map(p => {
+      const ctx = p.context ? JSON.parse(p.context) : {};
+      return {
+        id: p.id,
+        userId: p.userId,
+        type: 'flagged' as const,
+        title: `${p.name} — stalled`,
+        description: ctx.nextStep || 'This project has gone quiet. Review and decide next steps.',
+        app: 'claude',
+        confidence: 0.4,
+        status: 'flagged' as const,
+        metadata: null,
+        createdAt: p.lastActive.toISOString(),
+      };
+    });
+
+    // Build suggested focus from in-progress projects sorted by progress (lowest first)
+    const suggestedFocus = inProgress
+      .sort((a, b) => b.progress - a.progress)
+      .slice(0, 4)
+      .map(p => {
+        const ctx = p.context ? JSON.parse(p.context) : {};
+        return {
+          title: p.name,
+          reason: ctx.nextStep || `${p.progress}% complete — continue this work`,
+          priority: (p.progress >= 70 ? 'high' : p.progress >= 40 ? 'medium' : 'low') as 'high' | 'medium' | 'low',
+        };
+      });
+
+    return apiSuccess({
+      summary: summaryParts.join(' '),
+      actionsCompleted: completed.length,
+      flaggedForReview: stalled.length,
+      completedActions,
+      flaggedItems,
+      suggestedFocus,
+      generatedAt: new Date().toISOString(),
+      stats: {
+        totalProjects: projects.length,
+        inProgress: inProgress.length,
+        completed: completed.length,
+        stalled: stalled.length,
+        totalMessages: chatCount,
+        embeddedMessages: embeddedCount,
+        conversations: sessions.length,
+      },
+      source: projects.length > 0 ? 'database' : 'empty',
+    });
+  } catch (error) {
+    console.error('[brief] Error:', error);
+    return apiError('Failed to generate brief', 500);
+  }
 }

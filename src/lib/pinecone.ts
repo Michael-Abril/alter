@@ -1,52 +1,74 @@
 /**
  * OWNER: Person 2 (Vectors)
- * PURPOSE: Pinecone vector database client initialization and helper functions
- * DEPENDENCIES: @pinecone-database/pinecone
- * STATUS: Scaffold — needs real implementation
+ * PURPOSE: Local vector store using vectra (swap to Pinecone later)
+ * DEPENDENCIES: vectra
+ * STATUS: LIVE — stores embeddings as JSON in /data/vectors
  */
 
-import { Pinecone } from '@pinecone-database/pinecone';
+import { LocalIndex } from 'vectra';
+import path from 'path';
 import type { EmbeddingQueryResult } from '@/types';
 
-// ─── Client Initialization ──────────────────────────────────────────────────
+// ─── Index Cache ─────────────────────────────────────────────────────────────
 
-let pineconeClient: Pinecone | null = null;
+const indexCache = new Map<string, LocalIndex>();
 
-export function getPineconeClient(): Pinecone {
-  if (!pineconeClient) {
-    pineconeClient = new Pinecone({
-      apiKey: process.env.PINECONE_API_KEY!,
-    });
-  }
-  return pineconeClient;
+function getVectorsPath(): string {
+  return path.join(process.cwd(), 'data', 'vectors');
 }
 
-export function getIndex() {
-  const client = getPineconeClient();
-  return client.index(process.env.PINECONE_INDEX || 'nightshift');
+/**
+ * Get or create a LocalIndex for a given namespace (userId).
+ * Each user gets their own index folder: data/vectors/{userId}/
+ */
+export async function getIndex(namespace: string = 'default'): Promise<LocalIndex> {
+  if (indexCache.has(namespace)) {
+    return indexCache.get(namespace)!;
+  }
+
+  const folderPath = path.join(getVectorsPath(), namespace);
+  const index = new LocalIndex(folderPath);
+
+  // Create index if it doesn't exist
+  if (!await index.isIndexCreated()) {
+    await index.createIndex();
+    console.log(`[vectors] Created new index at ${folderPath}`);
+  }
+
+  indexCache.set(namespace, index);
+  return index;
 }
 
 // ─── Helper Functions ────────────────────────────────────────────────────────
 
 /**
- * Upsert vectors into Pinecone for a specific user
- * TODO: Person 2 — Implement batch upsert with proper namespace (userId)
- * Should handle chunking for large batches (max 100 vectors per upsert)
+ * Upsert vectors into the local vector store for a specific user.
  */
 export async function upsertVectors(
   userId: string,
-  vectors: { id: string; values: number[]; metadata: Record<string, unknown> }[]
+  vectors: { id: string; values: number[]; metadata: Record<string, string | number | boolean> }[]
 ): Promise<void> {
-  const index = getIndex();
-  const namespace = index.namespace(userId);
+  const index = await getIndex(userId);
 
-  // TODO: Person 2 — Implement batch upsert (chunk into batches of 100)
-  await namespace.upsert(vectors);
+  // vectra doesn't have a native batch upsert, so we use beginUpdate/endUpdate
+  await index.beginUpdate();
+  try {
+    for (const vec of vectors) {
+      await index.upsertItem({
+        id: vec.id,
+        vector: vec.values,
+        metadata: vec.metadata,
+      });
+    }
+    await index.endUpdate();
+  } catch (err) {
+    index.cancelUpdate();
+    throw err;
+  }
 }
 
 /**
- * Query Pinecone for similar vectors
- * TODO: Person 2 — Add proper filtering, handle empty results gracefully
+ * Query the local vector store for similar vectors.
  */
 export async function queryVectors(
   userId: string,
@@ -54,47 +76,42 @@ export async function queryVectors(
   topK: number = 10,
   filter?: Record<string, unknown>
 ): Promise<EmbeddingQueryResult[]> {
-  const index = getIndex();
-  const namespace = index.namespace(userId);
+  const index = await getIndex(userId);
 
-  const results = await namespace.query({
-    vector: queryVector,
-    topK,
-    includeMetadata: true,
-    filter,
-  });
+  const results = await index.queryItems(queryVector, '', topK, filter as any);
 
-  return (results.matches || []).map((match) => ({
-    id: match.id,
-    score: match.score || 0,
-    content: (match.metadata?.content as string) || '',
+  return results.map((result) => ({
+    id: result.item.id,
+    score: result.score,
+    content: (result.item.metadata?.content as string) || '',
     metadata: {
-      source: (match.metadata?.source as string) || 'unknown',
-      type: (match.metadata?.type as string) || 'unknown',
-      timestamp: (match.metadata?.timestamp as string) || '',
-      ...((match.metadata as Record<string, unknown>) || {}),
+      source: (result.item.metadata?.source as string) || 'unknown',
+      type: (result.item.metadata?.type as string) || 'unknown',
+      timestamp: (result.item.metadata?.timestamp as string) || '',
+      ...(result.item.metadata || {}),
     },
   }));
 }
 
 /**
- * Delete all vectors for a user (used for re-indexing)
- * TODO: Person 2 — Implement with confirmation safeguard
+ * Delete all vectors for a user (used for re-indexing).
  */
 export async function deleteUserVectors(userId: string): Promise<void> {
-  const index = getIndex();
-  const namespace = index.namespace(userId);
-
-  // TODO: Person 2 — Implement delete all vectors in namespace
-  await namespace.deleteAll();
+  const index = await getIndex(userId);
+  await index.deleteIndex();
+  indexCache.delete(userId);
+  console.log(`[vectors] Deleted index for user: ${userId}`);
 }
 
 /**
- * Get stats about a user's vector namespace
- * TODO: Person 2 — Implement to show embedding progress on dashboard
+ * Get stats about a user's vector index.
  */
 export async function getNamespaceStats(userId: string): Promise<{ vectorCount: number }> {
-  // TODO: Person 2 — Use Pinecone describe_index_stats with namespace filter
-  console.log(`[pinecone] Getting stats for namespace: ${userId}`);
-  return { vectorCount: 0 };
+  const index = await getIndex(userId);
+  try {
+    const stats = await index.getIndexStats();
+    return { vectorCount: stats.items };
+  } catch {
+    return { vectorCount: 0 };
+  }
 }

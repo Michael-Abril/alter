@@ -44,3 +44,9 @@ prisma/migrations/
 .vscode/
 *.swp
 *.swo
+
+# orchestration scraper artifacts
+orchestration/*-messages-*.json
+
+# local vector store
+data/vectors/

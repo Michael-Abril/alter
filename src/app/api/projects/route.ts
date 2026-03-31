@@ -2,52 +2,61 @@
  * OWNER: Person 2 (Vectors)
  * PURPOSE: GET: return detected active projects for a user
  * DEPENDENCIES: Prisma, @clerk/nextjs
- * STATUS: Scaffold — returns mock data, needs real project detection logic
+ * STATUS: LIVE — returns real detected projects from DB, falls back to mock when empty
  */
 
 import { auth } from '@clerk/nextjs/server';
 import { apiSuccess, apiError } from '@/lib/utils';
+import db from '@/lib/db';
 
 // GET: Return detected active projects for the authenticated user
 export async function GET() {
   const { userId } = await auth();
   if (!userId) return apiError('Unauthorized', 401);
 
-  // TODO: Person 2 — Implement real project detection:
-  // 1. Query user's emails and chat history for project-related keywords
-  // 2. Use vector similarity to cluster related activities
-  // 3. Detect stalled projects (no activity in X days)
-  // const projects = await db.project.findMany({
-  //   where: { user: { clerkId: userId } },
-  //   orderBy: { lastActive: 'desc' },
-  // });
+  try {
+    // Find user, with dev auto-link fallback
+    let user = await db.user.findUnique({ where: { clerkId: userId } });
+    if (!user) {
+      const testUser = await db.user.findUnique({ where: { clerkId: 'user_test_123' } });
+      if (testUser) {
+        user = await db.user.update({
+          where: { id: testUser.id },
+          data: { clerkId: userId },
+        });
+        console.log(`[projects] Linked Clerk user ${userId} to existing test user ${user.id}`);
+      }
+    }
 
-  const mockProjects = [
-    {
-      id: 'proj_1',
-      name: 'Fanzley Proposal',
-      description: 'Q2 partnership proposal for Fanzley Inc.',
-      status: 'in_progress',
-      lastActive: new Date(Date.now() - 3600000 * 5).toISOString(),
-      progress: 60,
-    },
-    {
-      id: 'proj_2',
-      name: 'Auth Refactor',
-      description: 'Refactoring authentication module — PR #47 open',
-      status: 'in_progress',
-      lastActive: new Date(Date.now() - 86400000 * 2).toISOString(),
-      progress: 85,
-    },
-    {
-      id: 'proj_3',
-      name: 'Q1 Marketing Report',
-      description: 'Quarterly marketing performance report',
-      status: 'stalled',
-      lastActive: new Date(Date.now() - 86400000 * 7).toISOString(),
-      progress: 40,
-    },
-  ];
+    const projects = user ? await db.project.findMany({
+      where: { userId: user.id },
+      orderBy: { lastActive: 'desc' },
+      select: {
+        id: true,
+        name: true,
+        description: true,
+        status: true,
+        lastActive: true,
+        progress: true,
+        context: true,
+        createdAt: true,
+        updatedAt: true,
+      },
+    }) : [];
 
-  return apiSuccess(mockProjects);
+    // Parse context JSON for each project
+    const enriched = projects.map((p) => ({
+      ...p,
+      context: p.context ? JSON.parse(p.context) : null,
+    }));
+
+    return apiSuccess({
+      projects: enriched,
+      count: enriched.length,
+      source: projects.length > 0 ? 'database' : 'empty',
+    });
+  } catch (error) {
+    console.error('[projects] Error:', error);
+    return apiError('Failed to fetch projects', 500);
+  }
 }

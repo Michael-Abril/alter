@@ -11,6 +11,8 @@ const APP_ICONS: Record<string, { emoji: string; bg: string }> = {
   github: { emoji: '💻', bg: 'bg-gray-500/10' },
   notion: { emoji: '📝', bg: 'bg-white/10' },
   slack: { emoji: '💬', bg: 'bg-purple-500/10' },
+  claude: { emoji: '🤖', bg: 'bg-orange-500/10' },
+  chatgpt: { emoji: '🧠', bg: 'bg-green-500/10' },
 };
 
 interface AppIconProps {

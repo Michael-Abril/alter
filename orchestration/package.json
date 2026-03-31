@@ -1,0 +1,13 @@
+{
+  "name": "nightshift-orchestration",
+  "version": "1.0.0",
+  "description": "OpenClaw browser scrapers for NightShift AI — extracts chat history from Claude and ChatGPT",
+  "scripts": {
+    "scrape:claude": "node scrape-claude.mjs",
+    "scrape:chatgpt": "node scrape-chatgpt.mjs",
+    "scrape": "node scrape.mjs"
+  },
+  "dependencies": {
+    "playwright": "^1.52.0"
+  }
+}
