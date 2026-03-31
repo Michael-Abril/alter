@@ -1,0 +1,44 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --nightshift-navy: #0F3460;
+    --nightshift-accent: #E94560;
+    --nightshift-bg: #0A0A12;
+    --nightshift-bg-light: #12122A;
+    --nightshift-bg-card: #1A1A3E;
+    --nightshift-text-primary: #E8E8F0;
+    --nightshift-text-secondary: #9999BB;
+    --nightshift-text-muted: #666688;
+    --nightshift-border: #2A2A4E;
+  }
+
+  body {
+    @apply bg-nightshift-bg text-nightshift-text-primary;
+    font-feature-settings: "rlig" 1, "calt" 1;
+  }
+}
+
+@layer components {
+  .card {
+    @apply bg-nightshift-bg-card border border-nightshift-border rounded-xl p-6;
+  }
+
+  .btn-primary {
+    @apply bg-nightshift-accent hover:bg-nightshift-accent/90 text-white font-medium px-4 py-2 rounded-lg transition-colors;
+  }
+
+  .btn-secondary {
+    @apply bg-nightshift-navy hover:bg-nightshift-navy/80 text-white font-medium px-4 py-2 rounded-lg transition-colors;
+  }
+
+  .btn-ghost {
+    @apply hover:bg-nightshift-bg-light text-nightshift-text-secondary hover:text-nightshift-text-primary px-4 py-2 rounded-lg transition-colors;
+  }
+
+  .input {
+    @apply bg-nightshift-bg-light border border-nightshift-border rounded-lg px-4 py-2 text-nightshift-text-primary placeholder:text-nightshift-text-muted focus:outline-none focus:ring-2 focus:ring-nightshift-accent/50 focus:border-nightshift-accent transition-colors;
+  }
+}

@@ -1,0 +1,143 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = "file:./dev.db"
+}
+
+model User {
+  id                String   @id @default(cuid())
+  clerkId           String   @unique
+  email             String   @unique
+  name              String?
+  gmailConnected    Boolean  @default(false)
+  gmailToken        String?  // encrypted OAuth token
+  gmailRefreshToken String?  // encrypted refresh token
+  autonomyLevel     Int      @default(0) // 0=observe, 1=draft, 2=auto-low, 3=full
+  wakeTime          String   @default("07:00")
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  emails       Email[]
+  chatMessages ChatMessage[]
+  drafts       Draft[]
+  actions      Action[]
+  projects     Project[]
+  boundaries   Boundary[]
+  voiceProfile VoiceProfile?
+}
+
+model Email {
+  id         String   @id @default(cuid())
+  userId     String
+  user       User     @relation(fields: [userId], references: [id])
+  gmailId    String   @unique
+  threadId   String?
+  from       String
+  to         String
+  subject    String
+  body       String
+  direction  String   // "sent" or "received"
+  isRead     Boolean  @default(false)
+  receivedAt DateTime
+  createdAt  DateTime @default(now())
+  embedded   Boolean  @default(false) // has been processed into vectors
+
+  @@index([userId, direction])
+  @@index([userId, embedded])
+}
+
+model ChatMessage {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  source    String   // "claude", "chatgpt", "other"
+  role      String   // "user" or "assistant"
+  content   String
+  sessionId String?  // group messages by conversation
+  timestamp DateTime
+  createdAt DateTime @default(now())
+  embedded  Boolean  @default(false)
+
+  @@index([userId, source])
+  @@index([userId, embedded])
+}
+
+model Project {
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id])
+  name        String
+  description String?
+  status      String   @default("in_progress") // in_progress, completed, stalled
+  context     String?  // JSON blob of relevant context
+  lastActive  DateTime
+  progress    Int      @default(0) // 0-100
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([userId, status])
+}
+
+model Draft {
+  id              String   @id @default(cuid())
+  userId          String
+  user            User     @relation(fields: [userId], references: [id])
+  type            String   // "email", "doc", "code", "task"
+  title           String
+  content         String
+  targetApp       String   // "gmail", "gdocs", "github", "notion"
+  confidenceScore Float
+  status          String   @default("pending") // pending, approved, rejected, sent
+  context         String?  // JSON: retrieved sources, project reference
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([userId, status])
+}
+
+model Action {
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id])
+  type        String   // "email_sent", "doc_edited", "task_completed", "flagged"
+  title       String
+  description String?
+  app         String   // which app the action was taken in
+  confidence  Float?
+  status      String   @default("completed") // completed, failed, flagged
+  metadata    String?  // JSON blob for extra data
+  createdAt   DateTime @default(now())
+
+  @@index([userId, createdAt])
+}
+
+model Boundary {
+  id         String   @id @default(cuid())
+  userId     String
+  user       User     @relation(fields: [userId], references: [id])
+  rule       String   // human-readable rule
+  category   String   // "email", "docs", "code", "general"
+  action     String   // "auto", "draft", "flag", "never"
+  conditions String?  // JSON: conditions for this rule
+  createdAt  DateTime @default(now())
+
+  @@index([userId])
+}
+
+model VoiceProfile {
+  id             String   @id @default(cuid())
+  userId         String   @unique
+  user           User     @relation(fields: [userId], references: [id])
+  avgSentenceLen Float?
+  formalityScore Float?   // 0=very casual, 1=very formal
+  emojiFrequency Float?
+  signOffStyle   String?
+  toneKeywords   String?  // JSON array of tone descriptors
+  systemPrompt   String?  // the generated system prompt for this user
+  sampleOutputs  String?  // JSON array of example outputs for few-shot
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+}
