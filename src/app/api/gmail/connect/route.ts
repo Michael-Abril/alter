@@ -2,7 +2,7 @@
  * OWNER: Person 1 (Backend)
  * PURPOSE: Gmail OAuth initiation — redirects user to Google's OAuth consent screen
  * DEPENDENCIES: @/lib/gmail, @clerk/nextjs
- * STATUS: Scaffold — needs real implementation
+ * STATUS: LIVE — real OAuth flow with state param
  */
 
 import { auth } from '@clerk/nextjs/server';
@@ -15,7 +15,7 @@ export async function GET() {
     return apiError('Unauthorized', 401);
   }
 
-  // TODO: Person 1 — Store userId in state param for callback verification
-  const authUrl = getAuthUrl();
+  // Generate auth URL with Clerk userId encoded in state for CSRF protection
+  const authUrl = getAuthUrl(userId);
   return Response.redirect(authUrl);
 }

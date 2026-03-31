@@ -1,62 +1,94 @@
 /**
  * OWNER: Person 1 (Backend)
- * PURPOSE: GET: fetch stored emails, POST: trigger email pull from Gmail
+ * PURPOSE: GET: fetch stored emails from DB, POST: trigger email sync from Gmail
  * DEPENDENCIES: Prisma, Gmail API, @clerk/nextjs
- * STATUS: Scaffold — returns mock data, needs real implementation
+ * STATUS: LIVE — real email data with pagination and sync trigger
  */
 
+import { NextRequest } from 'next/server';
 import { auth } from '@clerk/nextjs/server';
 import { apiSuccess, apiError } from '@/lib/utils';
+import db from '@/lib/db';
 
 // GET: Return stored emails for the authenticated user
-export async function GET() {
+export async function GET(req: NextRequest) {
   const { userId } = await auth();
   if (!userId) return apiError('Unauthorized', 401);
 
-  // TODO: Person 1 — Fetch real emails from Prisma
-  // const emails = await db.email.findMany({ where: { user: { clerkId: userId } }, orderBy: { receivedAt: 'desc' }, take: 50 });
-  const mockEmails = [
-    {
-      id: 'email_1',
-      gmailId: 'msg_abc123',
-      threadId: 'thread_1',
-      from: 'you@example.com',
-      to: 'sarah@company.com',
-      subject: 'Re: Q2 Marketing Timeline',
-      body: 'Hey Sarah, confirming our Tuesday meeting. I\'ll have the updated timeline ready by then. Best, User',
-      direction: 'sent',
-      isRead: true,
-      receivedAt: new Date(Date.now() - 86400000).toISOString(),
-      embedded: true,
-    },
-    {
-      id: 'email_2',
-      gmailId: 'msg_def456',
-      threadId: 'thread_2',
-      from: 'mike@engineering.com',
-      to: 'you@example.com',
-      subject: 'API Specs Request',
-      body: 'Hey, can you send over the technical specification summary when you get a chance? Need it for the review.',
-      direction: 'received',
-      isRead: true,
-      receivedAt: new Date(Date.now() - 172800000).toISOString(),
-      embedded: true,
-    },
-  ];
+  try {
+    // Parse query parameters
+    const { searchParams } = new URL(req.url);
+    const limit = Math.min(parseInt(searchParams.get('limit') || '50'), 100);
+    const offset = parseInt(searchParams.get('offset') || '0');
+    const direction = searchParams.get('direction') as 'sent' | 'received' | undefined;
 
-  return apiSuccess(mockEmails);
+    // Build query
+    const where: any = { user: { clerkId: userId } };
+    if (direction) where.direction = direction;
+
+    // Fetch emails with pagination
+    const emails = await db.email.findMany({
+      where,
+      orderBy: { receivedAt: 'desc' },
+      take: limit,
+      skip: offset,
+      select: {
+        id: true,
+        gmailId: true,
+        threadId: true,
+        from: true,
+        to: true,
+        subject: true,
+        body: true,
+        direction: true,
+        isRead: true,
+        receivedAt: true,
+        createdAt: true,
+        embedded: true,
+      },
+    });
+
+    // Get total count for pagination
+    const total = await db.email.count({ where });
+
+    return apiSuccess({
+      emails,
+      pagination: {
+        limit,
+        offset,
+        total,
+        hasMore: offset + emails.length < total,
+      },
+    });
+  } catch (error) {
+    console.error('[gmail/emails] GET error:', error);
+    return apiError('Failed to fetch emails', 500);
+  }
 }
 
-// POST: Trigger a fresh email pull from Gmail
-export async function POST() {
-  const { userId } = auth();
+// POST: Trigger a fresh email sync from Gmail
+export async function POST(req: NextRequest) {
+  const { userId } = await auth();
   if (!userId) return apiError('Unauthorized', 401);
 
-  // TODO: Person 1 — Fetch user's Gmail tokens from DB, call fetchSentEmails,
-  // store new emails in DB, return count of new emails
-  // const user = await db.user.findUnique({ where: { clerkId: userId } });
-  // if (!user?.gmailConnected) return apiError('Gmail not connected', 400);
-  // const emails = await fetchSentEmails(user.gmailToken, user.gmailRefreshToken);
+  try {
+    // Forward to the sync endpoint to avoid duplication
+    const response = await fetch(`${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/api/gmail/sync`, {
+      method: 'POST',
+      headers: {
+        'Cookie': req.headers.get('Cookie') || '',
+      },
+    });
 
-  return apiSuccess({ message: 'Email pull triggered', newEmails: 0 });
+    if (!response.ok) {
+      const error = await response.text();
+      return apiError(`Sync failed: ${error}`, response.status);
+    }
+
+    const result = await response.json();
+    return apiSuccess(result.data);
+  } catch (error) {
+    console.error('[gmail/emails] POST error:', error);
+    return apiError('Failed to trigger email sync', 500);
+  }
 }

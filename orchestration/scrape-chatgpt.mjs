@@ -58,19 +58,23 @@ async function main() {
   try {
     log('Navigating to chatgpt.com...');
     await page.goto('https://chatgpt.com', { waitUntil: 'domcontentloaded', timeout: 30000 });
-    await page.waitForTimeout(4000);
+    await page.waitForTimeout(2000);
 
     const currentUrl = page.url();
     log(`Current URL: ${currentUrl}`);
 
     if (currentUrl.includes('/auth/login') || currentUrl.includes('login')) {
-      log('❌ Not logged in. Please log into ChatGPT manually in this browser window.');
-      log('   The browser will stay open for 60 seconds. Log in, then re-run the script.');
-      await page.waitForTimeout(60000);
+      warn('Not logged in. Please log in to ChatGPT in your browser first.');
       await context.close();
-      process.exit(1);
+      return;
     }
 
+    // Wait for user to manually log in if needed
+    log('⏸️  Waiting 30 seconds for you to log in if needed...');
+    log('   (Browser window should be visible - please log in to ChatGPT)');
+    await page.waitForTimeout(30000);
+
+    log('✅ Proceeding with scrape...');
     log('✅ Logged in — session active');
     await page.waitForTimeout(2000);
 
@@ -132,18 +136,72 @@ async function main() {
 
 // ─── Get conversation list from sidebar ──────────────────────────────
 async function getConversationList(page) {
-  // ChatGPT sidebar uses nav with conversation links
+  // ChatGPT UI has changed frequently - try multiple selectors
   const selectors = [
     'nav a[href*="/c/"]',
     'a[href*="/c/"]',
     'nav ol li a',
     'nav li a',
+    '[data-testid="conversation-turn"]',
+    'div[role="listitem"] a',
+    'aside a[href*="/c/"]',
+    'div[class*="conversation"] a',
+    'li a[href*="/c/"]',
+    'a[href^="/c/"]',
   ];
+
+  // Wait a bit for dynamic content
+  log('Waiting for dynamic content...');
+  await page.waitForTimeout(5000);
+  
+  // Debug: log page structure
+  const pageContent = await page.content();
+  log(`Page has ${pageContent.length} characters of HTML`);
+  
+  // Check if there are any conversation links at all
+  const totalLinks = await page.$$('a');
+  log(`Found ${totalLinks.length} total links on page`);
+  
+  if (totalLinks.length === 0) {
+    log('No links found - trying to navigate directly to conversation list');
+    // Try navigating to the conversation list directly
+    // Try alternative ChatGPT URLs
+    const urls = [
+      'https://chat.openai.com/',
+      'https://chatgpt.com/c/',
+      'https://chat.openai.com/c/',
+    ];
+    
+    for (const url of urls) {
+      log(`Trying URL: ${url}`);
+      await page.goto(url, { waitUntil: 'domcontentloaded' });
+      await page.waitForTimeout(3000);
+      
+      const testLinks = await page.$$('a');
+      if (testLinks.length > 0) {
+        log(`✅ Found ${testLinks.length} links at ${url}`);
+        break;
+      }
+    }
+    
+    const retryLinks = await page.$$('a');
+    log(`After retry: Found ${retryLinks.length} total links`);
+  }
+  
+  const conversationLinks = await page.$$eval('a', links => 
+    links.filter(link => link.href && link.href.includes('/c/')).map(link => ({
+      href: link.href,
+      text: link.innerText?.slice(0, 50) || 'No text'
+    }))
+  );
+  log(`Found ${conversationLinks.length} conversation links:`, conversationLinks.slice(0, 3));
 
   for (const selector of selectors) {
     const links = await page.$$(selector);
+    log(`Trying selector "${selector}": found ${links.length} elements`);
+    
     if (links.length > 0) {
-      log(`Found conversations using selector: ${selector}`);
+      log(`✅ Found conversations using selector: ${selector}`);
       const conversations = [];
       for (const link of links) {
         const href = await link.getAttribute('href');
