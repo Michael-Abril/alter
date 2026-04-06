@@ -16,7 +16,7 @@ import { chromium } from 'playwright';
 const args = parseArgs(process.argv.slice(2));
 const MAX_CONVERSATIONS = parseInt(args.max || '5', 10);
 const API_URL = args.api || 'http://localhost:3000/api/chat-history/ingest';
-const USER_ID = args.user || 'user_test_123';
+const USER_ID = args.user || 'user_3Bge5cdx4LkgxWgYXeYlU6Tm42a';
 const DRY_RUN = args['dry-run'] !== undefined;
 const HEADLESS = args.headless !== undefined;
 

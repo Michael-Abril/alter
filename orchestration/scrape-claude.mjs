@@ -4,21 +4,34 @@
  * Uses Playwright to open claude.ai, read recent conversations,
  * extract message content, and POST it to the NightShift ingest API.
  * 
+ * Features:
+ * - Incremental scraping: tracks scraped sessions to avoid duplicates
+ * - Continuous mode: re-scrapes every 30 minutes for fresh context
+ * - Auto-embedding: runs embedding pipeline after each scrape
+ * 
  * Uses your existing browser session — no credentials stored in code.
  * 
  * Usage:
- *   node scrape-claude.mjs [--max=10] [--api=http://localhost:3000/api/chat-history/ingest] [--user=user_test_123] [--dry-run]
+ *   node scrape-claude.mjs [--max=10] [--user=user_test_123] [--dry-run]
+ *   node scrape-claude.mjs --continuous  # Re-scrape every 30 minutes
  */
 
 import { chromium } from 'playwright';
+import fs from 'fs';
+import path from 'path';
+import { spawn } from 'child_process';
 
 // ─── Config ──────────────────────────────────────────────────────────
 const args = parseArgs(process.argv.slice(2));
-const MAX_CONVERSATIONS = parseInt(args.max || '5', 10);
+const MAX_CONVERSATIONS = parseInt(args.max || '20', 10);
 const API_URL = args.api || 'http://localhost:3000/api/chat-history/ingest';
-const USER_ID = args.user || 'user_test_123';
+const USER_ID = args.user || 'user_3Bge5cdx4LkgxWgYXeYlU6Tm42a';
 const DRY_RUN = args['dry-run'] !== undefined;
 const HEADLESS = args.headless !== undefined;
+const CONTINUOUS = args.continuous !== undefined;
+const SCRAPE_INTERVAL = 30 * 60 * 1000; // 30 minutes
+
+const SESSION_TRACKER_PATH = path.join(process.cwd(), 'data', 'scraped-sessions.json');
 
 function parseArgs(argv) {
   const result = {};
@@ -39,10 +52,41 @@ function warn(msg) {
   console.warn(`[openclaw:claude] ⚠ ${msg}`);
 }
 
+// ─── Session Tracking ────────────────────────────────────────────────
+function loadScrapedSessions() {
+  if (!fs.existsSync(SESSION_TRACKER_PATH)) {
+    return { claude: {}, chatgpt: {} };
+  }
+  try {
+    return JSON.parse(fs.readFileSync(SESSION_TRACKER_PATH, 'utf-8'));
+  } catch {
+    return { claude: {}, chatgpt: {} };
+  }
+}
+
+function saveScrapedSessions(data) {
+  const dir = path.dirname(SESSION_TRACKER_PATH);
+  if (!fs.existsSync(dir)) {
+    fs.mkdirSync(dir, { recursive: true });
+  }
+  fs.writeFileSync(SESSION_TRACKER_PATH, JSON.stringify(data, null, 2));
+}
+
+function shouldScrapeConversation(sessionId, lastMessageCount, trackedSessions) {
+  const tracked = trackedSessions.claude[sessionId];
+  if (!tracked) return true; // New conversation
+  if (tracked.messageCount < lastMessageCount) return true; // New messages
+  return false;
+}
+
 // ─── Main ────────────────────────────────────────────────────────────
 async function main() {
   log('Starting Claude.ai scraper');
-  log(`Config: max=${MAX_CONVERSATIONS}, api=${API_URL}, user=${USER_ID}, dry-run=${DRY_RUN}`);
+  log(`Config: max=${MAX_CONVERSATIONS}, api=${API_URL}, user=${USER_ID}, dry-run=${DRY_RUN}, continuous=${CONTINUOUS}`);
+
+  // Load session tracker
+  const trackedSessions = loadScrapedSessions();
+  log(`Loaded session tracker: ${Object.keys(trackedSessions.claude || {}).length} sessions tracked`);
 
   // Launch browser with persistent context to reuse existing login session
   const userDataDir = getUserDataDir();
@@ -81,17 +125,40 @@ async function main() {
 
     // Get conversation links from the sidebar
     const conversations = await getConversationList(page);
-    const toScrape = conversations.slice(0, MAX_CONVERSATIONS);
-    log(`Found ${conversations.length} conversations, scraping ${toScrape.length}`);
+    log(`Found ${conversations.length} conversations`);
 
-    if (toScrape.length === 0) {
+    if (conversations.length === 0) {
       warn('No conversations found. The page layout may have changed.');
       await context.close();
       process.exit(1);
     }
 
+    // Filter to only scrape new or updated conversations
+    const toScrape = [];
+    for (const conv of conversations) {
+      if (toScrape.length >= MAX_CONVERSATIONS) break;
+      
+      // For incremental scraping, check if we need to scrape this conversation
+      if (!CONTINUOUS && trackedSessions.claude[conv.id]) {
+        // Skip already scraped conversations (unless in continuous mode)
+        continue;
+      }
+      
+      toScrape.push(conv);
+    }
+
+    log(`Scraping ${toScrape.length} conversations (${conversations.length - toScrape.length} already scraped)`);
+
+    if (toScrape.length === 0) {
+      log('✅ All conversations already scraped. Nothing new to process.');
+      await context.close();
+      return;
+    }
+
     // Scrape each conversation
     const allMessages = [];
+    const scrapedSessionData = {};
+    
     for (let i = 0; i < toScrape.length; i++) {
       const conv = toScrape[i];
       log(`[${i + 1}/${toScrape.length}] Scraping: "${conv.title}"`);
@@ -100,6 +167,13 @@ async function main() {
         const messages = await scrapeConversation(page, conv);
         allMessages.push(...messages);
         log(`  → Extracted ${messages.length} messages`);
+        
+        // Track this session
+        scrapedSessionData[conv.id] = {
+          title: conv.title,
+          messageCount: messages.length,
+          lastScraped: new Date().toISOString(),
+        };
       } catch (err) {
         warn(`  → Failed to scrape "${conv.title}": ${err.message}`);
       }
@@ -128,6 +202,15 @@ async function main() {
       }, null, 2));
     } else {
       await sendToApi(allMessages);
+      
+      // Update session tracker
+      trackedSessions.claude = { ...trackedSessions.claude, ...scrapedSessionData };
+      saveScrapedSessions(trackedSessions);
+      log(`Updated session tracker: ${Object.keys(trackedSessions.claude).length} total sessions`);
+      
+      // Auto-run embedding pipeline
+      log('Running embedding pipeline on new messages...');
+      await runEmbeddingPipeline();
     }
 
     log('Done ✅');
@@ -135,6 +218,14 @@ async function main() {
     console.error('[openclaw:claude] Fatal error:', err);
   } finally {
     await context.close();
+  }
+  
+  // Continuous mode: wait and re-run
+  if (CONTINUOUS) {
+    log(`Waiting ${SCRAPE_INTERVAL / 60000} minutes before next scrape...`);
+    await new Promise(resolve => setTimeout(resolve, SCRAPE_INTERVAL));
+    log('Starting next scrape cycle...');
+    await main(); // Recursive call for continuous mode
   }
 }
 
@@ -312,36 +403,72 @@ async function autoScroll(page) {
 
 // ─── Send to NightShift ingest API ───────────────────────────────────
 async function sendToApi(messages) {
-  const payload = {
-    userId: USER_ID,
-    source: 'claude',
-    messages,
-  };
-
   log(`Sending ${messages.length} messages to ${API_URL}...`);
 
-  try {
-    const res = await fetch(API_URL, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload),
+  const BATCH_SIZE = 50;
+  let totalIngested = 0;
+
+  for (let i = 0; i < messages.length; i += BATCH_SIZE) {
+    const batch = messages.slice(i, i + BATCH_SIZE);
+    const payload = {
+      userId: USER_ID,
+      source: 'claude',
+      messages: batch,
+    };
+
+    try {
+      const res = await fetch(API_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+
+      const data = await res.json();
+
+      if (res.ok) {
+        totalIngested += batch.length;
+        log(`✅ Batch ${Math.floor(i / BATCH_SIZE) + 1}: ingested ${batch.length} messages (${totalIngested}/${messages.length})`);
+      } else {
+        warn(`Batch ${Math.floor(i / BATCH_SIZE) + 1} returned ${res.status}: ${JSON.stringify(data)}`);
+      }
+    } catch (err) {
+      warn(`Failed to reach API at ${API_URL}: ${err.message}`);
+      log('Saving remaining payload to fallback file...');
+      const fs = await import('fs');
+      const fallbackPath = `./claude-messages-${Date.now()}.json`;
+      fs.writeFileSync(fallbackPath, JSON.stringify({ userId: USER_ID, source: 'claude', messages }, null, 2));
+      log(`Saved to ${fallbackPath}`);
+      return;
+    }
+  }
+
+  log(`✅ All ${totalIngested} messages sent successfully`);
+}
+
+// ─── Run embedding pipeline ──────────────────────────────────────────
+async function runEmbeddingPipeline() {
+  return new Promise((resolve, reject) => {
+    const scriptPath = path.join(process.cwd(), 'scripts', 'embed-chat-history.ts');
+    const child = spawn('npx', ['tsx', scriptPath], {
+      cwd: process.cwd(),
+      stdio: 'inherit',
     });
 
-    const data = await res.json();
+    child.on('close', (code) => {
+      if (code === 0) {
+        log('✅ Embedding pipeline completed');
+        resolve();
+      } else {
+        warn(`Embedding pipeline exited with code ${code}`);
+        resolve(); // Don't fail the scraper if embedding fails
+      }
+    });
 
-    if (res.ok) {
-      log(`✅ API response: ${JSON.stringify(data)}`);
-    } else {
-      warn(`API returned ${res.status}: ${JSON.stringify(data)}`);
-    }
-  } catch (err) {
-    warn(`Failed to reach API at ${API_URL}: ${err.message}`);
-    log('Saving payload to fallback file...');
-    const fs = await import('fs');
-    const fallbackPath = `./claude-messages-${Date.now()}.json`;
-    fs.writeFileSync(fallbackPath, JSON.stringify(payload, null, 2));
-    log(`Saved to ${fallbackPath}`);
-  }
+    child.on('error', (err) => {
+      warn(`Failed to run embedding pipeline: ${err.message}`);
+      resolve(); // Don't fail the scraper if embedding fails
+    });
+  });
 }
 
 // ─── Get browser user data directory ─────────────────────────────────

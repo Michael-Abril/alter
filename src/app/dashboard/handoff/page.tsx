@@ -74,9 +74,46 @@ export default function HandoffPage() {
   const selectedTasks = tasks.filter((t) => t.selected);
 
   const handleActivate = async () => {
-    console.log('Activating NightShift with tasks:', selectedTasks);
-    console.log('Special instructions:', specialInstructions);
-    setIsActivated(true);
+    try {
+      setLoading(true);
+      
+      // Extract project IDs from selected tasks
+      const projectIds = selectedTasks
+        .map(t => t.projectId)
+        .filter(Boolean);
+
+      if (projectIds.length === 0) {
+        console.error('No valid project IDs in selected tasks');
+        return;
+      }
+
+      console.log('Activating NightShift with projects:', projectIds);
+
+      const response = await fetch('/api/handoff', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          projectIds,
+          instructions: specialInstructions || undefined,
+        }),
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        console.error('Handoff failed:', error);
+        alert('Failed to activate NightShift. Check console for details.');
+        return;
+      }
+
+      const result = await response.json();
+      console.log('NightShift activated:', result);
+      setIsActivated(true);
+    } catch (err) {
+      console.error('Error activating NightShift:', err);
+      alert('Failed to activate NightShift. Check console for details.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (

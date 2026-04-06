@@ -1,11 +1,17 @@
 /**
  * OWNER: Person 2 (Vectors) + Person 3 (Royce/OpenClaw)
- * PURPOSE: Run project detector against all embedded messages, save to Project table
+ * PURPOSE: Smart project detector with incremental detection, merge logic, and cross-source analysis
+ * 
+ * Features:
+ * - Incremental: Only analyzes new un-analyzed messages
+ * - Merge: Updates existing projects instead of creating duplicates
+ * - Cross-source: Analyzes both chat messages AND emails
  * 
  * Usage:
  *   npx tsx scripts/detect-projects.ts
  *   npx tsx scripts/detect-projects.ts --reset   # Clear existing projects first
  *   npx tsx scripts/detect-projects.ts --dry-run  # Print results without saving
+ *   npx tsx scripts/detect-projects.ts --force    # Re-analyze all messages
  */
 
 import 'dotenv/config';
@@ -45,6 +51,7 @@ interface ConversationGroup {
 const args = process.argv.slice(2);
 const RESET = args.includes('--reset');
 const DRY_RUN = args.includes('--dry-run');
+const FORCE = args.includes('--force');
 
 function log(msg: string) {
   console.log(`[detect] ${new Date().toISOString().slice(11, 19)} ${msg}`);
@@ -309,31 +316,45 @@ async function main() {
   const db = new PrismaClient();
 
   log('═══════════════════════════════════════════════════');
-  log('  NightShift AI — Project State Detector');
+  log('  NightShift AI — Smart Project Detector');
   log('═══════════════════════════════════════════════════');
   const backend = hasAnthropicKey() ? 'claude-api' : 'local-keyword';
   log(`Backend: ${backend}`);
+  log(`Mode: ${FORCE ? 'FORCE (re-analyze all)' : 'INCREMENTAL (new only)'}`);
   log(`Reset: ${RESET} | Dry run: ${DRY_RUN}`);
 
   try {
-    // Get all users with embedded messages
-    const users = await db.chatMessage.groupBy({
+    // Get all users with embedded messages or emails
+    const chatUsers = await db.chatMessage.groupBy({
+      by: ['userId'],
+      where: { embedded: true },
+      _count: { id: true },
+    });
+    
+    const emailUsers = await db.email.groupBy({
       by: ['userId'],
       where: { embedded: true },
       _count: { id: true },
     });
 
-    if (users.length === 0) {
-      log('No embedded messages found. Run embed script first.');
+    // Merge user lists
+    const userIds = new Set([...chatUsers.map(u => u.userId), ...emailUsers.map(u => u.userId)]);
+
+    if (userIds.size === 0) {
+      log('No embedded messages or emails found. Run embed scripts first.');
       await db.$disconnect();
       return;
     }
 
     let totalProjects = 0;
+    let totalUpdated = 0;
+    let totalCreated = 0;
 
-    for (const userGroup of users) {
-      const userId = userGroup.userId;
-      log(`\nProcessing user: ${userId} (${userGroup._count.id} embedded messages)`);
+    for (const userId of userIds) {
+      const chatCount = chatUsers.find(u => u.userId === userId)?._count.id || 0;
+      const emailCount = emailUsers.find(u => u.userId === userId)?._count.id || 0;
+      log(`\nProcessing user: ${userId}`);
+      log(`  Chat messages: ${chatCount} | Emails: ${emailCount}`);
 
       // Reset existing projects for this user if requested
       if (RESET && !DRY_RUN) {
@@ -341,13 +362,44 @@ async function main() {
         log(`  Cleared ${deleted.count} existing projects`);
       }
 
-      // Fetch all embedded messages grouped by sessionId
+      // Get last analysis timestamp for incremental detection
+      const lastAnalysis = FORCE ? null : await getLastAnalysisTime(db, userId);
+      if (lastAnalysis && !FORCE) {
+        log(`  Incremental mode: analyzing messages since ${lastAnalysis.toISOString()}`);
+      }
+
+      // Fetch chat messages (incremental or all)
+      const messageWhere = FORCE
+        ? { userId, embedded: true }
+        : lastAnalysis
+        ? { userId, embedded: true, timestamp: { gt: lastAnalysis } }
+        : { userId, embedded: true };
+      
       const messages = await db.chatMessage.findMany({
-        where: { userId, embedded: true },
+        where: messageWhere,
         orderBy: { timestamp: 'asc' },
       });
+      
+      // Fetch emails (incremental or all)
+      const emailWhere = FORCE
+        ? { userId, embedded: true }
+        : lastAnalysis
+        ? { userId, embedded: true, receivedAt: { gt: lastAnalysis } }
+        : { userId, embedded: true };
+      
+      const emails = await db.email.findMany({
+        where: emailWhere,
+        orderBy: { receivedAt: 'asc' },
+      });
 
-      // Group by sessionId
+      if (messages.length === 0 && emails.length === 0) {
+        log(`  No new messages or emails to analyze`);
+        continue;
+      }
+
+      log(`  Analyzing ${messages.length} new chat messages and ${emails.length} new emails`);
+
+      // Group chat messages by sessionId
       const groups = new Map<string, ConversationGroup>();
       for (const msg of messages) {
         const sid = msg.sessionId || 'unknown';
@@ -361,7 +413,9 @@ async function main() {
         });
       }
 
-      log(`  Found ${groups.size} conversations`);
+      // Extract project signals from emails
+      const emailProjects = extractProjectsFromEmails(emails);
+      log(`  Found ${groups.size} chat conversations and ${emailProjects.length} email-based projects`);
 
       // Analyze each conversation
       const projects: DetectedProject[] = [];
@@ -378,6 +432,9 @@ async function main() {
           projects.push(result);
         }
       }
+      
+      // Add email-based projects
+      projects.push(...emailProjects);
 
       log(`  Detected ${projects.length} projects:`);
       console.log('');
@@ -394,55 +451,69 @@ async function main() {
         console.log('');
       }
 
-      // Save to database
+      // Save to database with smart merge logic
       if (!DRY_RUN) {
         for (const proj of projects) {
-          await db.project.upsert({
-            where: {
-              // Use a composite lookup — find existing project by user + name
-              id: await findExistingProjectId(db, userId, proj.sessionId) || 'new',
-            },
-            update: {
-              name: proj.name,
-              description: proj.description,
-              status: proj.status,
-              progress: proj.progress,
-              lastActive: proj.lastActive,
-              context: JSON.stringify({
-                ...proj.context,
-                nextStep: proj.nextStep,
-                sessionId: proj.sessionId,
-                messageCount: proj.messageCount,
-                detectedAt: new Date().toISOString(),
-              }),
-            },
-            create: {
-              userId,
-              name: proj.name,
-              description: proj.description,
-              status: proj.status,
-              progress: proj.progress,
-              lastActive: proj.lastActive,
-              context: JSON.stringify({
-                ...proj.context,
-                nextStep: proj.nextStep,
-                sessionId: proj.sessionId,
-                messageCount: proj.messageCount,
-                detectedAt: new Date().toISOString(),
-              }),
-            },
-          });
+          // Try to find existing project by sessionId or name similarity
+          const existingId = await findOrMergeProject(db, userId, proj);
+          
+          if (existingId) {
+            // Update existing project
+            await db.project.update({
+              where: { id: existingId },
+              data: {
+                name: proj.name,
+                description: proj.description,
+                status: proj.status,
+                progress: proj.progress,
+                lastActive: proj.lastActive,
+                context: JSON.stringify({
+                  ...proj.context,
+                  nextStep: proj.nextStep,
+                  sessionId: proj.sessionId,
+                  messageCount: proj.messageCount,
+                  detectedAt: new Date().toISOString(),
+                  lastAnalyzed: new Date().toISOString(),
+                }),
+              },
+            });
+            totalUpdated++;
+            log(`  ↻ Updated: ${proj.name}`);
+          } else {
+            // Create new project
+            await db.project.create({
+              data: {
+                userId,
+                name: proj.name,
+                description: proj.description,
+                status: proj.status,
+                progress: proj.progress,
+                lastActive: proj.lastActive,
+                context: JSON.stringify({
+                  ...proj.context,
+                  nextStep: proj.nextStep,
+                  sessionId: proj.sessionId,
+                  messageCount: proj.messageCount,
+                  detectedAt: new Date().toISOString(),
+                  lastAnalyzed: new Date().toISOString(),
+                }),
+              },
+            });
+            totalCreated++;
+            log(`  ✨ Created: ${proj.name}`);
+          }
         }
-        log(`  Saved ${projects.length} projects to database`);
+        log(`  Processed ${projects.length} projects (${totalCreated} created, ${totalUpdated} updated)`);
       } else {
-        log(`  [DRY RUN] Would save ${projects.length} projects`);
+        log(`  [DRY RUN] Would process ${projects.length} projects`);
       }
 
       totalProjects += projects.length;
     }
 
     log('\n═══════════════════════════════════════════════════');
-    log(`Done! Detected ${totalProjects} projects total`);
+    log(`Done! Processed ${totalProjects} projects total`);
+    log(`  Created: ${totalCreated} | Updated: ${totalUpdated}`);
     log('═══════════════════════════════════════════════════');
 
   } catch (error) {
@@ -453,20 +524,148 @@ async function main() {
   }
 }
 
-async function findExistingProjectId(
+async function getLastAnalysisTime(db: PrismaClient, userId: string): Promise<Date | null> {
+  const lastProject = await db.project.findFirst({
+    where: { userId },
+    orderBy: { updatedAt: 'desc' },
+    select: { updatedAt: true, context: true },
+  });
+  
+  if (!lastProject) return null;
+  
+  try {
+    const context = JSON.parse(lastProject.context || '{}');
+    return context.lastAnalyzed ? new Date(context.lastAnalyzed) : lastProject.updatedAt;
+  } catch {
+    return lastProject.updatedAt;
+  }
+}
+
+function calculateNameSimilarity(name1: string, name2: string): number {
+  const n1 = name1.toLowerCase().replace(/[^a-z0-9]/g, '');
+  const n2 = name2.toLowerCase().replace(/[^a-z0-9]/g, '');
+  
+  if (n1 === n2) return 1.0;
+  if (n1.includes(n2) || n2.includes(n1)) return 0.8;
+  
+  // Calculate Levenshtein distance
+  const matrix: number[][] = [];
+  for (let i = 0; i <= n1.length; i++) {
+    matrix[i] = [i];
+  }
+  for (let j = 0; j <= n2.length; j++) {
+    matrix[0][j] = j;
+  }
+  
+  for (let i = 1; i <= n1.length; i++) {
+    for (let j = 1; j <= n2.length; j++) {
+      const cost = n1[i - 1] === n2[j - 1] ? 0 : 1;
+      matrix[i][j] = Math.min(
+        matrix[i - 1][j] + 1,
+        matrix[i][j - 1] + 1,
+        matrix[i - 1][j - 1] + cost
+      );
+    }
+  }
+  
+  const distance = matrix[n1.length][n2.length];
+  const maxLen = Math.max(n1.length, n2.length);
+  return 1 - (distance / maxLen);
+}
+
+async function findOrMergeProject(
   db: PrismaClient,
   userId: string,
-  sessionId: string
+  project: DetectedProject
 ): Promise<string | null> {
-  // Find a project whose context JSON contains this sessionId
-  const existing = await db.project.findFirst({
+  // First, try to find by sessionId
+  const bySession = await db.project.findFirst({
     where: {
       userId,
-      context: { contains: sessionId },
+      context: { contains: project.sessionId },
     },
-    select: { id: true },
+    select: { id: true, name: true },
   });
-  return existing?.id || null;
+  
+  if (bySession) {
+    return bySession.id;
+  }
+  
+  // Second, try to find by name similarity (>75% match)
+  const allProjects = await db.project.findMany({
+    where: { userId },
+    select: { id: true, name: true },
+  });
+  
+  for (const existing of allProjects) {
+    const similarity = calculateNameSimilarity(existing.name, project.name);
+    if (similarity >= 0.75) {
+      log(`  🔗 Merging "${project.name}" with existing "${existing.name}" (${(similarity * 100).toFixed(0)}% match)`);
+      return existing.id;
+    }
+  }
+  
+  return null;
+}
+
+function extractProjectsFromEmails(emails: any[]): DetectedProject[] {
+  if (emails.length === 0) return [];
+  
+  // Group emails by subject similarity
+  const threads = new Map<string, any[]>();
+  
+  for (const email of emails) {
+    // Normalize subject (remove Re:, Fwd:, etc.)
+    const normalizedSubject = email.subject
+      .replace(/^(re|fwd|fw):\s*/gi, '')
+      .toLowerCase()
+      .trim()
+      .slice(0, 50);
+    
+    if (!threads.has(normalizedSubject)) {
+      threads.set(normalizedSubject, []);
+    }
+    threads.get(normalizedSubject)!.push(email);
+  }
+  
+  const projects: DetectedProject[] = [];
+  
+  for (const [subject, threadEmails] of threads) {
+    if (threadEmails.length < 2) continue; // Need at least 2 emails to be a project
+    
+    const allText = threadEmails.map(e => `${e.subject} ${e.body}`).join(' ').toLowerCase();
+    const keyTopics = extractKeyTopics(allText);
+    
+    const timestamps = threadEmails.map(e => e.receivedAt);
+    const firstEmail = new Date(Math.min(...timestamps.map((t: Date) => t.getTime())));
+    const lastEmail = new Date(Math.max(...timestamps.map((t: Date) => t.getTime())));
+    
+    // Determine status based on recency
+    const daysSinceLastEmail = (Date.now() - lastEmail.getTime()) / (1000 * 60 * 60 * 24);
+    let status: 'in_progress' | 'completed' | 'stalled' = 'in_progress';
+    if (daysSinceLastEmail > 14) status = 'stalled';
+    
+    const progress = Math.min(80, threadEmails.length * 15);
+    
+    projects.push({
+      name: subject.slice(0, 60) || 'Email Thread',
+      description: `Email thread with ${threadEmails.length} messages about ${keyTopics.slice(0, 2).join(', ')}`,
+      status,
+      progress,
+      nextStep: `Follow up on email thread: "${subject}"`,
+      lastActive: lastEmail,
+      sessionId: `email-${subject.replace(/[^a-z0-9]/g, '-')}`,
+      messageCount: threadEmails.length,
+      context: {
+        keyTopics: keyTopics.slice(0, 5),
+        sampleMessages: threadEmails.slice(0, 3).map(e => `From: ${e.from}\nSubject: ${e.subject}\n${e.body.slice(0, 150)}`),
+        firstMessageAt: firstEmail.toISOString(),
+        lastMessageAt: lastEmail.toISOString(),
+      },
+    });
+  }
+  
+  return projects;
 }
 
 main();

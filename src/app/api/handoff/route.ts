@@ -71,36 +71,168 @@ export async function GET() {
 
 // POST: Submit handoff selections — activate NightShift for tonight
 export async function POST(req: NextRequest) {
-  const { userId } = await auth();
-  if (!userId) return apiError('Unauthorized', 401);
+  const { userId: clerkId } = await auth();
+  if (!clerkId) return apiError('Unauthorized', 401);
 
   try {
     const body = await req.json();
-    const { tasks, specialInstructions, wakeTime } = body;
+    const { projectIds, instructions } = body;
 
-    if (!tasks || !Array.isArray(tasks) || tasks.length === 0) {
-      return apiError('No tasks selected for handoff', 400);
+    if (!projectIds || !Array.isArray(projectIds) || projectIds.length === 0) {
+      return apiError('No projects selected for handoff', 400);
     }
 
-    // TODO: Person 3 (Royce) — Implement handoff submission:
-    // 1. Validate task IDs
-    // 2. Store handoff session in DB
-    // 3. Trigger OpenClaw orchestration workflow
-    // 4. Update user's wake time if provided
+    // Find user
+    const user = await db.user.findUnique({ where: { clerkId } });
+    if (!user) return apiError('User not found', 404);
 
-    console.log(`[handoff] Activated for user ${userId}:`, {
-      taskCount: tasks.length,
-      specialInstructions,
-      wakeTime,
+    console.log(`[handoff] Triggering overnight loop for user ${user.id} with ${projectIds.length} projects`);
+
+    // Trigger the overnight loop orchestration agent
+    // In production, this would be queued as a background job
+    // For now, we'll spawn it as a child process
+    const { spawn } = await import('child_process');
+    const path = await import('path');
+    const scriptPath = path.join(process.cwd(), 'orchestration', 'overnight-loop.mjs');
+    
+    const args = [
+      scriptPath,
+      `--user-id=${user.id}`,
+      `--project-ids=${projectIds.join(',')}`,
+    ];
+    
+    if (instructions) {
+      args.push(`--instructions=${instructions}`);
+    }
+
+    // Spawn the overnight loop as a background process
+    const child = spawn('node', args, {
+      detached: true,
+      stdio: 'ignore',
+      cwd: process.cwd(),
+      env: {
+        ...process.env,
+        ANTHROPIC_API_KEY: process.env.ANTHROPIC_API_KEY,
+        NEXT_PUBLIC_API_URL: process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000',
+      },
     });
+
+    child.unref(); // Allow parent to exit independently
+
+    console.log(`[handoff] Overnight loop started (PID: ${child.pid})`);
 
     return apiSuccess({
-      message: 'NightShift activated',
-      tasksQueued: tasks.length,
-      estimatedCompletion: wakeTime || '07:00',
+      success: true,
+      message: 'NightShift overnight loop activated',
+      projectsQueued: projectIds.length,
+      processId: child.pid,
+      estimatedCompletion: 'Check morning brief for results',
     });
   } catch (error) {
-    console.error('[handoff] Error:', error);
+    console.error('[handoff] Fatal error:', error);
     return apiError('Failed to activate NightShift', 500);
   }
+}
+
+// ─── Helper Functions ────────────────────────────────────────────────────────
+
+import Anthropic from '@anthropic-ai/sdk';
+import db from '@/lib/db';
+import fs from 'fs';
+import path from 'path';
+
+const anthropic = new Anthropic({
+  apiKey: process.env.ANTHROPIC_API_KEY!,
+});
+
+async function queryVectorContext(project: any, context: any) {
+  // Try to use sample messages from project context
+  if (context?.sampleMessages?.length > 0) {
+    return context.sampleMessages.map((msg: string, i: number) => ({
+      id: `context-${i}`,
+      score: 0.8,
+      content: msg,
+      metadata: { source: 'project_context' },
+    }));
+  }
+  return [];
+}
+
+function buildPrompt(project: any, context: any, contextResults: any[], instructions?: string) {
+  const system = [
+    'You are NightShift AI, an autonomous work continuation agent.',
+    'Your job is to pick up where the user left off and continue their work.',
+    'Be thorough and complete — produce real, usable output.',
+    instructions ? `Special instructions: ${instructions}` : '',
+  ].filter(Boolean).join('\n');
+
+  const contextSection = contextResults.length > 0
+    ? contextResults.map((r, i) => `### Context ${i + 1}\n${r.content}`).join('\n\n')
+    : '(No additional context available)';
+
+  const user = [
+    `# Project: ${project.name}`,
+    `**Description:** ${project.description || 'Not provided'}`,
+    `**Progress:** ${project.progress}%`,
+    `**Next Step:** ${context?.nextStep || 'Continue based on context'}`,
+    '',
+    '## Context',
+    contextSection,
+    '',
+    '**Your task:** Continue this work. Produce the next meaningful chunk of progress.',
+  ].join('\n');
+
+  return { system, user };
+}
+
+async function generateContinuation(prompt: { system: string; user: string }) {
+  const response = await anthropic.messages.create({
+    model: 'claude-sonnet-4-20250514',
+    max_tokens: 8192,
+    system: prompt.system,
+    messages: [{ role: 'user', content: prompt.user }],
+  });
+
+  const content = response.content
+    .filter(block => block.type === 'text')
+    .map(block => block.text)
+    .join('\n\n');
+
+  return {
+    content,
+    tokensUsed: response.usage.input_tokens + response.usage.output_tokens,
+    length: content.length,
+  };
+}
+
+async function saveContinuationFile(project: any, continuation: any) {
+  const continuationsDir = path.join(process.cwd(), 'data', 'continuations');
+  
+  if (!fs.existsSync(continuationsDir)) {
+    fs.mkdirSync(continuationsDir, { recursive: true });
+  }
+
+  const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, -5);
+  const safeName = project.name
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-|-$/g, '')
+    .slice(0, 50);
+  const filename = `${safeName}-${timestamp}.md`;
+  const filepath = path.join(continuationsDir, filename);
+
+  const output = [
+    '# NightShift Work Continuation',
+    '',
+    `**Project:** ${project.name}`,
+    `**Generated:** ${new Date().toISOString()}`,
+    `**Progress Before:** ${project.progress}%`,
+    '',
+    '---',
+    '',
+    continuation.content,
+  ].join('\n');
+
+  fs.writeFileSync(filepath, output, 'utf-8');
+  return filepath;
 }

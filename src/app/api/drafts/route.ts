@@ -1,12 +1,14 @@
 /**
  * OWNER: Person 4 (Voice/UI)
- * PURPOSE: GET: list all pending drafts for a user
+ * PURPOSE: GET: list all pending drafts for a user, POST: create new draft
  * DEPENDENCIES: Prisma, @clerk/nextjs
- * STATUS: Scaffold — returns mock data, needs real implementation
+ * STATUS: LIVE — GET returns mock data, POST creates real drafts
  */
 
+import { NextRequest } from 'next/server';
 import { auth } from '@clerk/nextjs/server';
 import { apiSuccess, apiError } from '@/lib/utils';
+import db from '@/lib/db';
 
 // GET: List all pending drafts for the authenticated user
 export async function GET() {
@@ -47,4 +49,44 @@ export async function GET() {
   ];
 
   return apiSuccess(mockDrafts);
+}
+
+// POST: Create a new draft (for orchestration scripts, no auth required if userId provided)
+export async function POST(req: NextRequest) {
+  try {
+    const body = await req.json();
+    const { userId, type, title, content, targetApp, confidenceScore, status, context } = body;
+
+    if (!userId || !type || !title || !content || !targetApp) {
+      return apiError('Missing required fields: userId, type, title, content, targetApp', 400);
+    }
+
+    // Create draft in database
+    const draft = await db.draft.create({
+      data: {
+        userId,
+        type,
+        title,
+        content,
+        targetApp,
+        confidenceScore: confidenceScore || 0.5,
+        status: status || 'pending',
+        context: typeof context === 'string' ? context : JSON.stringify(context || {}),
+      },
+    });
+
+    console.log(`[drafts] Created draft: ${draft.id} (${draft.type})`);
+
+    return apiSuccess({
+      id: draft.id,
+      draftId: draft.id,
+      type: draft.type,
+      title: draft.title,
+      confidenceScore: draft.confidenceScore,
+      status: draft.status,
+    });
+  } catch (error) {
+    console.error('[drafts] Error:', error);
+    return apiError('Failed to create draft', 500);
+  }
 }

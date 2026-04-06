@@ -61,22 +61,50 @@ export async function GET() {
       summaryParts.push('No projects detected yet. Run the project detector to analyze your chat history.');
     }
 
-    // Build completed actions from completed projects
-    const completedActions = completed.map(p => {
-      const ctx = p.context ? JSON.parse(p.context) : {};
-      return {
-        id: p.id,
-        userId: p.userId,
-        type: 'task_completed' as const,
-        title: p.name,
-        description: p.description || ctx.nextStep || 'Project completed',
-        app: 'claude',
-        confidence: (p.progress / 100),
-        status: 'completed' as const,
-        metadata: null,
-        createdAt: p.updatedAt.toISOString(),
-      };
-    });
+    // Get real Action records from database (last 24 hours)
+    const yesterday = new Date();
+    yesterday.setDate(yesterday.getDate() - 1);
+    
+    const recentActions = user ? await db.action.findMany({
+      where: {
+        userId: user.id,
+        createdAt: { gte: yesterday },
+        status: 'completed',
+      },
+      orderBy: { createdAt: 'desc' },
+      take: 10,
+    }) : [];
+
+    // Build completed actions from real Action records
+    const completedActions = recentActions.length > 0 
+      ? recentActions.map(a => ({
+          id: a.id,
+          userId: a.userId,
+          type: a.type,
+          title: a.title,
+          description: a.description || '',
+          app: a.app,
+          confidence: a.confidence || 0.8,
+          status: a.status,
+          metadata: a.metadata,
+          createdAt: a.createdAt.toISOString(),
+        }))
+      : completed.map(p => {
+          // Fallback to completed projects if no actions exist
+          const ctx = p.context ? JSON.parse(p.context) : {};
+          return {
+            id: p.id,
+            userId: p.userId,
+            type: 'task_completed' as const,
+            title: p.name,
+            description: p.description || ctx.nextStep || 'Project completed',
+            app: 'claude',
+            confidence: (p.progress / 100),
+            status: 'completed' as const,
+            metadata: null,
+            createdAt: p.updatedAt.toISOString(),
+          };
+        });
 
     // Build flagged items from stalled projects
     const flaggedItems = stalled.map(p => {

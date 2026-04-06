@@ -2,7 +2,7 @@
  * OWNER: Person 3 (Royce/OpenClaw)
  * PURPOSE: POST: OpenClaw calls this to report completed actions
  * DEPENDENCIES: Prisma
- * STATUS: Scaffold — needs real implementation with webhook verification
+ * STATUS: LIVE — stores actions in DB with optional webhook verification
  */
 
 import { NextRequest } from 'next/server';
@@ -11,9 +11,11 @@ import db from '@/lib/db';
 
 // POST: OpenClaw reports a completed action
 export async function POST(req: NextRequest) {
-  // TODO: Person 3 (Royce) — Verify OpenClaw webhook secret
+  // Verify OpenClaw webhook secret (skip if not configured for local dev)
   const webhookSecret = req.headers.get('x-openclaw-secret');
-  if (webhookSecret !== process.env.OPENCLAW_WEBHOOK_SECRET) {
+  const expectedSecret = process.env.OPENCLAW_WEBHOOK_SECRET;
+  
+  if (expectedSecret && webhookSecret !== expectedSecret) {
     return apiError('Invalid webhook secret', 401);
   }
 
@@ -25,28 +27,28 @@ export async function POST(req: NextRequest) {
       return apiError('Missing required fields: userId, type, title, app', 400);
     }
 
-    // TODO: Person 3 (Royce) — Store action in DB
-    // const action = await db.action.create({
-    //   data: {
-    //     userId,
-    //     type,
-    //     title,
-    //     description: description || null,
-    //     app,
-    //     confidence: confidence || null,
-    //     status: status || 'completed',
-    //     metadata: metadata ? JSON.stringify(metadata) : null,
-    //   },
-    // });
+    // Store action in DB
+    const action = await db.action.create({
+      data: {
+        userId,
+        type,
+        title,
+        description: description || null,
+        app,
+        confidence: confidence || null,
+        status: status || 'completed',
+        metadata: typeof metadata === 'string' ? metadata : JSON.stringify(metadata || {}),
+      },
+    });
 
-    console.log(`[actions] Action reported: ${type} — ${title} (${app})`);
+    console.log(`[actions] Action recorded: ${type} — ${title} (${app}) [${action.id}]`);
 
     return apiSuccess({
       message: 'Action recorded',
-      actionId: 'act_' + Date.now(),
+      actionId: action.id,
       type,
       title,
-      status: status || 'completed',
+      status: action.status,
     });
   } catch (error) {
     console.error('[actions] Error:', error);
