@@ -94,8 +94,15 @@ Respond with this exact JSON structure:
   "status": "in_progress" or "completed" or "stalled",
   "progress": <number 0-100 estimating how complete the work is>,
   "nextStep": "one specific actionable sentence describing what should happen next",
-  "keyTopics": ["topic1", "topic2", "topic3"]
-}`;
+  "keyTopics": ["topic1", "topic2", "topic3"],
+  "classification": "code_build" or "document_build" or "academic_deliverable" or "other"
+}
+
+Classification guide:
+- "code_build": Building software, apps, websites, scripts, or any programming project
+- "document_build": Writing documents, reports, presentations, pitch decks, or content
+- "academic_deliverable": Homework, assignments, papers, thesis, or academic work
+- "other": Everything else (planning, research, casual discussions)`;
 
   try {
     const response = await client.messages.create({
@@ -118,6 +125,7 @@ Respond with this exact JSON structure:
       lastActive: lastMsg,
       sessionId: conv.sessionId,
       messageCount: conv.messages.length,
+      classification: parsed.classification || 'other',
       context: {
         keyTopics: parsed.keyTopics || [],
         sampleMessages: userMessages.slice(0, 3).map(m => m.content.slice(0, 200)),
@@ -472,6 +480,7 @@ async function main() {
                   nextStep: proj.nextStep,
                   sessionId: proj.sessionId,
                   messageCount: proj.messageCount,
+                  classification: proj.classification || 'other',
                   detectedAt: new Date().toISOString(),
                   lastAnalyzed: new Date().toISOString(),
                 }),
@@ -494,6 +503,7 @@ async function main() {
                   nextStep: proj.nextStep,
                   sessionId: proj.sessionId,
                   messageCount: proj.messageCount,
+                  classification: proj.classification || 'other',
                   detectedAt: new Date().toISOString(),
                   lastAnalyzed: new Date().toISOString(),
                 }),

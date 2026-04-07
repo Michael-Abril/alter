@@ -11,7 +11,7 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { CheckCircle2, Loader2, Upload, AlertCircle } from 'lucide-react';
 
-type OnboardingStep = 'welcome' | 'gmail' | 'canvas' | 'import' | 'processing' | 'reveal';
+type OnboardingStep = 'welcome' | 'gmail' | 'github' | 'canvas' | 'import' | 'processing' | 'reveal';
 
 interface Project {
   id: string;
@@ -36,6 +36,13 @@ export default function OnboardingPage() {
   const [gmailConnected, setGmailConnected] = useState(false);
   const [gmailLoading, setGmailLoading] = useState(false);
   
+  // GitHub connection state
+  const [githubConnected, setGithubConnected] = useState(false);
+  const [githubLoading, setGithubLoading] = useState(false);
+  const [githubRepos, setGithubRepos] = useState<any[]>([]);
+  const [selectedRepo, setSelectedRepo] = useState('');
+  const [githubError, setGithubError] = useState('');
+  
   // Canvas connection state
   const [canvasToken, setCanvasToken] = useState('');
   const [canvasDomain, setCanvasDomain] = useState('babson.instructure.com');
@@ -59,10 +66,50 @@ export default function OnboardingPage() {
   // Detected projects
   const [projects, setProjects] = useState<Project[]>([]);
   
-  // Check if user already has Gmail connected
+  // Check if user already has Gmail and GitHub connected
   useEffect(() => {
     checkGmailStatus();
+    checkGitHubStatus();
+    
+    // Check for GitHub OAuth callback
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('github_connected') === 'true') {
+      setGithubConnected(true);
+      setStep('github');
+      // Fetch repos after successful OAuth
+      fetchGitHubRepos();
+    }
   }, []);
+  
+  // Auto-advance when Gmail is connected and we're on the Gmail step
+  useEffect(() => {
+    if (step === 'gmail' && gmailConnected) {
+      const timer = setTimeout(() => {
+        setStep('github');
+      }, 2000);
+      return () => clearTimeout(timer);
+    }
+  }, [step, gmailConnected]);
+  
+  // Auto-advance when GitHub is connected and repo is selected
+  useEffect(() => {
+    if (step === 'github' && githubConnected && selectedRepo && githubRepos.length > 0) {
+      const timer = setTimeout(() => {
+        setStep('canvas');
+      }, 2000);
+      return () => clearTimeout(timer);
+    }
+  }, [step, githubConnected, selectedRepo, githubRepos.length]);
+  
+  // Auto-advance when Canvas is connected
+  useEffect(() => {
+    if (step === 'canvas' && canvasConnected) {
+      const timer = setTimeout(() => {
+        setStep('import');
+      }, 2000);
+      return () => clearTimeout(timer);
+    }
+  }, [step, canvasConnected]);
   
   async function checkGmailStatus() {
     try {
@@ -88,6 +135,79 @@ export default function OnboardingPage() {
     } catch (err) {
       console.error('Failed to connect Gmail:', err);
       setGmailLoading(false);
+    }
+  }
+  
+  async function checkGitHubStatus() {
+    try {
+      const res = await fetch('/api/github/status');
+      const data = await res.json();
+      if (data.success && data.data?.connected) {
+        setGithubConnected(true);
+        setSelectedRepo(data.data.defaultRepo || '');
+      }
+    } catch (err) {
+      console.error('Failed to check GitHub status:', err);
+    }
+  }
+  
+  async function connectGitHub() {
+    setGithubLoading(true);
+    setGithubError('');
+    try {
+      // Redirect to GitHub OAuth
+      window.location.href = '/api/github/connect';
+    } catch (err) {
+      console.error('Failed to connect GitHub:', err);
+      setGithubError('Failed to connect to GitHub. Please try again.');
+      setGithubLoading(false);
+    }
+  }
+  
+  async function fetchGitHubRepos() {
+    try {
+      const res = await fetch('/api/github/repos');
+      const data = await res.json();
+      if (data.success && data.data) {
+        setGithubRepos(data.data);
+        // Pre-select first repo or one matching 'nightshift'
+        const nightshiftRepo = data.data.find((r: any) => 
+          r.name.toLowerCase().includes('nightshift')
+        );
+        const defaultRepo = nightshiftRepo || data.data[0];
+        if (defaultRepo) {
+          setSelectedRepo(defaultRepo.fullName);
+        }
+      }
+    } catch (err) {
+      console.error('Failed to fetch GitHub repos:', err);
+      setGithubError('Failed to load repositories');
+    }
+  }
+  
+  async function saveGitHubRepo() {
+    if (!selectedRepo) {
+      setGithubError('Please select a repository');
+      return;
+    }
+    
+    try {
+      const [owner, repo] = selectedRepo.split('/');
+      const res = await fetch('/api/github/set-repo', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ owner, repo, defaultBranch: 'main' }),
+      });
+      
+      const data = await res.json();
+      if (data.success) {
+        setStep('canvas');
+      } else {
+        setGithubError('Failed to save repository selection');
+      }
+    } catch (err) {
+      console.error('Failed to save GitHub repo:', err);
+      setGithubError('Failed to save repository selection');
     }
   }
   
@@ -245,7 +365,7 @@ export default function OnboardingPage() {
     }
   }
 
-  const steps: OnboardingStep[] = ['welcome', 'gmail', 'canvas', 'import', 'processing', 'reveal'];
+  const steps: OnboardingStep[] = ['welcome', 'gmail', 'github', 'canvas', 'import', 'processing', 'reveal'];
   const currentStepIndex = steps.indexOf(step);
   
   return (
@@ -311,7 +431,7 @@ export default function OnboardingPage() {
             
             <button
               className="btn-ghost w-full"
-              onClick={() => setStep('canvas')}
+              onClick={() => setStep('github')}
             >
               Skip for Now
             </button>
@@ -319,7 +439,7 @@ export default function OnboardingPage() {
             {gmailConnected && (
               <button
                 className="btn-primary w-full mt-4"
-                onClick={() => setStep('canvas')}
+                onClick={() => setStep('github')}
               >
                 Continue
               </button>
@@ -327,7 +447,101 @@ export default function OnboardingPage() {
           </div>
         )}
 
-        {/* Step 3: Connect Canvas */}
+        {/* Step 3: Connect GitHub */}
+        {step === 'github' && (
+          <div className="card">
+            <h2 className="text-2xl font-bold mb-3">Connect GitHub (Optional)</h2>
+            <p className="text-nightshift-text-secondary mb-6">
+              Push code continuations as pull requests. If you skip this, code will be saved locally instead.
+            </p>
+            
+            {githubConnected ? (
+              <>
+                <div className="flex items-center gap-3 p-4 rounded-lg bg-green-500/10 border border-green-500/30 mb-4">
+                  <CheckCircle2 className="w-6 h-6 text-green-500" />
+                  <span className="text-green-500 font-medium">GitHub Connected</span>
+                </div>
+                
+                {githubRepos.length > 0 ? (
+                  <div className="mb-4">
+                    <label className="block text-sm font-medium mb-2">Select Repository</label>
+                    <select
+                      value={selectedRepo}
+                      onChange={(e) => setSelectedRepo(e.target.value)}
+                      className="w-full px-3 py-2 bg-nightshift-surface border border-nightshift-border rounded-lg focus:outline-none focus:ring-2 focus:ring-nightshift-accent"
+                    >
+                      {githubRepos.map((repo) => (
+                        <option key={repo.id} value={repo.fullName}>
+                          {repo.fullName} {repo.private ? '(private)' : '(public)'}
+                        </option>
+                      ))}
+                    </select>
+                    <p className="text-xs text-nightshift-text-secondary mt-2">
+                      NightShift will create PRs in this repository
+                    </p>
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-3 p-4 rounded-lg bg-yellow-500/10 border border-yellow-500/30 mb-4">
+                    <AlertCircle className="w-6 h-6 text-yellow-500" />
+                    <div className="text-sm text-yellow-500">
+                      <p className="font-medium">No repositories found</p>
+                      <p className="text-xs mt-1">Create a repository on GitHub first, then refresh this page</p>
+                    </div>
+                  </div>
+                )}
+                
+                {githubError && (
+                  <div className="flex items-center gap-2 p-3 rounded-lg bg-red-500/10 border border-red-500/30 mb-4">
+                    <AlertCircle className="w-5 h-5 text-red-500" />
+                    <span className="text-red-500 text-sm">{githubError}</span>
+                  </div>
+                )}
+                
+                {githubRepos.length > 0 && (
+                  <button
+                    className="btn-primary w-full mb-3"
+                    onClick={saveGitHubRepo}
+                  >
+                    Continue
+                  </button>
+                )}
+              </>
+            ) : (
+              <>
+                <button
+                  className="btn-primary w-full mb-3 flex items-center justify-center gap-2"
+                  onClick={connectGitHub}
+                  disabled={githubLoading}
+                >
+                  {githubLoading ? (
+                    <>
+                      <Loader2 className="w-5 h-5 animate-spin" />
+                      Connecting...
+                    </>
+                  ) : (
+                    'Connect GitHub'
+                  )}
+                </button>
+                
+                {githubError && (
+                  <div className="flex items-center gap-2 p-3 rounded-lg bg-red-500/10 border border-red-500/30 mb-4">
+                    <AlertCircle className="w-5 h-5 text-red-500" />
+                    <span className="text-red-500 text-sm">{githubError}</span>
+                  </div>
+                )}
+              </>
+            )}
+            
+            <button
+              className="btn-ghost w-full"
+              onClick={() => setStep('canvas')}
+            >
+              Skip for Now
+            </button>
+          </div>
+        )}
+
+        {/* Step 4: Connect Canvas */}
         {step === 'canvas' && (
           <div className="card">
             <h2 className="text-2xl font-bold mb-3">Connect Canvas (Optional)</h2>
