@@ -82,9 +82,20 @@ export async function POST(req: NextRequest) {
       return apiError('No projects selected for handoff', 400);
     }
 
-    // Find user
-    const user = await db.user.findUnique({ where: { clerkId } });
-    if (!user) return apiError('User not found', 404);
+    // Find user (with auto-link fallback for dev)
+    let user = await db.user.findUnique({ where: { clerkId } });
+    if (!user) {
+      const testUser = await db.user.findUnique({ where: { clerkId: 'user_test_123' } });
+      if (testUser) {
+        user = await db.user.update({
+          where: { id: testUser.id },
+          data: { clerkId },
+        });
+        console.log(`[handoff] Auto-linked Clerk user ${clerkId} to internal user ${user.id}`);
+      } else {
+        return apiError('User not found', 404);
+      }
+    }
 
     console.log(`[handoff] Triggering overnight loop for user ${user.id} with ${projectIds.length} projects`);
 

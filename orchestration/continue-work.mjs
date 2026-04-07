@@ -15,6 +15,8 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import { pushToGitHub, generatePRBody } from './github-push.mjs';
 import { loadGitHubConfig } from '../src/lib/github.ts';
+import { getOutputPath } from '../src/lib/output.ts';
+import { saveDocx } from '../src/lib/docx-generator.ts';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -374,66 +376,83 @@ function buildContinuationPrompt(project, contextPackage) {
 }
 
 /**
- * Save the continuation output to a file.
+ * Save the continuation output to a file in the proper format.
  */
 async function saveContinuation(project, content) {
-  const continuationsDir = path.join(__dirname, '..', 'data', 'continuations');
-  
-  // Create directory if it doesn't exist
-  if (!fs.existsSync(continuationsDir)) {
-    fs.mkdirSync(continuationsDir, { recursive: true });
-  }
-
   const classification = project.context?.classification || 'other';
-  const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, -5);
-  const safeName = project.name
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-|-$/g, '')
-    .slice(0, 50);
-
-  // Determine file extension based on classification
-  let extension = '.md';
-  let output = content;
   
+  // Code projects: save as code files
   if (classification === 'code_build') {
-    // Try to detect language from content or project name
     const lowerContent = content.toLowerCase();
     const lowerName = project.name.toLowerCase();
     
+    let extension = 'js';
     if (lowerContent.includes('import react') || lowerContent.includes('export default') || 
-        lowerContent.includes('const ') || lowerName.includes('react') || lowerName.includes('next')) {
-      extension = '.tsx';
-    } else if (lowerContent.includes('function ') || lowerContent.includes('const ') || 
-               lowerContent.includes('let ') || lowerContent.includes('var ')) {
-      extension = '.js';
+        lowerName.includes('react') || lowerName.includes('next')) {
+      extension = 'tsx';
     } else if (lowerContent.includes('def ') || lowerContent.includes('import ') || 
                lowerName.includes('python')) {
-      extension = '.py';
+      extension = 'py';
     }
     
-    // For code, don't add metadata header - just raw code
-    output = content;
-  } else {
-    // For documents and academic work, add metadata header
-    output = [
-      '# NightShift Work Continuation',
-      '',
-      `**Project:** ${project.name}`,
-      `**Classification:** ${classification}`,
-      `**Generated:** ${new Date().toISOString()}`,
-      `**Progress Before:** ${project.progress}%`,
-      `**Next Step:** ${project.context?.nextStep || 'N/A'}`,
-      '',
-      '---',
-      '',
-      content,
-    ].join('\n');
+    const filepath = getOutputPath(project.name, extension);
+    fs.writeFileSync(filepath, content, 'utf-8');
+    return filepath;
   }
-
-  const filename = `${safeName}-${timestamp}${extension}`;
-  const filepath = path.join(continuationsDir, filename);
-
+  
+  // Document and academic projects: save as .docx
+  if (classification === 'document_build' || classification === 'academic_deliverable') {
+    // Check if this involves a spreadsheet
+    const lowerContent = content.toLowerCase();
+    const lowerName = project.name.toLowerCase();
+    const isSpreadsheet = lowerContent.includes('excel') || lowerContent.includes('spreadsheet') || 
+                          lowerContent.includes('table') || lowerName.includes('excel') || 
+                          lowerName.includes('spreadsheet');
+    
+    let docContent = content;
+    
+    if (isSpreadsheet) {
+      // Add note about spreadsheet
+      docContent = [
+        '# ⚠️ Spreadsheet Project Detected',
+        '',
+        '**Note:** This project involves an Excel template or spreadsheet. NightShift generated the content below — paste it into your spreadsheet.',
+        '',
+        '---',
+        '',
+        content,
+      ].join('\n');
+    }
+    
+    const filepath = getOutputPath(project.name, 'docx');
+    
+    // Generate .docx file
+    await saveDocx(filepath, {
+      title: project.name,
+      content: docContent,
+      author: 'NightShift AI',
+      subject: `${classification} - ${project.context?.nextStep || 'Continued work'}`,
+    });
+    
+    return filepath;
+  }
+  
+  // Other projects: save as markdown
+  const filepath = getOutputPath(project.name, 'md');
+  const output = [
+    '# NightShift Work Continuation',
+    '',
+    `**Project:** ${project.name}`,
+    `**Classification:** ${classification}`,
+    `**Generated:** ${new Date().toISOString()}`,
+    `**Progress Before:** ${project.progress}%`,
+    `**Next Step:** ${project.context?.nextStep || 'N/A'}`,
+    '',
+    '---',
+    '',
+    content,
+  ].join('\n');
+  
   fs.writeFileSync(filepath, output, 'utf-8');
   return filepath;
 }
@@ -447,6 +466,7 @@ async function logAction(project, outputPath, tokensUsed, apiUrl, prUrl = null) 
       projectId: project.id,
       projectName: project.name,
       outputPath,
+      filePath: outputPath, // Store full file path for dashboard linking
       tokensUsed,
       timestamp: new Date().toISOString(),
     };

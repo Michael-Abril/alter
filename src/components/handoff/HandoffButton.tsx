@@ -8,10 +8,11 @@
 interface HandoffButtonProps {
   selectedCount: number;
   onActivate: () => void;
+  disabled?: boolean;
 }
 
-export default function HandoffButton({ selectedCount, onActivate }: HandoffButtonProps) {
-  const isDisabled = selectedCount === 0;
+export default function HandoffButton({ selectedCount, onActivate, disabled }: HandoffButtonProps) {
+  const isDisabled = selectedCount === 0 || !!disabled;
 
   return (
     <div className="flex items-center justify-between rounded-xl border border-nightshift-border bg-nightshift-bg-card p-6">

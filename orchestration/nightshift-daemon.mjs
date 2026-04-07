@@ -182,7 +182,7 @@ async function runRefresh() {
     // Step 1: Scrape Canvas
     log('  → Scraping Canvas for new assignments...');
     try {
-      await execAsync(`node orchestration/scrape-canvas.mjs --user-id=${USER_ID}`);
+      await execAsync('node orchestration/scrape-canvas.mjs');
       log('  ✅ Canvas scrape complete');
     } catch (err) {
       logError('  ⚠️  Canvas scrape failed', err);

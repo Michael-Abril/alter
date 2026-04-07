@@ -12,6 +12,7 @@ import { usePathname } from 'next/navigation';
 
 const navItems = [
   { href: '/dashboard', label: 'Morning Brief', icon: '☀️' },
+  { href: '/dashboard/drafts', label: 'Draft Review', icon: '✍️' },
   { href: '/dashboard/handoff', label: "Tonight's Handoff", icon: '🌙' },
   { href: '/dashboard/activity', label: 'Activity Log', icon: '📋' },
   { href: '/dashboard/settings', label: 'Settings', icon: '⚙️' },

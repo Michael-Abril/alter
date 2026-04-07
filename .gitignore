@@ -50,3 +50,6 @@ orchestration/*-messages-*.json
 
 # local vector store
 data/vectors/
+
+# continuations (now saved to user's Desktop/Documents/NightShift)
+data/continuations/

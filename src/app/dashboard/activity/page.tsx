@@ -13,74 +13,78 @@ import ConfidenceBadge from '@/components/shared/ConfidenceBadge';
 import AppIcon from '@/components/shared/AppIcon';
 import { timeAgo } from '@/lib/utils';
 import type { Action } from '@/types';
-
-// TODO: Person 3 (Royce) — Replace with real data from /api/actions or activity endpoint
-const mockActions: Action[] = [
-  {
-    id: 'act_1',
-    userId: 'user_1',
-    type: 'email_sent',
-    title: 'Follow-up email to Sarah Chen',
-    description: 'Sent re: Q2 marketing timeline — confirmed Tuesday meeting',
-    app: 'gmail',
-    confidence: 0.92,
-    status: 'completed',
-    metadata: null,
-    createdAt: new Date(Date.now() - 3600000 * 3).toISOString(),
-  },
-  {
-    id: 'act_2',
-    userId: 'user_1',
-    type: 'doc_edited',
-    title: 'Fanzley Proposal — Final Draft',
-    description: 'Completed sections 3-5, added pricing table',
-    app: 'gdocs',
-    confidence: 0.87,
-    status: 'completed',
-    metadata: null,
-    createdAt: new Date(Date.now() - 3600000 * 5).toISOString(),
-  },
-  {
-    id: 'act_3',
-    userId: 'user_1',
-    type: 'flagged',
-    title: 'Email from CEO — urgent tone detected',
-    description: 'Draft created but held for review due to low confidence',
-    app: 'gmail',
-    confidence: 0.45,
-    status: 'flagged',
-    metadata: null,
-    createdAt: new Date(Date.now() - 3600000 * 6).toISOString(),
-  },
-  {
-    id: 'act_4',
-    userId: 'user_1',
-    type: 'email_sent',
-    title: 'Weekly standup notes to team',
-    description: 'Compiled and sent standup notes from this week',
-    app: 'gmail',
-    confidence: 0.94,
-    status: 'completed',
-    metadata: null,
-    createdAt: new Date(Date.now() - 3600000 * 26).toISOString(),
-  },
-  {
-    id: 'act_5',
-    userId: 'user_1',
-    type: 'task_completed',
-    title: 'Updated project timeline in Notion',
-    description: 'Adjusted milestones based on new deadline',
-    app: 'notion',
-    confidence: 0.85,
-    status: 'completed',
-    metadata: null,
-    createdAt: new Date(Date.now() - 3600000 * 28).toISOString(),
-  },
-];
+import db from '@/lib/db';
 
 export default async function ActivityPage() {
   const { userId } = await auth();
   if (!userId) redirect('/sign-in');
+
+  // Fetch real actions from DB
+  let user = await db.user.findUnique({ where: { clerkId: userId } });
+
+  // Dev convenience: auto-link to test user if no user found
+  if (!user) {
+    const testUser = await db.user.findUnique({ where: { clerkId: 'user_test_123' } });
+    if (testUser) {
+      user = await db.user.update({
+        where: { id: testUser.id },
+        data: { clerkId: userId },
+      });
+    }
+  }
+
+  let actions: Action[] = [];
+
+  if (user) {
+    const dbActions = await db.action.findMany({
+      where: { userId: user.id },
+      orderBy: { createdAt: 'desc' },
+      take: 50,
+    });
+
+    actions = dbActions.map((a) => ({
+      id: a.id,
+      userId: a.userId,
+      type: a.type as Action['type'],
+      title: a.title,
+      description: a.description || '',
+      app: a.app,
+      confidence: a.confidence,
+      status: a.status as Action['status'],
+      metadata: a.metadata,
+      createdAt: a.createdAt.toISOString(),
+    }));
+  }
+
+  // Fallback to mock data only when no real actions exist
+  if (actions.length === 0) {
+    actions = [
+      {
+        id: 'mock_act_1',
+        userId: 'mock',
+        type: 'email_sent',
+        title: 'Follow-up email to Sarah Chen',
+        description: 'Sent re: Q2 marketing timeline — confirmed Tuesday meeting',
+        app: 'gmail',
+        confidence: 0.92,
+        status: 'completed',
+        metadata: null,
+        createdAt: new Date(Date.now() - 3600000 * 3).toISOString(),
+      },
+      {
+        id: 'mock_act_2',
+        userId: 'mock',
+        type: 'task_completed',
+        title: 'Updated project timeline in Notion',
+        description: 'Adjusted milestones based on new deadline',
+        app: 'notion',
+        confidence: 0.85,
+        status: 'completed',
+        metadata: null,
+        createdAt: new Date(Date.now() - 3600000 * 28).toISOString(),
+      },
+    ];
+  }
 
   return (
     <div className="flex h-screen">
@@ -110,7 +114,7 @@ export default async function ActivityPage() {
 
             {/* Activity List */}
             <div className="space-y-3">
-              {mockActions.map((action) => (
+              {actions.map((action) => (
                 <div
                   key={action.id}
                   className="card flex items-start gap-4 hover:border-nightshift-accent/20 transition-colors"
@@ -132,6 +136,33 @@ export default async function ActivityPage() {
                         {action.description}
                       </p>
                     )}
+                    {action.metadata && (() => {
+                      try {
+                        const meta = typeof action.metadata === 'string' ? JSON.parse(action.metadata) : action.metadata;
+                        if (meta.filePath || meta.outputPath) {
+                          const filePath = meta.filePath || meta.outputPath;
+                          return (
+                            <div className="mt-2 flex items-center gap-2">
+                              <button
+                                onClick={() => {
+                                  navigator.clipboard.writeText(filePath);
+                                  alert('File path copied to clipboard!');
+                                }}
+                                className="text-xs px-2 py-1 rounded bg-nightshift-accent/10 text-nightshift-accent hover:bg-nightshift-accent/20 transition-colors"
+                              >
+                                📁 Copy File Path
+                              </button>
+                              <span className="text-xs text-nightshift-text-muted truncate max-w-md">
+                                {filePath}
+                              </span>
+                            </div>
+                          );
+                        }
+                      } catch (e) {
+                        return null;
+                      }
+                      return null;
+                    })()}
                     <div className="mt-2 flex items-center gap-3 text-xs text-nightshift-text-muted">
                       <span>{timeAgo(action.createdAt)}</span>
                       <span

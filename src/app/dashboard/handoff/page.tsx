@@ -34,6 +34,9 @@ export default function HandoffPage() {
   const [loading, setLoading] = useState(true);
   const [specialInstructions, setSpecialInstructions] = useState('');
   const [isActivated, setIsActivated] = useState(false);
+  const [activating, setActivating] = useState(false);
+  const [activateError, setActivateError] = useState('');
+  const [activateResult, setActivateResult] = useState<any>(null);
 
   useEffect(() => {
     async function fetchProjects() {
@@ -74,45 +77,25 @@ export default function HandoffPage() {
   const selectedTasks = tasks.filter((t) => t.selected);
 
   const handleActivate = async () => {
+    setActivating(true);
+    setActivateError('');
     try {
-      setLoading(true);
-      
-      // Extract project IDs from selected tasks
-      const projectIds = selectedTasks
-        .map(t => t.projectId)
-        .filter(Boolean);
-
-      if (projectIds.length === 0) {
-        console.error('No valid project IDs in selected tasks');
-        return;
-      }
-
-      console.log('Activating NightShift with projects:', projectIds);
-
-      const response = await fetch('/api/handoff', {
+      const res = await fetch('/api/handoff', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          projectIds,
+          projectIds: selectedTasks.map((t) => t.id),
           instructions: specialInstructions || undefined,
         }),
       });
-
-      if (!response.ok) {
-        const error = await response.json();
-        console.error('Handoff failed:', error);
-        alert('Failed to activate NightShift. Check console for details.');
-        return;
-      }
-
-      const result = await response.json();
-      console.log('NightShift activated:', result);
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error || 'Failed to activate');
+      setActivateResult(json.data);
       setIsActivated(true);
-    } catch (err) {
-      console.error('Error activating NightShift:', err);
-      alert('Failed to activate NightShift. Check console for details.');
+    } catch (err: any) {
+      setActivateError(err.message || 'Something went wrong');
     } finally {
-      setLoading(false);
+      setActivating(false);
     }
   };
 
@@ -137,8 +120,8 @@ export default function HandoffPage() {
                   NightShift Activated
                 </h2>
                 <p className="mt-2 text-nightshift-text-secondary">
-                  {selectedTasks.length} task{selectedTasks.length !== 1 ? 's' : ''} queued. NightShift will start working when
-                  you go to sleep. Sweet dreams!
+                  {activateResult?.projectsQueued || selectedTasks.length} project{(activateResult?.projectsQueued || selectedTasks.length) !== 1 ? 's' : ''} queued.
+                  {activateResult?.estimatedCompletion ? ` ${activateResult.estimatedCompletion}` : ' Sweet dreams!'}
                 </p>
               </div>
             ) : loading ? (
@@ -172,10 +155,22 @@ export default function HandoffPage() {
                   />
                 </div>
 
+                {activateError && (
+                  <div className="card border-nightshift-error/50 text-center">
+                    <p className="text-sm text-nightshift-error">{activateError}</p>
+                  </div>
+                )}
+
                 <HandoffButton
                   selectedCount={selectedTasks.length}
                   onActivate={handleActivate}
+                  disabled={activating}
                 />
+                {activating && (
+                  <p className="text-center text-sm text-nightshift-text-muted animate-pulse">
+                    Activating NightShift...
+                  </p>
+                )}
               </>
             )}
           </div>

@@ -3660,3 +3660,2355 @@ Usage: node scrape-canvas.mjs --user-id=USER_ID
 [2026-04-07T01:06:01.175Z] [INFO]   → Running project detection...
 [2026-04-07T01:06:02.293Z] [INFO]   ✅ Detected 0 projects
 [2026-04-07T01:06:02.293Z] [INFO] Refresh cycle complete in 3.9s
+[2026-04-07T01:06:28.370Z] [INFO] Starting refresh cycle...
+[2026-04-07T01:06:28.371Z] [INFO]   → Scraping Canvas for new assignments...
+[2026-04-07T01:06:28.497Z] [ERROR]   ⚠️  Canvas scrape failed: Command failed: node orchestration/scrape-canvas.mjs
+❌ Missing --user-id parameter
+Usage: node scrape-canvas.mjs --user-id=USER_ID
+
+[2026-04-07T01:06:28.497Z] [ERROR] Error: Command failed: node orchestration/scrape-canvas.mjs
+❌ Missing --user-id parameter
+Usage: node scrape-canvas.mjs --user-id=USER_ID
+
+    at genericNodeError (node:internal/errors:985:15)
+    at wrappedFn (node:internal/errors:539:14)
+    at ChildProcess.exithandler (node:child_process:417:12)
+    at ChildProcess.emit (node:events:508:28)
+    at maybeClose (node:internal/child_process:1100:16)
+    at ChildProcess._handle.onexit (node:internal/child_process:305:5)
+[2026-04-07T01:06:28.497Z] [INFO]   → Embedding new messages...
+[2026-04-07T01:06:30.710Z] [INFO]   ✅ Embedded 0 new messages
+[2026-04-07T01:06:30.711Z] [INFO]   → Running project detection...
+[2026-04-07T01:06:31.754Z] [INFO]   ✅ Detected 0 projects
+[2026-04-07T01:06:31.754Z] [INFO] Refresh cycle complete in 3.4s
+[2026-04-07T01:06:58.381Z] [INFO] Starting refresh cycle...
+[2026-04-07T01:06:58.381Z] [INFO]   → Scraping Canvas for new assignments...
+[2026-04-07T01:06:58.515Z] [ERROR]   ⚠️  Canvas scrape failed: Command failed: node orchestration/scrape-canvas.mjs
+❌ Missing --user-id parameter
+Usage: node scrape-canvas.mjs --user-id=USER_ID
+
+[2026-04-07T01:06:58.515Z] [ERROR] Error: Command failed: node orchestration/scrape-canvas.mjs
+❌ Missing --user-id parameter
+Usage: node scrape-canvas.mjs --user-id=USER_ID
+
+    at genericNodeError (node:internal/errors:985:15)
+    at wrappedFn (node:internal/errors:539:14)
+    at ChildProcess.exithandler (node:child_process:417:12)
+    at ChildProcess.emit (node:events:508:28)
+    at maybeClose (node:internal/child_process:1100:16)
+    at ChildProcess._handle.onexit (node:internal/child_process:305:5)
+[2026-04-07T01:06:58.515Z] [INFO]   → Embedding new messages...
+[2026-04-07T01:07:00.633Z] [INFO]   ✅ Embedded 0 new messages
+[2026-04-07T01:07:00.633Z] [INFO]   → Running project detection...
+[2026-04-07T01:07:01.645Z] [INFO]   ✅ Detected 0 projects
+[2026-04-07T01:07:01.646Z] [INFO] Refresh cycle complete in 3.3s
+[2026-04-07T01:07:28.382Z] [INFO] Starting refresh cycle...
+[2026-04-07T01:07:28.382Z] [INFO]   → Scraping Canvas for new assignments...
+[2026-04-07T01:07:28.516Z] [ERROR]   ⚠️  Canvas scrape failed: Command failed: node orchestration/scrape-canvas.mjs
+❌ Missing --user-id parameter
+Usage: node scrape-canvas.mjs --user-id=USER_ID
+
+[2026-04-07T01:07:28.516Z] [ERROR] Error: Command failed: node orchestration/scrape-canvas.mjs
+❌ Missing --user-id parameter
+Usage: node scrape-canvas.mjs --user-id=USER_ID
+
+    at genericNodeError (node:internal/errors:985:15)
+    at wrappedFn (node:internal/errors:539:14)
+    at ChildProcess.exithandler (node:child_process:417:12)
+    at ChildProcess.emit (node:events:508:28)
+    at maybeClose (node:internal/child_process:1100:16)
+    at ChildProcess._handle.onexit (node:internal/child_process:305:5)
+[2026-04-07T01:07:28.516Z] [INFO]   → Embedding new messages...
+[2026-04-07T01:07:30.550Z] [INFO]   ✅ Embedded 0 new messages
+[2026-04-07T01:07:30.551Z] [INFO]   → Running project detection...
+[2026-04-07T01:07:31.548Z] [INFO]   ✅ Detected 0 projects
+[2026-04-07T01:07:31.548Z] [INFO] Refresh cycle complete in 3.2s
+[2026-04-07T01:07:58.396Z] [INFO] Starting refresh cycle...
+[2026-04-07T01:07:58.397Z] [INFO]   → Scraping Canvas for new assignments...
+[2026-04-07T01:07:58.515Z] [ERROR]   ⚠️  Canvas scrape failed: Command failed: node orchestration/scrape-canvas.mjs
+❌ Missing --user-id parameter
+Usage: node scrape-canvas.mjs --user-id=USER_ID
+
+[2026-04-07T01:07:58.515Z] [ERROR] Error: Command failed: node orchestration/scrape-canvas.mjs
+❌ Missing --user-id parameter
+Usage: node scrape-canvas.mjs --user-id=USER_ID
+
+    at genericNodeError (node:internal/errors:985:15)
+    at wrappedFn (node:internal/errors:539:14)
+    at ChildProcess.exithandler (node:child_process:417:12)
+    at ChildProcess.emit (node:events:508:28)
+    at maybeClose (node:internal/child_process:1100:16)
+    at ChildProcess._handle.onexit (node:internal/child_process:305:5)
+[2026-04-07T01:07:58.516Z] [INFO]   → Embedding new messages...
+[2026-04-07T01:08:00.561Z] [INFO]   ✅ Embedded 0 new messages
+[2026-04-07T01:08:00.561Z] [INFO]   → Running project detection...
+[2026-04-07T01:08:01.588Z] [INFO]   ✅ Detected 0 projects
+[2026-04-07T01:08:01.588Z] [INFO] Refresh cycle complete in 3.2s
+[2026-04-07T01:08:28.403Z] [INFO] Starting refresh cycle...
+[2026-04-07T01:08:28.403Z] [INFO]   → Scraping Canvas for new assignments...
+[2026-04-07T01:08:28.526Z] [ERROR]   ⚠️  Canvas scrape failed: Command failed: node orchestration/scrape-canvas.mjs
+❌ Missing --user-id parameter
+Usage: node scrape-canvas.mjs --user-id=USER_ID
+
+[2026-04-07T01:08:28.526Z] [ERROR] Error: Command failed: node orchestration/scrape-canvas.mjs
+❌ Missing --user-id parameter
+Usage: node scrape-canvas.mjs --user-id=USER_ID
+
+    at genericNodeError (node:internal/errors:985:15)
+    at wrappedFn (node:internal/errors:539:14)
+    at ChildProcess.exithandler (node:child_process:417:12)
+    at ChildProcess.emit (node:events:508:28)
+    at maybeClose (node:internal/child_process:1100:16)
+    at ChildProcess._handle.onexit (node:internal/child_process:305:5)
+[2026-04-07T01:08:28.526Z] [INFO]   → Embedding new messages...
+[2026-04-07T01:08:30.650Z] [INFO]   ✅ Embedded 0 new messages
+[2026-04-07T01:08:30.650Z] [INFO]   → Running project detection...
+[2026-04-07T01:08:31.653Z] [INFO]   ✅ Detected 0 projects
+[2026-04-07T01:08:31.653Z] [INFO] Refresh cycle complete in 3.3s
+[2026-04-07T01:08:58.407Z] [INFO] Starting refresh cycle...
+[2026-04-07T01:08:58.407Z] [INFO]   → Scraping Canvas for new assignments...
+[2026-04-07T01:08:58.528Z] [ERROR]   ⚠️  Canvas scrape failed: Command failed: node orchestration/scrape-canvas.mjs
+❌ Missing --user-id parameter
+Usage: node scrape-canvas.mjs --user-id=USER_ID
+
+[2026-04-07T01:08:58.528Z] [ERROR] Error: Command failed: node orchestration/scrape-canvas.mjs
+❌ Missing --user-id parameter
+Usage: node scrape-canvas.mjs --user-id=USER_ID
+
+    at genericNodeError (node:internal/errors:985:15)
+    at wrappedFn (node:internal/errors:539:14)
+    at ChildProcess.exithandler (node:child_process:417:12)
+    at ChildProcess.emit (node:events:508:28)
+    at maybeClose (node:internal/child_process:1100:16)
+    at ChildProcess._handle.onexit (node:internal/child_process:305:5)
+[2026-04-07T01:08:58.528Z] [INFO]   → Embedding new messages...
+[2026-04-07T01:09:00.712Z] [INFO]   ✅ Embedded 0 new messages
+[2026-04-07T01:09:00.712Z] [INFO]   → Running project detection...
+[2026-04-07T01:09:01.722Z] [INFO]   ✅ Detected 0 projects
+[2026-04-07T01:09:01.722Z] [INFO] Refresh cycle complete in 3.3s
+[2026-04-07T01:09:28.411Z] [INFO] Starting refresh cycle...
+[2026-04-07T01:09:28.411Z] [INFO]   → Scraping Canvas for new assignments...
+[2026-04-07T01:09:28.537Z] [ERROR]   ⚠️  Canvas scrape failed: Command failed: node orchestration/scrape-canvas.mjs
+❌ Missing --user-id parameter
+Usage: node scrape-canvas.mjs --user-id=USER_ID
+
+[2026-04-07T01:09:28.537Z] [ERROR] Error: Command failed: node orchestration/scrape-canvas.mjs
+❌ Missing --user-id parameter
+Usage: node scrape-canvas.mjs --user-id=USER_ID
+
+    at genericNodeError (node:internal/errors:985:15)
+    at wrappedFn (node:internal/errors:539:14)
+    at ChildProcess.exithandler (node:child_process:417:12)
+    at ChildProcess.emit (node:events:508:28)
+    at maybeClose (node:internal/child_process:1100:16)
+    at ChildProcess._handle.onexit (node:internal/child_process:305:5)
+[2026-04-07T01:09:28.537Z] [INFO]   → Embedding new messages...
+[2026-04-07T01:09:30.588Z] [INFO]   ✅ Embedded 0 new messages
+[2026-04-07T01:09:30.588Z] [INFO]   → Running project detection...
+[2026-04-07T01:09:31.594Z] [INFO]   ✅ Detected 0 projects
+[2026-04-07T01:09:31.594Z] [INFO] Refresh cycle complete in 3.2s
+[2026-04-07T01:09:58.422Z] [INFO] Starting refresh cycle...
+[2026-04-07T01:09:58.422Z] [INFO]   → Scraping Canvas for new assignments...
+[2026-04-07T01:09:58.542Z] [ERROR]   ⚠️  Canvas scrape failed: Command failed: node orchestration/scrape-canvas.mjs
+❌ Missing --user-id parameter
+Usage: node scrape-canvas.mjs --user-id=USER_ID
+
+[2026-04-07T01:09:58.543Z] [ERROR] Error: Command failed: node orchestration/scrape-canvas.mjs
+❌ Missing --user-id parameter
+Usage: node scrape-canvas.mjs --user-id=USER_ID
+
+    at genericNodeError (node:internal/errors:985:15)
+    at wrappedFn (node:internal/errors:539:14)
+    at ChildProcess.exithandler (node:child_process:417:12)
+    at ChildProcess.emit (node:events:508:28)
+    at maybeClose (node:internal/child_process:1100:16)
+    at ChildProcess._handle.onexit (node:internal/child_process:305:5)
+[2026-04-07T01:09:58.543Z] [INFO]   → Embedding new messages...
+[2026-04-07T01:10:00.669Z] [INFO]   ✅ Embedded 0 new messages
+[2026-04-07T01:10:00.669Z] [INFO]   → Running project detection...
+[2026-04-07T01:10:01.751Z] [INFO]   ✅ Detected 0 projects
+[2026-04-07T01:10:01.751Z] [INFO] Refresh cycle complete in 3.3s
+[2026-04-07T01:10:28.423Z] [INFO] Starting refresh cycle...
+[2026-04-07T01:10:28.423Z] [INFO]   → Scraping Canvas for new assignments...
+[2026-04-07T01:10:28.548Z] [ERROR]   ⚠️  Canvas scrape failed: Command failed: node orchestration/scrape-canvas.mjs
+❌ Missing --user-id parameter
+Usage: node scrape-canvas.mjs --user-id=USER_ID
+
+[2026-04-07T01:10:28.549Z] [ERROR] Error: Command failed: node orchestration/scrape-canvas.mjs
+❌ Missing --user-id parameter
+Usage: node scrape-canvas.mjs --user-id=USER_ID
+
+    at genericNodeError (node:internal/errors:985:15)
+    at wrappedFn (node:internal/errors:539:14)
+    at ChildProcess.exithandler (node:child_process:417:12)
+    at ChildProcess.emit (node:events:508:28)
+    at maybeClose (node:internal/child_process:1100:16)
+    at ChildProcess._handle.onexit (node:internal/child_process:305:5)
+[2026-04-07T01:10:28.549Z] [INFO]   → Embedding new messages...
+[2026-04-07T01:10:30.743Z] [INFO]   ✅ Embedded 0 new messages
+[2026-04-07T01:10:30.743Z] [INFO]   → Running project detection...
+[2026-04-07T01:10:31.820Z] [INFO]   ✅ Detected 0 projects
+[2026-04-07T01:10:31.820Z] [INFO] Refresh cycle complete in 3.4s
+[2026-04-07T01:10:58.434Z] [INFO] Starting refresh cycle...
+[2026-04-07T01:10:58.435Z] [INFO]   → Scraping Canvas for new assignments...
+[2026-04-07T01:10:58.557Z] [ERROR]   ⚠️  Canvas scrape failed: Command failed: node orchestration/scrape-canvas.mjs
+❌ Missing --user-id parameter
+Usage: node scrape-canvas.mjs --user-id=USER_ID
+
+[2026-04-07T01:10:58.557Z] [ERROR] Error: Command failed: node orchestration/scrape-canvas.mjs
+❌ Missing --user-id parameter
+Usage: node scrape-canvas.mjs --user-id=USER_ID
+
+    at genericNodeError (node:internal/errors:985:15)
+    at wrappedFn (node:internal/errors:539:14)
+    at ChildProcess.exithandler (node:child_process:417:12)
+    at ChildProcess.emit (node:events:508:28)
+    at maybeClose (node:internal/child_process:1100:16)
+    at ChildProcess._handle.onexit (node:internal/child_process:305:5)
+[2026-04-07T01:10:58.557Z] [INFO]   → Embedding new messages...
+[2026-04-07T01:11:00.767Z] [INFO]   ✅ Embedded 0 new messages
+[2026-04-07T01:11:00.767Z] [INFO]   → Running project detection...
+[2026-04-07T01:11:01.832Z] [INFO]   ✅ Detected 0 projects
+[2026-04-07T01:11:01.833Z] [INFO] Refresh cycle complete in 3.4s
+[2026-04-07T01:11:28.447Z] [INFO] Starting refresh cycle...
+[2026-04-07T01:11:28.448Z] [INFO]   → Scraping Canvas for new assignments...
+[2026-04-07T01:11:28.585Z] [ERROR]   ⚠️  Canvas scrape failed: Command failed: node orchestration/scrape-canvas.mjs
+❌ Missing --user-id parameter
+Usage: node scrape-canvas.mjs --user-id=USER_ID
+
+[2026-04-07T01:11:28.586Z] [ERROR] Error: Command failed: node orchestration/scrape-canvas.mjs
+❌ Missing --user-id parameter
+Usage: node scrape-canvas.mjs --user-id=USER_ID
+
+    at genericNodeError (node:internal/errors:985:15)
+    at wrappedFn (node:internal/errors:539:14)
+    at ChildProcess.exithandler (node:child_process:417:12)
+    at ChildProcess.emit (node:events:508:28)
+    at maybeClose (node:internal/child_process:1100:16)
+    at ChildProcess._handle.onexit (node:internal/child_process:305:5)
+[2026-04-07T01:11:28.586Z] [INFO]   → Embedding new messages...
+[2026-04-07T01:11:30.641Z] [INFO]   ✅ Embedded 0 new messages
+[2026-04-07T01:11:30.641Z] [INFO]   → Running project detection...
+[2026-04-07T01:11:31.663Z] [INFO]   ✅ Detected 0 projects
+[2026-04-07T01:11:31.663Z] [INFO] Refresh cycle complete in 3.2s
+[2026-04-07T01:11:58.460Z] [INFO] Starting refresh cycle...
+[2026-04-07T01:11:58.460Z] [INFO]   → Scraping Canvas for new assignments...
+[2026-04-07T01:11:58.583Z] [ERROR]   ⚠️  Canvas scrape failed: Command failed: node orchestration/scrape-canvas.mjs
+❌ Missing --user-id parameter
+Usage: node scrape-canvas.mjs --user-id=USER_ID
+
+[2026-04-07T01:11:58.583Z] [ERROR] Error: Command failed: node orchestration/scrape-canvas.mjs
+❌ Missing --user-id parameter
+Usage: node scrape-canvas.mjs --user-id=USER_ID
+
+    at genericNodeError (node:internal/errors:985:15)
+    at wrappedFn (node:internal/errors:539:14)
+    at ChildProcess.exithandler (node:child_process:417:12)
+    at ChildProcess.emit (node:events:508:28)
+    at maybeClose (node:internal/child_process:1100:16)
+    at ChildProcess._handle.onexit (node:internal/child_process:305:5)
+[2026-04-07T01:11:58.583Z] [INFO]   → Embedding new messages...
+[2026-04-07T01:12:00.727Z] [INFO]   ✅ Embedded 0 new messages
+[2026-04-07T01:12:00.727Z] [INFO]   → Running project detection...
+[2026-04-07T01:12:01.742Z] [INFO]   ✅ Detected 0 projects
+[2026-04-07T01:12:01.742Z] [INFO] Refresh cycle complete in 3.3s
+[2026-04-07T01:12:28.474Z] [INFO] Starting refresh cycle...
+[2026-04-07T01:12:28.474Z] [INFO]   → Scraping Canvas for new assignments...
+[2026-04-07T01:12:28.612Z] [ERROR]   ⚠️  Canvas scrape failed: Command failed: node orchestration/scrape-canvas.mjs
+❌ Missing --user-id parameter
+Usage: node scrape-canvas.mjs --user-id=USER_ID
+
+[2026-04-07T01:12:28.613Z] [ERROR] Error: Command failed: node orchestration/scrape-canvas.mjs
+❌ Missing --user-id parameter
+Usage: node scrape-canvas.mjs --user-id=USER_ID
+
+    at genericNodeError (node:internal/errors:985:15)
+    at wrappedFn (node:internal/errors:539:14)
+    at ChildProcess.exithandler (node:child_process:417:12)
+    at ChildProcess.emit (node:events:508:28)
+    at maybeClose (node:internal/child_process:1100:16)
+    at ChildProcess._handle.onexit (node:internal/child_process:305:5)
+[2026-04-07T01:12:28.613Z] [INFO]   → Embedding new messages...
+[2026-04-07T01:12:30.672Z] [INFO]   ✅ Embedded 0 new messages
+[2026-04-07T01:12:30.672Z] [INFO]   → Running project detection...
+[2026-04-07T01:12:31.722Z] [INFO]   ✅ Detected 0 projects
+[2026-04-07T01:12:31.722Z] [INFO] Refresh cycle complete in 3.2s
+[2026-04-07T01:12:58.477Z] [INFO] Starting refresh cycle...
+[2026-04-07T01:12:58.477Z] [INFO]   → Scraping Canvas for new assignments...
+[2026-04-07T01:12:58.601Z] [ERROR]   ⚠️  Canvas scrape failed: Command failed: node orchestration/scrape-canvas.mjs
+❌ Missing --user-id parameter
+Usage: node scrape-canvas.mjs --user-id=USER_ID
+
+[2026-04-07T01:12:58.601Z] [ERROR] Error: Command failed: node orchestration/scrape-canvas.mjs
+❌ Missing --user-id parameter
+Usage: node scrape-canvas.mjs --user-id=USER_ID
+
+    at genericNodeError (node:internal/errors:985:15)
+    at wrappedFn (node:internal/errors:539:14)
+    at ChildProcess.exithandler (node:child_process:417:12)
+    at ChildProcess.emit (node:events:508:28)
+    at maybeClose (node:internal/child_process:1100:16)
+    at ChildProcess._handle.onexit (node:internal/child_process:305:5)
+[2026-04-07T01:12:58.602Z] [INFO]   → Embedding new messages...
+[2026-04-07T01:13:00.728Z] [INFO]   ✅ Embedded 0 new messages
+[2026-04-07T01:13:00.728Z] [INFO]   → Running project detection...
+[2026-04-07T01:13:01.752Z] [INFO]   ✅ Detected 0 projects
+[2026-04-07T01:13:01.752Z] [INFO] Refresh cycle complete in 3.3s
+[2026-04-07T01:13:28.483Z] [INFO] Starting refresh cycle...
+[2026-04-07T01:13:28.483Z] [INFO]   → Scraping Canvas for new assignments...
+[2026-04-07T01:13:28.616Z] [ERROR]   ⚠️  Canvas scrape failed: Command failed: node orchestration/scrape-canvas.mjs
+❌ Missing --user-id parameter
+Usage: node scrape-canvas.mjs --user-id=USER_ID
+
+[2026-04-07T01:13:28.616Z] [ERROR] Error: Command failed: node orchestration/scrape-canvas.mjs
+❌ Missing --user-id parameter
+Usage: node scrape-canvas.mjs --user-id=USER_ID
+
+    at genericNodeError (node:internal/errors:985:15)
+    at wrappedFn (node:internal/errors:539:14)
+    at ChildProcess.exithandler (node:child_process:417:12)
+    at ChildProcess.emit (node:events:508:28)
+    at maybeClose (node:internal/child_process:1100:16)
+    at ChildProcess._handle.onexit (node:internal/child_process:305:5)
+[2026-04-07T01:13:28.617Z] [INFO]   → Embedding new messages...
+[2026-04-07T01:13:30.806Z] [INFO]   ✅ Embedded 0 new messages
+[2026-04-07T01:13:30.807Z] [INFO]   → Running project detection...
+[2026-04-07T01:13:31.849Z] [INFO]   ✅ Detected 0 projects
+[2026-04-07T01:13:31.850Z] [INFO] Refresh cycle complete in 3.4s
+[2026-04-07T01:13:58.496Z] [INFO] Starting refresh cycle...
+[2026-04-07T01:13:58.496Z] [INFO]   → Scraping Canvas for new assignments...
+[2026-04-07T01:13:58.619Z] [ERROR]   ⚠️  Canvas scrape failed: Command failed: node orchestration/scrape-canvas.mjs
+❌ Missing --user-id parameter
+Usage: node scrape-canvas.mjs --user-id=USER_ID
+
+[2026-04-07T01:13:58.619Z] [ERROR] Error: Command failed: node orchestration/scrape-canvas.mjs
+❌ Missing --user-id parameter
+Usage: node scrape-canvas.mjs --user-id=USER_ID
+
+    at genericNodeError (node:internal/errors:985:15)
+    at wrappedFn (node:internal/errors:539:14)
+    at ChildProcess.exithandler (node:child_process:417:12)
+    at ChildProcess.emit (node:events:508:28)
+    at maybeClose (node:internal/child_process:1100:16)
+    at ChildProcess._handle.onexit (node:internal/child_process:305:5)
+[2026-04-07T01:13:58.619Z] [INFO]   → Embedding new messages...
+[2026-04-07T01:14:00.750Z] [INFO]   ✅ Embedded 0 new messages
+[2026-04-07T01:14:00.750Z] [INFO]   → Running project detection...
+[2026-04-07T01:14:01.762Z] [INFO]   ✅ Detected 0 projects
+[2026-04-07T01:14:01.762Z] [INFO] Refresh cycle complete in 3.3s
+[2026-04-07T01:14:28.509Z] [INFO] Starting refresh cycle...
+[2026-04-07T01:14:28.509Z] [INFO]   → Scraping Canvas for new assignments...
+[2026-04-07T01:14:28.646Z] [ERROR]   ⚠️  Canvas scrape failed: Command failed: node orchestration/scrape-canvas.mjs
+❌ Missing --user-id parameter
+Usage: node scrape-canvas.mjs --user-id=USER_ID
+
+[2026-04-07T01:14:28.646Z] [ERROR] Error: Command failed: node orchestration/scrape-canvas.mjs
+❌ Missing --user-id parameter
+Usage: node scrape-canvas.mjs --user-id=USER_ID
+
+    at genericNodeError (node:internal/errors:985:15)
+    at wrappedFn (node:internal/errors:539:14)
+    at ChildProcess.exithandler (node:child_process:417:12)
+    at ChildProcess.emit (node:events:508:28)
+    at maybeClose (node:internal/child_process:1100:16)
+    at ChildProcess._handle.onexit (node:internal/child_process:305:5)
+[2026-04-07T01:14:28.647Z] [INFO]   → Embedding new messages...
+[2026-04-07T01:14:30.753Z] [INFO]   ✅ Embedded 0 new messages
+[2026-04-07T01:14:30.753Z] [INFO]   → Running project detection...
+[2026-04-07T01:14:31.778Z] [INFO]   ✅ Detected 0 projects
+[2026-04-07T01:14:31.778Z] [INFO] Refresh cycle complete in 3.3s
+[2026-04-07T01:14:58.522Z] [INFO] Starting refresh cycle...
+[2026-04-07T01:14:58.522Z] [INFO]   → Scraping Canvas for new assignments...
+[2026-04-07T01:14:58.646Z] [ERROR]   ⚠️  Canvas scrape failed: Command failed: node orchestration/scrape-canvas.mjs
+❌ Missing --user-id parameter
+Usage: node scrape-canvas.mjs --user-id=USER_ID
+
+[2026-04-07T01:14:58.646Z] [ERROR] Error: Command failed: node orchestration/scrape-canvas.mjs
+❌ Missing --user-id parameter
+Usage: node scrape-canvas.mjs --user-id=USER_ID
+
+    at genericNodeError (node:internal/errors:985:15)
+    at wrappedFn (node:internal/errors:539:14)
+    at ChildProcess.exithandler (node:child_process:417:12)
+    at ChildProcess.emit (node:events:508:28)
+    at maybeClose (node:internal/child_process:1100:16)
+    at ChildProcess._handle.onexit (node:internal/child_process:305:5)
+[2026-04-07T01:14:58.647Z] [INFO]   → Embedding new messages...
+[2026-04-07T01:15:00.691Z] [INFO]   ✅ Embedded 0 new messages
+[2026-04-07T01:15:00.691Z] [INFO]   → Running project detection...
+[2026-04-07T01:15:01.721Z] [INFO]   ✅ Detected 0 projects
+[2026-04-07T01:15:01.721Z] [INFO] Refresh cycle complete in 3.2s
+[2026-04-07T01:15:28.535Z] [INFO] Starting refresh cycle...
+[2026-04-07T01:15:28.536Z] [INFO]   → Scraping Canvas for new assignments...
+[2026-04-07T01:15:28.658Z] [ERROR]   ⚠️  Canvas scrape failed: Command failed: node orchestration/scrape-canvas.mjs
+❌ Missing --user-id parameter
+Usage: node scrape-canvas.mjs --user-id=USER_ID
+
+[2026-04-07T01:15:28.658Z] [ERROR] Error: Command failed: node orchestration/scrape-canvas.mjs
+❌ Missing --user-id parameter
+Usage: node scrape-canvas.mjs --user-id=USER_ID
+
+    at genericNodeError (node:internal/errors:985:15)
+    at wrappedFn (node:internal/errors:539:14)
+    at ChildProcess.exithandler (node:child_process:417:12)
+    at ChildProcess.emit (node:events:508:28)
+    at maybeClose (node:internal/child_process:1100:16)
+    at ChildProcess._handle.onexit (node:internal/child_process:305:5)
+[2026-04-07T01:15:28.658Z] [INFO]   → Embedding new messages...
+[2026-04-07T01:15:30.746Z] [INFO]   ✅ Embedded 0 new messages
+[2026-04-07T01:15:30.746Z] [INFO]   → Running project detection...
+[2026-04-07T01:15:31.823Z] [INFO]   ✅ Detected 0 projects
+[2026-04-07T01:15:31.824Z] [INFO] Refresh cycle complete in 3.3s
+[2026-04-07T01:15:58.547Z] [INFO] Starting refresh cycle...
+[2026-04-07T01:15:58.547Z] [INFO]   → Scraping Canvas for new assignments...
+[2026-04-07T01:15:58.667Z] [ERROR]   ⚠️  Canvas scrape failed: Command failed: node orchestration/scrape-canvas.mjs
+❌ Missing --user-id parameter
+Usage: node scrape-canvas.mjs --user-id=USER_ID
+
+[2026-04-07T01:15:58.667Z] [ERROR] Error: Command failed: node orchestration/scrape-canvas.mjs
+❌ Missing --user-id parameter
+Usage: node scrape-canvas.mjs --user-id=USER_ID
+
+    at genericNodeError (node:internal/errors:985:15)
+    at wrappedFn (node:internal/errors:539:14)
+    at ChildProcess.exithandler (node:child_process:417:12)
+    at ChildProcess.emit (node:events:508:28)
+    at maybeClose (node:internal/child_process:1100:16)
+    at ChildProcess._handle.onexit (node:internal/child_process:305:5)
+[2026-04-07T01:15:58.668Z] [INFO]   → Embedding new messages...
+[2026-04-07T01:16:00.748Z] [INFO]   ✅ Embedded 0 new messages
+[2026-04-07T01:16:00.748Z] [INFO]   → Running project detection...
+[2026-04-07T01:16:01.766Z] [INFO]   ✅ Detected 0 projects
+[2026-04-07T01:16:01.766Z] [INFO] Refresh cycle complete in 3.2s
+[2026-04-07T01:16:28.561Z] [INFO] Starting refresh cycle...
+[2026-04-07T01:16:28.562Z] [INFO]   → Scraping Canvas for new assignments...
+[2026-04-07T01:16:28.700Z] [ERROR]   ⚠️  Canvas scrape failed: Command failed: node orchestration/scrape-canvas.mjs
+❌ Missing --user-id parameter
+Usage: node scrape-canvas.mjs --user-id=USER_ID
+
+[2026-04-07T01:16:28.700Z] [ERROR] Error: Command failed: node orchestration/scrape-canvas.mjs
+❌ Missing --user-id parameter
+Usage: node scrape-canvas.mjs --user-id=USER_ID
+
+    at genericNodeError (node:internal/errors:985:15)
+    at wrappedFn (node:internal/errors:539:14)
+    at ChildProcess.exithandler (node:child_process:417:12)
+    at ChildProcess.emit (node:events:508:28)
+    at maybeClose (node:internal/child_process:1100:16)
+    at ChildProcess._handle.onexit (node:internal/child_process:305:5)
+[2026-04-07T01:16:28.700Z] [INFO]   → Embedding new messages...
+[2026-04-07T01:16:30.767Z] [INFO]   ✅ Embedded 0 new messages
+[2026-04-07T01:16:30.767Z] [INFO]   → Running project detection...
+[2026-04-07T01:16:31.792Z] [INFO]   ✅ Detected 0 projects
+[2026-04-07T01:16:31.792Z] [INFO] Refresh cycle complete in 3.2s
+[2026-04-07T01:16:58.572Z] [INFO] Starting refresh cycle...
+[2026-04-07T01:16:58.572Z] [INFO]   → Scraping Canvas for new assignments...
+[2026-04-07T01:16:58.696Z] [ERROR]   ⚠️  Canvas scrape failed: Command failed: node orchestration/scrape-canvas.mjs
+❌ Missing --user-id parameter
+Usage: node scrape-canvas.mjs --user-id=USER_ID
+
+[2026-04-07T01:16:58.696Z] [ERROR] Error: Command failed: node orchestration/scrape-canvas.mjs
+❌ Missing --user-id parameter
+Usage: node scrape-canvas.mjs --user-id=USER_ID
+
+    at genericNodeError (node:internal/errors:985:15)
+    at wrappedFn (node:internal/errors:539:14)
+    at ChildProcess.exithandler (node:child_process:417:12)
+    at ChildProcess.emit (node:events:508:28)
+    at maybeClose (node:internal/child_process:1100:16)
+    at ChildProcess._handle.onexit (node:internal/child_process:305:5)
+[2026-04-07T01:16:58.697Z] [INFO]   → Embedding new messages...
+[2026-04-07T01:17:00.751Z] [INFO]   ✅ Embedded 0 new messages
+[2026-04-07T01:17:00.751Z] [INFO]   → Running project detection...
+[2026-04-07T01:17:01.771Z] [INFO]   ✅ Detected 0 projects
+[2026-04-07T01:17:01.772Z] [INFO] Refresh cycle complete in 3.2s
+[2026-04-07T01:17:28.572Z] [INFO] Starting refresh cycle...
+[2026-04-07T01:17:28.572Z] [INFO]   → Scraping Canvas for new assignments...
+[2026-04-07T01:17:28.694Z] [ERROR]   ⚠️  Canvas scrape failed: Command failed: node orchestration/scrape-canvas.mjs
+❌ Missing --user-id parameter
+Usage: node scrape-canvas.mjs --user-id=USER_ID
+
+[2026-04-07T01:17:28.695Z] [ERROR] Error: Command failed: node orchestration/scrape-canvas.mjs
+❌ Missing --user-id parameter
+Usage: node scrape-canvas.mjs --user-id=USER_ID
+
+    at genericNodeError (node:internal/errors:985:15)
+    at wrappedFn (node:internal/errors:539:14)
+    at ChildProcess.exithandler (node:child_process:417:12)
+    at ChildProcess.emit (node:events:508:28)
+    at maybeClose (node:internal/child_process:1100:16)
+    at ChildProcess._handle.onexit (node:internal/child_process:305:5)
+[2026-04-07T01:17:28.695Z] [INFO]   → Embedding new messages...
+[2026-04-07T01:17:30.745Z] [INFO]   ✅ Embedded 0 new messages
+[2026-04-07T01:17:30.746Z] [INFO]   → Running project detection...
+[2026-04-07T01:17:31.768Z] [INFO]   ✅ Detected 0 projects
+[2026-04-07T01:17:31.768Z] [INFO] Refresh cycle complete in 3.2s
+[2026-04-07T01:17:58.584Z] [INFO] Starting refresh cycle...
+[2026-04-07T01:17:58.584Z] [INFO]   → Scraping Canvas for new assignments...
+[2026-04-07T01:17:58.705Z] [ERROR]   ⚠️  Canvas scrape failed: Command failed: node orchestration/scrape-canvas.mjs
+❌ Missing --user-id parameter
+Usage: node scrape-canvas.mjs --user-id=USER_ID
+
+[2026-04-07T01:17:58.705Z] [ERROR] Error: Command failed: node orchestration/scrape-canvas.mjs
+❌ Missing --user-id parameter
+Usage: node scrape-canvas.mjs --user-id=USER_ID
+
+    at genericNodeError (node:internal/errors:985:15)
+    at wrappedFn (node:internal/errors:539:14)
+    at ChildProcess.exithandler (node:child_process:417:12)
+    at ChildProcess.emit (node:events:508:28)
+    at maybeClose (node:internal/child_process:1100:16)
+    at ChildProcess._handle.onexit (node:internal/child_process:305:5)
+[2026-04-07T01:17:58.706Z] [INFO]   → Embedding new messages...
+[2026-04-07T01:18:00.837Z] [INFO]   ✅ Embedded 0 new messages
+[2026-04-07T01:18:00.837Z] [INFO]   → Running project detection...
+[2026-04-07T01:18:01.849Z] [INFO]   ✅ Detected 0 projects
+[2026-04-07T01:18:01.849Z] [INFO] Refresh cycle complete in 3.3s
+[2026-04-07T01:18:28.597Z] [INFO] Starting refresh cycle...
+[2026-04-07T01:18:28.597Z] [INFO]   → Scraping Canvas for new assignments...
+[2026-04-07T01:18:28.736Z] [ERROR]   ⚠️  Canvas scrape failed: Command failed: node orchestration/scrape-canvas.mjs
+❌ Missing --user-id parameter
+Usage: node scrape-canvas.mjs --user-id=USER_ID
+
+[2026-04-07T01:18:28.737Z] [ERROR] Error: Command failed: node orchestration/scrape-canvas.mjs
+❌ Missing --user-id parameter
+Usage: node scrape-canvas.mjs --user-id=USER_ID
+
+    at genericNodeError (node:internal/errors:985:15)
+    at wrappedFn (node:internal/errors:539:14)
+    at ChildProcess.exithandler (node:child_process:417:12)
+    at ChildProcess.emit (node:events:508:28)
+    at maybeClose (node:internal/child_process:1100:16)
+    at ChildProcess._handle.onexit (node:internal/child_process:305:5)
+[2026-04-07T01:18:28.737Z] [INFO]   → Embedding new messages...
+[2026-04-07T01:18:30.874Z] [INFO]   ✅ Embedded 0 new messages
+[2026-04-07T01:18:30.874Z] [INFO]   → Running project detection...
+[2026-04-07T01:18:31.895Z] [INFO]   ✅ Detected 0 projects
+[2026-04-07T01:18:31.895Z] [INFO] Refresh cycle complete in 3.3s
+[2026-04-07T01:18:58.610Z] [INFO] Starting refresh cycle...
+[2026-04-07T01:18:58.610Z] [INFO]   → Scraping Canvas for new assignments...
+[2026-04-07T01:18:58.731Z] [ERROR]   ⚠️  Canvas scrape failed: Command failed: node orchestration/scrape-canvas.mjs
+❌ Missing --user-id parameter
+Usage: node scrape-canvas.mjs --user-id=USER_ID
+
+[2026-04-07T01:18:58.732Z] [ERROR] Error: Command failed: node orchestration/scrape-canvas.mjs
+❌ Missing --user-id parameter
+Usage: node scrape-canvas.mjs --user-id=USER_ID
+
+    at genericNodeError (node:internal/errors:985:15)
+    at wrappedFn (node:internal/errors:539:14)
+    at ChildProcess.exithandler (node:child_process:417:12)
+    at ChildProcess.emit (node:events:508:28)
+    at maybeClose (node:internal/child_process:1100:16)
+    at ChildProcess._handle.onexit (node:internal/child_process:305:5)
+[2026-04-07T01:18:58.732Z] [INFO]   → Embedding new messages...
+[2026-04-07T01:19:00.859Z] [INFO]   ✅ Embedded 0 new messages
+[2026-04-07T01:19:00.859Z] [INFO]   → Running project detection...
+[2026-04-07T01:19:01.875Z] [INFO]   ✅ Detected 0 projects
+[2026-04-07T01:19:01.875Z] [INFO] Refresh cycle complete in 3.3s
+[2026-04-07T01:19:28.623Z] [INFO] Starting refresh cycle...
+[2026-04-07T01:19:28.624Z] [INFO]   → Scraping Canvas for new assignments...
+[2026-04-07T01:19:28.747Z] [ERROR]   ⚠️  Canvas scrape failed: Command failed: node orchestration/scrape-canvas.mjs
+❌ Missing --user-id parameter
+Usage: node scrape-canvas.mjs --user-id=USER_ID
+
+[2026-04-07T01:19:28.747Z] [ERROR] Error: Command failed: node orchestration/scrape-canvas.mjs
+❌ Missing --user-id parameter
+Usage: node scrape-canvas.mjs --user-id=USER_ID
+
+    at genericNodeError (node:internal/errors:985:15)
+    at wrappedFn (node:internal/errors:539:14)
+    at ChildProcess.exithandler (node:child_process:417:12)
+    at ChildProcess.emit (node:events:508:28)
+    at maybeClose (node:internal/child_process:1100:16)
+    at ChildProcess._handle.onexit (node:internal/child_process:305:5)
+[2026-04-07T01:19:28.747Z] [INFO]   → Embedding new messages...
+[2026-04-07T01:19:30.803Z] [INFO]   ✅ Embedded 0 new messages
+[2026-04-07T01:19:30.803Z] [INFO]   → Running project detection...
+[2026-04-07T01:19:31.821Z] [INFO]   ✅ Detected 0 projects
+[2026-04-07T01:19:31.822Z] [INFO] Refresh cycle complete in 3.2s
+[2026-04-07T01:19:58.637Z] [INFO] Starting refresh cycle...
+[2026-04-07T01:19:58.637Z] [INFO]   → Scraping Canvas for new assignments...
+[2026-04-07T01:19:58.759Z] [ERROR]   ⚠️  Canvas scrape failed: Command failed: node orchestration/scrape-canvas.mjs
+❌ Missing --user-id parameter
+Usage: node scrape-canvas.mjs --user-id=USER_ID
+
+[2026-04-07T01:19:58.760Z] [ERROR] Error: Command failed: node orchestration/scrape-canvas.mjs
+❌ Missing --user-id parameter
+Usage: node scrape-canvas.mjs --user-id=USER_ID
+
+    at genericNodeError (node:internal/errors:985:15)
+    at wrappedFn (node:internal/errors:539:14)
+    at ChildProcess.exithandler (node:child_process:417:12)
+    at ChildProcess.emit (node:events:508:28)
+    at maybeClose (node:internal/child_process:1100:16)
+    at ChildProcess._handle.onexit (node:internal/child_process:305:5)
+[2026-04-07T01:19:58.760Z] [INFO]   → Embedding new messages...
+[2026-04-07T01:20:00.821Z] [INFO]   ✅ Embedded 0 new messages
+[2026-04-07T01:20:00.821Z] [INFO]   → Running project detection...
+[2026-04-07T01:20:01.833Z] [INFO]   ✅ Detected 0 projects
+[2026-04-07T01:20:01.833Z] [INFO] Refresh cycle complete in 3.2s
+[2026-04-07T01:20:28.649Z] [INFO] Starting refresh cycle...
+[2026-04-07T01:20:28.649Z] [INFO]   → Scraping Canvas for new assignments...
+[2026-04-07T01:20:28.771Z] [ERROR]   ⚠️  Canvas scrape failed: Command failed: node orchestration/scrape-canvas.mjs
+❌ Missing --user-id parameter
+Usage: node scrape-canvas.mjs --user-id=USER_ID
+
+[2026-04-07T01:20:28.771Z] [ERROR] Error: Command failed: node orchestration/scrape-canvas.mjs
+❌ Missing --user-id parameter
+Usage: node scrape-canvas.mjs --user-id=USER_ID
+
+    at genericNodeError (node:internal/errors:985:15)
+    at wrappedFn (node:internal/errors:539:14)
+    at ChildProcess.exithandler (node:child_process:417:12)
+    at ChildProcess.emit (node:events:508:28)
+    at maybeClose (node:internal/child_process:1100:16)
+    at ChildProcess._handle.onexit (node:internal/child_process:305:5)
+[2026-04-07T01:20:28.771Z] [INFO]   → Embedding new messages...
+[2026-04-07T01:20:30.849Z] [INFO]   ✅ Embedded 0 new messages
+[2026-04-07T01:20:30.849Z] [INFO]   → Running project detection...
+[2026-04-07T01:20:31.869Z] [INFO]   ✅ Detected 0 projects
+[2026-04-07T01:20:31.869Z] [INFO] Refresh cycle complete in 3.2s
+[2026-04-07T01:20:58.655Z] [INFO] Starting refresh cycle...
+[2026-04-07T01:20:58.655Z] [INFO]   → Scraping Canvas for new assignments...
+[2026-04-07T01:20:58.775Z] [ERROR]   ⚠️  Canvas scrape failed: Command failed: node orchestration/scrape-canvas.mjs
+❌ Missing --user-id parameter
+Usage: node scrape-canvas.mjs --user-id=USER_ID
+
+[2026-04-07T01:20:58.775Z] [ERROR] Error: Command failed: node orchestration/scrape-canvas.mjs
+❌ Missing --user-id parameter
+Usage: node scrape-canvas.mjs --user-id=USER_ID
+
+    at genericNodeError (node:internal/errors:985:15)
+    at wrappedFn (node:internal/errors:539:14)
+    at ChildProcess.exithandler (node:child_process:417:12)
+    at ChildProcess.emit (node:events:508:28)
+    at maybeClose (node:internal/child_process:1100:16)
+    at ChildProcess._handle.onexit (node:internal/child_process:305:5)
+[2026-04-07T01:20:58.776Z] [INFO]   → Embedding new messages...
+[2026-04-07T01:21:00.806Z] [INFO]   ✅ Embedded 0 new messages
+[2026-04-07T01:21:00.806Z] [INFO]   → Running project detection...
+[2026-04-07T01:21:01.805Z] [INFO]   ✅ Detected 0 projects
+[2026-04-07T01:21:01.805Z] [INFO] Refresh cycle complete in 3.1s
+[2026-04-07T01:21:28.667Z] [INFO] Starting refresh cycle...
+[2026-04-07T01:21:28.668Z] [INFO]   → Scraping Canvas for new assignments...
+[2026-04-07T01:21:28.789Z] [ERROR]   ⚠️  Canvas scrape failed: Command failed: node orchestration/scrape-canvas.mjs
+❌ Missing --user-id parameter
+Usage: node scrape-canvas.mjs --user-id=USER_ID
+
+[2026-04-07T01:21:28.789Z] [ERROR] Error: Command failed: node orchestration/scrape-canvas.mjs
+❌ Missing --user-id parameter
+Usage: node scrape-canvas.mjs --user-id=USER_ID
+
+    at genericNodeError (node:internal/errors:985:15)
+    at wrappedFn (node:internal/errors:539:14)
+    at ChildProcess.exithandler (node:child_process:417:12)
+    at ChildProcess.emit (node:events:508:28)
+    at maybeClose (node:internal/child_process:1100:16)
+    at ChildProcess._handle.onexit (node:internal/child_process:305:5)
+[2026-04-07T01:21:28.790Z] [INFO]   → Embedding new messages...
+[2026-04-07T01:21:30.865Z] [INFO]   ✅ Embedded 0 new messages
+[2026-04-07T01:21:30.865Z] [INFO]   → Running project detection...
+[2026-04-07T01:21:31.864Z] [INFO]   ✅ Detected 0 projects
+[2026-04-07T01:21:31.865Z] [INFO] Refresh cycle complete in 3.2s
+[2026-04-07T01:21:58.667Z] [INFO] Starting refresh cycle...
+[2026-04-07T01:21:58.667Z] [INFO]   → Scraping Canvas for new assignments...
+[2026-04-07T01:21:58.800Z] [ERROR]   ⚠️  Canvas scrape failed: Command failed: node orchestration/scrape-canvas.mjs
+❌ Missing --user-id parameter
+Usage: node scrape-canvas.mjs --user-id=USER_ID
+
+[2026-04-07T01:21:58.800Z] [ERROR] Error: Command failed: node orchestration/scrape-canvas.mjs
+❌ Missing --user-id parameter
+Usage: node scrape-canvas.mjs --user-id=USER_ID
+
+    at genericNodeError (node:internal/errors:985:15)
+    at wrappedFn (node:internal/errors:539:14)
+    at ChildProcess.exithandler (node:child_process:417:12)
+    at ChildProcess.emit (node:events:508:28)
+    at maybeClose (node:internal/child_process:1100:16)
+    at ChildProcess._handle.onexit (node:internal/child_process:305:5)
+[2026-04-07T01:21:58.800Z] [INFO]   → Embedding new messages...
+[2026-04-07T01:22:00.843Z] [INFO]   ✅ Embedded 0 new messages
+[2026-04-07T01:22:00.844Z] [INFO]   → Running project detection...
+[2026-04-07T01:22:01.849Z] [INFO]   ✅ Detected 0 projects
+[2026-04-07T01:22:01.849Z] [INFO] Refresh cycle complete in 3.2s
+[2026-04-07T01:22:28.672Z] [INFO] Starting refresh cycle...
+[2026-04-07T01:22:28.672Z] [INFO]   → Scraping Canvas for new assignments...
+[2026-04-07T01:22:28.793Z] [ERROR]   ⚠️  Canvas scrape failed: Command failed: node orchestration/scrape-canvas.mjs
+❌ Missing --user-id parameter
+Usage: node scrape-canvas.mjs --user-id=USER_ID
+
+[2026-04-07T01:22:28.793Z] [ERROR] Error: Command failed: node orchestration/scrape-canvas.mjs
+❌ Missing --user-id parameter
+Usage: node scrape-canvas.mjs --user-id=USER_ID
+
+    at genericNodeError (node:internal/errors:985:15)
+    at wrappedFn (node:internal/errors:539:14)
+    at ChildProcess.exithandler (node:child_process:417:12)
+    at ChildProcess.emit (node:events:508:28)
+    at maybeClose (node:internal/child_process:1100:16)
+    at ChildProcess._handle.onexit (node:internal/child_process:305:5)
+[2026-04-07T01:22:28.793Z] [INFO]   → Embedding new messages...
+[2026-04-07T01:22:30.826Z] [INFO]   ✅ Embedded 0 new messages
+[2026-04-07T01:22:30.826Z] [INFO]   → Running project detection...
+[2026-04-07T01:22:31.827Z] [INFO]   ✅ Detected 0 projects
+[2026-04-07T01:22:31.827Z] [INFO] Refresh cycle complete in 3.2s
+[2026-04-07T01:22:58.678Z] [INFO] Starting refresh cycle...
+[2026-04-07T01:22:58.678Z] [INFO]   → Scraping Canvas for new assignments...
+[2026-04-07T01:22:58.800Z] [ERROR]   ⚠️  Canvas scrape failed: Command failed: node orchestration/scrape-canvas.mjs
+❌ Missing --user-id parameter
+Usage: node scrape-canvas.mjs --user-id=USER_ID
+
+[2026-04-07T01:22:58.800Z] [ERROR] Error: Command failed: node orchestration/scrape-canvas.mjs
+❌ Missing --user-id parameter
+Usage: node scrape-canvas.mjs --user-id=USER_ID
+
+    at genericNodeError (node:internal/errors:985:15)
+    at wrappedFn (node:internal/errors:539:14)
+    at ChildProcess.exithandler (node:child_process:417:12)
+    at ChildProcess.emit (node:events:508:28)
+    at maybeClose (node:internal/child_process:1100:16)
+    at ChildProcess._handle.onexit (node:internal/child_process:305:5)
+[2026-04-07T01:22:58.801Z] [INFO]   → Embedding new messages...
+[2026-04-07T01:23:00.831Z] [INFO]   ✅ Embedded 0 new messages
+[2026-04-07T01:23:00.832Z] [INFO]   → Running project detection...
+[2026-04-07T01:23:01.833Z] [INFO]   ✅ Detected 0 projects
+[2026-04-07T01:23:01.833Z] [INFO] Refresh cycle complete in 3.2s
+[2026-04-07T01:23:28.684Z] [INFO] Starting refresh cycle...
+[2026-04-07T01:23:28.685Z] [INFO]   → Scraping Canvas for new assignments...
+[2026-04-07T01:23:28.816Z] [ERROR]   ⚠️  Canvas scrape failed: Command failed: node orchestration/scrape-canvas.mjs
+❌ Missing --user-id parameter
+Usage: node scrape-canvas.mjs --user-id=USER_ID
+
+[2026-04-07T01:23:28.816Z] [ERROR] Error: Command failed: node orchestration/scrape-canvas.mjs
+❌ Missing --user-id parameter
+Usage: node scrape-canvas.mjs --user-id=USER_ID
+
+    at genericNodeError (node:internal/errors:985:15)
+    at wrappedFn (node:internal/errors:539:14)
+    at ChildProcess.exithandler (node:child_process:417:12)
+    at ChildProcess.emit (node:events:508:28)
+    at maybeClose (node:internal/child_process:1100:16)
+    at ChildProcess._handle.onexit (node:internal/child_process:305:5)
+[2026-04-07T01:23:28.816Z] [INFO]   → Embedding new messages...
+[2026-04-07T01:23:30.908Z] [INFO]   ✅ Embedded 0 new messages
+[2026-04-07T01:23:30.908Z] [INFO]   → Running project detection...
+[2026-04-07T01:23:31.915Z] [INFO]   ✅ Detected 0 projects
+[2026-04-07T01:23:31.916Z] [INFO] Refresh cycle complete in 3.2s
+[2026-04-07T01:23:58.685Z] [INFO] Starting refresh cycle...
+[2026-04-07T01:23:58.685Z] [INFO]   → Scraping Canvas for new assignments...
+[2026-04-07T01:23:58.806Z] [ERROR]   ⚠️  Canvas scrape failed: Command failed: node orchestration/scrape-canvas.mjs
+❌ Missing --user-id parameter
+Usage: node scrape-canvas.mjs --user-id=USER_ID
+
+[2026-04-07T01:23:58.806Z] [ERROR] Error: Command failed: node orchestration/scrape-canvas.mjs
+❌ Missing --user-id parameter
+Usage: node scrape-canvas.mjs --user-id=USER_ID
+
+    at genericNodeError (node:internal/errors:985:15)
+    at wrappedFn (node:internal/errors:539:14)
+    at ChildProcess.exithandler (node:child_process:417:12)
+    at ChildProcess.emit (node:events:508:28)
+    at maybeClose (node:internal/child_process:1100:16)
+    at ChildProcess._handle.onexit (node:internal/child_process:305:5)
+[2026-04-07T01:23:58.806Z] [INFO]   → Embedding new messages...
+[2026-04-07T01:24:00.892Z] [INFO]   ✅ Embedded 0 new messages
+[2026-04-07T01:24:00.892Z] [INFO]   → Running project detection...
+[2026-04-07T01:24:01.895Z] [INFO]   ✅ Detected 0 projects
+[2026-04-07T01:24:01.896Z] [INFO] Refresh cycle complete in 3.2s
+[2026-04-07T01:24:28.699Z] [INFO] Starting refresh cycle...
+[2026-04-07T01:24:28.700Z] [INFO]   → Scraping Canvas for new assignments...
+[2026-04-07T01:24:28.831Z] [ERROR]   ⚠️  Canvas scrape failed: Command failed: node orchestration/scrape-canvas.mjs
+❌ Missing --user-id parameter
+Usage: node scrape-canvas.mjs --user-id=USER_ID
+
+[2026-04-07T01:24:28.831Z] [ERROR] Error: Command failed: node orchestration/scrape-canvas.mjs
+❌ Missing --user-id parameter
+Usage: node scrape-canvas.mjs --user-id=USER_ID
+
+    at genericNodeError (node:internal/errors:985:15)
+    at wrappedFn (node:internal/errors:539:14)
+    at ChildProcess.exithandler (node:child_process:417:12)
+    at ChildProcess.emit (node:events:508:28)
+    at maybeClose (node:internal/child_process:1100:16)
+    at ChildProcess._handle.onexit (node:internal/child_process:305:5)
+[2026-04-07T01:24:28.832Z] [INFO]   → Embedding new messages...
+[2026-04-07T01:24:30.875Z] [INFO]   ✅ Embedded 0 new messages
+[2026-04-07T01:24:30.875Z] [INFO]   → Running project detection...
+[2026-04-07T01:24:31.883Z] [INFO]   ✅ Detected 0 projects
+[2026-04-07T01:24:31.883Z] [INFO] Refresh cycle complete in 3.2s
+[2026-04-07T01:24:58.713Z] [INFO] Starting refresh cycle...
+[2026-04-07T01:24:58.713Z] [INFO]   → Scraping Canvas for new assignments...
+[2026-04-07T01:24:58.844Z] [ERROR]   ⚠️  Canvas scrape failed: Command failed: node orchestration/scrape-canvas.mjs
+❌ Missing --user-id parameter
+Usage: node scrape-canvas.mjs --user-id=USER_ID
+
+[2026-04-07T01:24:58.844Z] [ERROR] Error: Command failed: node orchestration/scrape-canvas.mjs
+❌ Missing --user-id parameter
+Usage: node scrape-canvas.mjs --user-id=USER_ID
+
+    at genericNodeError (node:internal/errors:985:15)
+    at wrappedFn (node:internal/errors:539:14)
+    at ChildProcess.exithandler (node:child_process:417:12)
+    at ChildProcess.emit (node:events:508:28)
+    at maybeClose (node:internal/child_process:1100:16)
+    at ChildProcess._handle.onexit (node:internal/child_process:305:5)
+[2026-04-07T01:24:58.844Z] [INFO]   → Embedding new messages...
+[2026-04-07T01:25:00.880Z] [INFO]   ✅ Embedded 0 new messages
+[2026-04-07T01:25:00.880Z] [INFO]   → Running project detection...
+[2026-04-07T01:25:01.898Z] [INFO]   ✅ Detected 0 projects
+[2026-04-07T01:25:01.898Z] [INFO] Refresh cycle complete in 3.2s
+[2026-04-07T01:25:28.716Z] [INFO] Starting refresh cycle...
+[2026-04-07T01:25:28.716Z] [INFO]   → Scraping Canvas for new assignments...
+[2026-04-07T01:25:28.840Z] [ERROR]   ⚠️  Canvas scrape failed: Command failed: node orchestration/scrape-canvas.mjs
+❌ Missing --user-id parameter
+Usage: node scrape-canvas.mjs --user-id=USER_ID
+
+[2026-04-07T01:25:28.841Z] [ERROR] Error: Command failed: node orchestration/scrape-canvas.mjs
+❌ Missing --user-id parameter
+Usage: node scrape-canvas.mjs --user-id=USER_ID
+
+    at genericNodeError (node:internal/errors:985:15)
+    at wrappedFn (node:internal/errors:539:14)
+    at ChildProcess.exithandler (node:child_process:417:12)
+    at ChildProcess.emit (node:events:508:28)
+    at maybeClose (node:internal/child_process:1100:16)
+    at ChildProcess._handle.onexit (node:internal/child_process:305:5)
+[2026-04-07T01:25:28.841Z] [INFO]   → Embedding new messages...
+[2026-04-07T01:25:30.853Z] [INFO]   ✅ Embedded 0 new messages
+[2026-04-07T01:25:30.853Z] [INFO]   → Running project detection...
+[2026-04-07T01:25:31.869Z] [INFO]   ✅ Detected 0 projects
+[2026-04-07T01:25:31.869Z] [INFO] Refresh cycle complete in 3.2s
+[2026-04-07T01:25:58.719Z] [INFO] Starting refresh cycle...
+[2026-04-07T01:25:58.719Z] [INFO]   → Scraping Canvas for new assignments...
+[2026-04-07T01:25:58.851Z] [ERROR]   ⚠️  Canvas scrape failed: Command failed: node orchestration/scrape-canvas.mjs
+❌ Missing --user-id parameter
+Usage: node scrape-canvas.mjs --user-id=USER_ID
+
+[2026-04-07T01:25:58.852Z] [ERROR] Error: Command failed: node orchestration/scrape-canvas.mjs
+❌ Missing --user-id parameter
+Usage: node scrape-canvas.mjs --user-id=USER_ID
+
+    at genericNodeError (node:internal/errors:985:15)
+    at wrappedFn (node:internal/errors:539:14)
+    at ChildProcess.exithandler (node:child_process:417:12)
+    at ChildProcess.emit (node:events:508:28)
+    at maybeClose (node:internal/child_process:1100:16)
+    at ChildProcess._handle.onexit (node:internal/child_process:305:5)
+[2026-04-07T01:25:58.852Z] [INFO]   → Embedding new messages...
+[2026-04-07T01:26:00.928Z] [INFO]   ✅ Embedded 0 new messages
+[2026-04-07T01:26:00.928Z] [INFO]   → Running project detection...
+[2026-04-07T01:26:01.962Z] [INFO]   ✅ Detected 0 projects
+[2026-04-07T01:26:01.962Z] [INFO] Refresh cycle complete in 3.2s
+[2026-04-07T01:26:28.720Z] [INFO] Starting refresh cycle...
+[2026-04-07T01:26:28.720Z] [INFO]   → Scraping Canvas for new assignments...
+[2026-04-07T01:26:28.850Z] [ERROR]   ⚠️  Canvas scrape failed: Command failed: node orchestration/scrape-canvas.mjs
+❌ Missing --user-id parameter
+Usage: node scrape-canvas.mjs --user-id=USER_ID
+
+[2026-04-07T01:26:28.850Z] [ERROR] Error: Command failed: node orchestration/scrape-canvas.mjs
+❌ Missing --user-id parameter
+Usage: node scrape-canvas.mjs --user-id=USER_ID
+
+    at genericNodeError (node:internal/errors:985:15)
+    at wrappedFn (node:internal/errors:539:14)
+    at ChildProcess.exithandler (node:child_process:417:12)
+    at ChildProcess.emit (node:events:508:28)
+    at maybeClose (node:internal/child_process:1100:16)
+    at ChildProcess._handle.onexit (node:internal/child_process:305:5)
+[2026-04-07T01:26:28.851Z] [INFO]   → Embedding new messages...
+[2026-04-07T01:26:30.877Z] [INFO]   ✅ Embedded 0 new messages
+[2026-04-07T01:26:30.877Z] [INFO]   → Running project detection...
+[2026-04-07T01:26:31.887Z] [INFO]   ✅ Detected 0 projects
+[2026-04-07T01:26:31.887Z] [INFO] Refresh cycle complete in 3.2s
+[2026-04-07T01:26:58.725Z] [INFO] Starting refresh cycle...
+[2026-04-07T01:26:58.725Z] [INFO]   → Scraping Canvas for new assignments...
+[2026-04-07T01:26:58.858Z] [ERROR]   ⚠️  Canvas scrape failed: Command failed: node orchestration/scrape-canvas.mjs
+❌ Missing --user-id parameter
+Usage: node scrape-canvas.mjs --user-id=USER_ID
+
+[2026-04-07T01:26:58.858Z] [ERROR] Error: Command failed: node orchestration/scrape-canvas.mjs
+❌ Missing --user-id parameter
+Usage: node scrape-canvas.mjs --user-id=USER_ID
+
+    at genericNodeError (node:internal/errors:985:15)
+    at wrappedFn (node:internal/errors:539:14)
+    at ChildProcess.exithandler (node:child_process:417:12)
+    at ChildProcess.emit (node:events:508:28)
+    at maybeClose (node:internal/child_process:1100:16)
+    at ChildProcess._handle.onexit (node:internal/child_process:305:5)
+[2026-04-07T01:26:58.859Z] [INFO]   → Embedding new messages...
+[2026-04-07T01:27:00.994Z] [INFO]   ✅ Embedded 0 new messages
+[2026-04-07T01:27:00.994Z] [INFO]   → Running project detection...
+[2026-04-07T01:27:02.017Z] [INFO]   ✅ Detected 0 projects
+[2026-04-07T01:27:02.018Z] [INFO] Refresh cycle complete in 3.3s
+[2026-04-07T01:27:28.728Z] [INFO] Starting refresh cycle...
+[2026-04-07T01:27:28.728Z] [INFO]   → Scraping Canvas for new assignments...
+[2026-04-07T01:27:28.847Z] [ERROR]   ⚠️  Canvas scrape failed: Command failed: node orchestration/scrape-canvas.mjs
+❌ Missing --user-id parameter
+Usage: node scrape-canvas.mjs --user-id=USER_ID
+
+[2026-04-07T01:27:28.848Z] [ERROR] Error: Command failed: node orchestration/scrape-canvas.mjs
+❌ Missing --user-id parameter
+Usage: node scrape-canvas.mjs --user-id=USER_ID
+
+    at genericNodeError (node:internal/errors:985:15)
+    at wrappedFn (node:internal/errors:539:14)
+    at ChildProcess.exithandler (node:child_process:417:12)
+    at ChildProcess.emit (node:events:508:28)
+    at maybeClose (node:internal/child_process:1100:16)
+    at ChildProcess._handle.onexit (node:internal/child_process:305:5)
+[2026-04-07T01:27:28.848Z] [INFO]   → Embedding new messages...
+[2026-04-07T01:27:30.916Z] [INFO]   ✅ Embedded 0 new messages
+[2026-04-07T01:27:30.916Z] [INFO]   → Running project detection...
+[2026-04-07T01:27:31.916Z] [INFO]   ✅ Detected 0 projects
+[2026-04-07T01:27:31.916Z] [INFO] Refresh cycle complete in 3.2s
+[2026-04-07T01:27:58.740Z] [INFO] Starting refresh cycle...
+[2026-04-07T01:27:58.740Z] [INFO]   → Scraping Canvas for new assignments...
+[2026-04-07T01:27:58.860Z] [ERROR]   ⚠️  Canvas scrape failed: Command failed: node orchestration/scrape-canvas.mjs
+❌ Missing --user-id parameter
+Usage: node scrape-canvas.mjs --user-id=USER_ID
+
+[2026-04-07T01:27:58.861Z] [ERROR] Error: Command failed: node orchestration/scrape-canvas.mjs
+❌ Missing --user-id parameter
+Usage: node scrape-canvas.mjs --user-id=USER_ID
+
+    at genericNodeError (node:internal/errors:985:15)
+    at wrappedFn (node:internal/errors:539:14)
+    at ChildProcess.exithandler (node:child_process:417:12)
+    at ChildProcess.emit (node:events:508:28)
+    at maybeClose (node:internal/child_process:1100:16)
+    at ChildProcess._handle.onexit (node:internal/child_process:305:5)
+[2026-04-07T01:27:58.861Z] [INFO]   → Embedding new messages...
+[2026-04-07T01:28:00.925Z] [INFO]   ✅ Embedded 0 new messages
+[2026-04-07T01:28:00.925Z] [INFO]   → Running project detection...
+[2026-04-07T01:28:01.935Z] [INFO]   ✅ Detected 0 projects
+[2026-04-07T01:28:01.935Z] [INFO] Refresh cycle complete in 3.2s
+[2026-04-07T01:28:28.743Z] [INFO] Starting refresh cycle...
+[2026-04-07T01:28:28.743Z] [INFO]   → Scraping Canvas for new assignments...
+[2026-04-07T01:28:28.865Z] [ERROR]   ⚠️  Canvas scrape failed: Command failed: node orchestration/scrape-canvas.mjs
+❌ Missing --user-id parameter
+Usage: node scrape-canvas.mjs --user-id=USER_ID
+
+[2026-04-07T01:28:28.866Z] [ERROR] Error: Command failed: node orchestration/scrape-canvas.mjs
+❌ Missing --user-id parameter
+Usage: node scrape-canvas.mjs --user-id=USER_ID
+
+    at genericNodeError (node:internal/errors:985:15)
+    at wrappedFn (node:internal/errors:539:14)
+    at ChildProcess.exithandler (node:child_process:417:12)
+    at ChildProcess.emit (node:events:508:28)
+    at maybeClose (node:internal/child_process:1100:16)
+    at ChildProcess._handle.onexit (node:internal/child_process:305:5)
+[2026-04-07T01:28:28.866Z] [INFO]   → Embedding new messages...
+[2026-04-07T01:28:30.922Z] [INFO]   ✅ Embedded 0 new messages
+[2026-04-07T01:28:30.922Z] [INFO]   → Running project detection...
+[2026-04-07T01:28:31.938Z] [INFO]   ✅ Detected 0 projects
+[2026-04-07T01:28:31.938Z] [INFO] Refresh cycle complete in 3.2s
+[2026-04-07T01:28:58.747Z] [INFO] Starting refresh cycle...
+[2026-04-07T01:28:58.747Z] [INFO]   → Scraping Canvas for new assignments...
+[2026-04-07T01:28:58.868Z] [ERROR]   ⚠️  Canvas scrape failed: Command failed: node orchestration/scrape-canvas.mjs
+❌ Missing --user-id parameter
+Usage: node scrape-canvas.mjs --user-id=USER_ID
+
+[2026-04-07T01:28:58.868Z] [ERROR] Error: Command failed: node orchestration/scrape-canvas.mjs
+❌ Missing --user-id parameter
+Usage: node scrape-canvas.mjs --user-id=USER_ID
+
+    at genericNodeError (node:internal/errors:985:15)
+    at wrappedFn (node:internal/errors:539:14)
+    at ChildProcess.exithandler (node:child_process:417:12)
+    at ChildProcess.emit (node:events:508:28)
+    at maybeClose (node:internal/child_process:1100:16)
+    at ChildProcess._handle.onexit (node:internal/child_process:305:5)
+[2026-04-07T01:28:58.868Z] [INFO]   → Embedding new messages...
+[2026-04-07T01:29:00.971Z] [INFO]   ✅ Embedded 0 new messages
+[2026-04-07T01:29:00.971Z] [INFO]   → Running project detection...
+[2026-04-07T01:29:01.983Z] [INFO]   ✅ Detected 0 projects
+[2026-04-07T01:29:01.984Z] [INFO] Refresh cycle complete in 3.2s
+[2026-04-07T01:29:28.752Z] [INFO] Starting refresh cycle...
+[2026-04-07T01:29:28.752Z] [INFO]   → Scraping Canvas for new assignments...
+[2026-04-07T01:29:28.873Z] [ERROR]   ⚠️  Canvas scrape failed: Command failed: node orchestration/scrape-canvas.mjs
+❌ Missing --user-id parameter
+Usage: node scrape-canvas.mjs --user-id=USER_ID
+
+[2026-04-07T01:29:28.873Z] [ERROR] Error: Command failed: node orchestration/scrape-canvas.mjs
+❌ Missing --user-id parameter
+Usage: node scrape-canvas.mjs --user-id=USER_ID
+
+    at genericNodeError (node:internal/errors:985:15)
+    at wrappedFn (node:internal/errors:539:14)
+    at ChildProcess.exithandler (node:child_process:417:12)
+    at ChildProcess.emit (node:events:508:28)
+    at maybeClose (node:internal/child_process:1100:16)
+    at ChildProcess._handle.onexit (node:internal/child_process:305:5)
+[2026-04-07T01:29:28.874Z] [INFO]   → Embedding new messages...
+[2026-04-07T01:29:30.901Z] [INFO]   ✅ Embedded 0 new messages
+[2026-04-07T01:29:30.901Z] [INFO]   → Running project detection...
+[2026-04-07T01:29:31.900Z] [INFO]   ✅ Detected 0 projects
+[2026-04-07T01:29:31.900Z] [INFO] Refresh cycle complete in 3.1s
+[2026-04-07T01:29:58.764Z] [INFO] Starting refresh cycle...
+[2026-04-07T01:29:58.764Z] [INFO]   → Scraping Canvas for new assignments...
+[2026-04-07T01:29:58.897Z] [ERROR]   ⚠️  Canvas scrape failed: Command failed: node orchestration/scrape-canvas.mjs
+❌ Missing --user-id parameter
+Usage: node scrape-canvas.mjs --user-id=USER_ID
+
+[2026-04-07T01:29:58.897Z] [ERROR] Error: Command failed: node orchestration/scrape-canvas.mjs
+❌ Missing --user-id parameter
+Usage: node scrape-canvas.mjs --user-id=USER_ID
+
+    at genericNodeError (node:internal/errors:985:15)
+    at wrappedFn (node:internal/errors:539:14)
+    at ChildProcess.exithandler (node:child_process:417:12)
+    at ChildProcess.emit (node:events:508:28)
+    at maybeClose (node:internal/child_process:1100:16)
+    at ChildProcess._handle.onexit (node:internal/child_process:305:5)
+[2026-04-07T01:29:58.897Z] [INFO]   → Embedding new messages...
+[2026-04-07T01:30:00.897Z] [INFO]   ✅ Embedded 0 new messages
+[2026-04-07T01:30:00.898Z] [INFO]   → Running project detection...
+[2026-04-07T01:30:01.892Z] [INFO]   ✅ Detected 0 projects
+[2026-04-07T01:30:01.892Z] [INFO] Refresh cycle complete in 3.1s
+[2026-04-07T01:30:28.773Z] [INFO] Starting refresh cycle...
+[2026-04-07T01:30:28.774Z] [INFO]   → Scraping Canvas for new assignments...
+[2026-04-07T01:30:28.892Z] [ERROR]   ⚠️  Canvas scrape failed: Command failed: node orchestration/scrape-canvas.mjs
+❌ Missing --user-id parameter
+Usage: node scrape-canvas.mjs --user-id=USER_ID
+
+[2026-04-07T01:30:28.892Z] [ERROR] Error: Command failed: node orchestration/scrape-canvas.mjs
+❌ Missing --user-id parameter
+Usage: node scrape-canvas.mjs --user-id=USER_ID
+
+    at genericNodeError (node:internal/errors:985:15)
+    at wrappedFn (node:internal/errors:539:14)
+    at ChildProcess.exithandler (node:child_process:417:12)
+    at ChildProcess.emit (node:events:508:28)
+    at maybeClose (node:internal/child_process:1100:16)
+    at ChildProcess._handle.onexit (node:internal/child_process:305:5)
+[2026-04-07T01:30:28.892Z] [INFO]   → Embedding new messages...
+[2026-04-07T01:30:30.915Z] [INFO]   ✅ Embedded 0 new messages
+[2026-04-07T01:30:30.915Z] [INFO]   → Running project detection...
+[2026-04-07T01:30:31.925Z] [INFO]   ✅ Detected 0 projects
+[2026-04-07T01:30:31.926Z] [INFO] Refresh cycle complete in 3.2s
+[2026-04-07T01:30:58.788Z] [INFO] Starting refresh cycle...
+[2026-04-07T01:30:58.788Z] [INFO]   → Scraping Canvas for new assignments...
+[2026-04-07T01:30:58.908Z] [ERROR]   ⚠️  Canvas scrape failed: Command failed: node orchestration/scrape-canvas.mjs
+❌ Missing --user-id parameter
+Usage: node scrape-canvas.mjs --user-id=USER_ID
+
+[2026-04-07T01:30:58.908Z] [ERROR] Error: Command failed: node orchestration/scrape-canvas.mjs
+❌ Missing --user-id parameter
+Usage: node scrape-canvas.mjs --user-id=USER_ID
+
+    at genericNodeError (node:internal/errors:985:15)
+    at wrappedFn (node:internal/errors:539:14)
+    at ChildProcess.exithandler (node:child_process:417:12)
+    at ChildProcess.emit (node:events:508:28)
+    at maybeClose (node:internal/child_process:1100:16)
+    at ChildProcess._handle.onexit (node:internal/child_process:305:5)
+[2026-04-07T01:30:58.908Z] [INFO]   → Embedding new messages...
+[2026-04-07T01:31:00.948Z] [INFO]   ✅ Embedded 0 new messages
+[2026-04-07T01:31:00.948Z] [INFO]   → Running project detection...
+[2026-04-07T01:31:01.968Z] [INFO]   ✅ Detected 0 projects
+[2026-04-07T01:31:01.968Z] [INFO] Refresh cycle complete in 3.2s
+[2026-04-07T05:52:21.766Z] [INFO] Starting refresh cycle...
+[2026-04-07T05:52:21.766Z] [INFO]   → Scraping Canvas for new assignments...
+[2026-04-07T05:52:24.279Z] [ERROR]   ⚠️  Canvas scrape failed: Command failed: node orchestration/scrape-canvas.mjs
+❌ Missing --user-id parameter
+Usage: node scrape-canvas.mjs --user-id=USER_ID
+
+[2026-04-07T05:52:24.280Z] [ERROR] Error: Command failed: node orchestration/scrape-canvas.mjs
+❌ Missing --user-id parameter
+Usage: node scrape-canvas.mjs --user-id=USER_ID
+
+    at genericNodeError (node:internal/errors:985:15)
+    at wrappedFn (node:internal/errors:539:14)
+    at ChildProcess.exithandler (node:child_process:417:12)
+    at ChildProcess.emit (node:events:508:28)
+    at maybeClose (node:internal/child_process:1100:16)
+    at ChildProcess._handle.onexit (node:internal/child_process:305:5)
+[2026-04-07T05:52:24.280Z] [INFO]   → Embedding new messages...
+[2026-04-07T05:52:27.426Z] [INFO]   ✅ Embedded 0 new messages
+[2026-04-07T05:52:27.426Z] [INFO]   → Running project detection...
+[2026-04-07T05:52:28.519Z] [INFO]   ✅ Detected 0 projects
+[2026-04-07T05:52:28.519Z] [INFO] Refresh cycle complete in 6.8s
+[2026-04-07T05:52:51.767Z] [INFO] Starting refresh cycle...
+[2026-04-07T05:52:51.767Z] [INFO]   → Scraping Canvas for new assignments...
+[2026-04-07T05:52:51.902Z] [ERROR]   ⚠️  Canvas scrape failed: Command failed: node orchestration/scrape-canvas.mjs
+❌ Missing --user-id parameter
+Usage: node scrape-canvas.mjs --user-id=USER_ID
+
+[2026-04-07T05:52:51.903Z] [ERROR] Error: Command failed: node orchestration/scrape-canvas.mjs
+❌ Missing --user-id parameter
+Usage: node scrape-canvas.mjs --user-id=USER_ID
+
+    at genericNodeError (node:internal/errors:985:15)
+    at wrappedFn (node:internal/errors:539:14)
+    at ChildProcess.exithandler (node:child_process:417:12)
+    at ChildProcess.emit (node:events:508:28)
+    at maybeClose (node:internal/child_process:1100:16)
+    at ChildProcess._handle.onexit (node:internal/child_process:305:5)
+[2026-04-07T05:52:51.903Z] [INFO]   → Embedding new messages...
+[2026-04-07T05:52:54.036Z] [INFO]   ✅ Embedded 0 new messages
+[2026-04-07T05:52:54.036Z] [INFO]   → Running project detection...
+[2026-04-07T05:52:55.056Z] [INFO]   ✅ Detected 0 projects
+[2026-04-07T05:52:55.056Z] [INFO] Refresh cycle complete in 3.3s
+[2026-04-07T05:53:21.780Z] [INFO] Starting refresh cycle...
+[2026-04-07T05:53:21.781Z] [INFO]   → Scraping Canvas for new assignments...
+[2026-04-07T05:53:21.901Z] [ERROR]   ⚠️  Canvas scrape failed: Command failed: node orchestration/scrape-canvas.mjs
+❌ Missing --user-id parameter
+Usage: node scrape-canvas.mjs --user-id=USER_ID
+
+[2026-04-07T05:53:21.902Z] [ERROR] Error: Command failed: node orchestration/scrape-canvas.mjs
+❌ Missing --user-id parameter
+Usage: node scrape-canvas.mjs --user-id=USER_ID
+
+    at genericNodeError (node:internal/errors:985:15)
+    at wrappedFn (node:internal/errors:539:14)
+    at ChildProcess.exithandler (node:child_process:417:12)
+    at ChildProcess.emit (node:events:508:28)
+    at maybeClose (node:internal/child_process:1100:16)
+    at ChildProcess._handle.onexit (node:internal/child_process:305:5)
+[2026-04-07T05:53:21.902Z] [INFO]   → Embedding new messages...
+[2026-04-07T05:53:23.939Z] [INFO]   ✅ Embedded 0 new messages
+[2026-04-07T05:53:23.939Z] [INFO]   → Running project detection...
+[2026-04-07T05:53:24.947Z] [INFO]   ✅ Detected 0 projects
+[2026-04-07T05:53:24.947Z] [INFO] Refresh cycle complete in 3.2s
+[2026-04-07T05:53:51.781Z] [INFO] Starting refresh cycle...
+[2026-04-07T05:53:51.781Z] [INFO]   → Scraping Canvas for new assignments...
+[2026-04-07T05:53:51.911Z] [ERROR]   ⚠️  Canvas scrape failed: Command failed: node orchestration/scrape-canvas.mjs
+❌ Missing --user-id parameter
+Usage: node scrape-canvas.mjs --user-id=USER_ID
+
+[2026-04-07T05:53:51.911Z] [ERROR] Error: Command failed: node orchestration/scrape-canvas.mjs
+❌ Missing --user-id parameter
+Usage: node scrape-canvas.mjs --user-id=USER_ID
+
+    at genericNodeError (node:internal/errors:985:15)
+    at wrappedFn (node:internal/errors:539:14)
+    at ChildProcess.exithandler (node:child_process:417:12)
+    at ChildProcess.emit (node:events:508:28)
+    at maybeClose (node:internal/child_process:1100:16)
+    at ChildProcess._handle.onexit (node:internal/child_process:305:5)
+[2026-04-07T05:53:51.911Z] [INFO]   → Embedding new messages...
+[2026-04-07T05:53:53.900Z] [INFO]   ✅ Embedded 0 new messages
+[2026-04-07T05:53:53.900Z] [INFO]   → Running project detection...
+[2026-04-07T05:53:54.889Z] [INFO]   ✅ Detected 0 projects
+[2026-04-07T05:53:54.889Z] [INFO] Refresh cycle complete in 3.1s
+[2026-04-07T05:54:21.785Z] [INFO] Starting refresh cycle...
+[2026-04-07T05:54:21.786Z] [INFO]   → Scraping Canvas for new assignments...
+[2026-04-07T05:54:21.905Z] [ERROR]   ⚠️  Canvas scrape failed: Command failed: node orchestration/scrape-canvas.mjs
+❌ Missing --user-id parameter
+Usage: node scrape-canvas.mjs --user-id=USER_ID
+
+[2026-04-07T05:54:21.905Z] [ERROR] Error: Command failed: node orchestration/scrape-canvas.mjs
+❌ Missing --user-id parameter
+Usage: node scrape-canvas.mjs --user-id=USER_ID
+
+    at genericNodeError (node:internal/errors:985:15)
+    at wrappedFn (node:internal/errors:539:14)
+    at ChildProcess.exithandler (node:child_process:417:12)
+    at ChildProcess.emit (node:events:508:28)
+    at maybeClose (node:internal/child_process:1100:16)
+    at ChildProcess._handle.onexit (node:internal/child_process:305:5)
+[2026-04-07T05:54:21.906Z] [INFO]   → Embedding new messages...
+[2026-04-07T05:54:23.886Z] [INFO]   ✅ Embedded 0 new messages
+[2026-04-07T05:54:23.886Z] [INFO]   → Running project detection...
+[2026-04-07T05:54:24.876Z] [INFO]   ✅ Detected 0 projects
+[2026-04-07T05:54:24.876Z] [INFO] Refresh cycle complete in 3.1s
+[2026-04-07T05:54:51.793Z] [INFO] Starting refresh cycle...
+[2026-04-07T05:54:51.793Z] [INFO]   → Scraping Canvas for new assignments...
+[2026-04-07T05:54:51.911Z] [ERROR]   ⚠️  Canvas scrape failed: Command failed: node orchestration/scrape-canvas.mjs
+❌ Missing --user-id parameter
+Usage: node scrape-canvas.mjs --user-id=USER_ID
+
+[2026-04-07T05:54:51.912Z] [ERROR] Error: Command failed: node orchestration/scrape-canvas.mjs
+❌ Missing --user-id parameter
+Usage: node scrape-canvas.mjs --user-id=USER_ID
+
+    at genericNodeError (node:internal/errors:985:15)
+    at wrappedFn (node:internal/errors:539:14)
+    at ChildProcess.exithandler (node:child_process:417:12)
+    at ChildProcess.emit (node:events:508:28)
+    at maybeClose (node:internal/child_process:1100:16)
+    at ChildProcess._handle.onexit (node:internal/child_process:305:5)
+[2026-04-07T05:54:51.912Z] [INFO]   → Embedding new messages...
+[2026-04-07T05:54:53.929Z] [INFO]   ✅ Embedded 0 new messages
+[2026-04-07T05:54:53.929Z] [INFO]   → Running project detection...
+[2026-04-07T05:54:54.918Z] [INFO]   ✅ Detected 0 projects
+[2026-04-07T05:54:54.918Z] [INFO] Refresh cycle complete in 3.1s
+[2026-04-07T05:55:21.807Z] [INFO] Starting refresh cycle...
+[2026-04-07T05:55:21.807Z] [INFO]   → Scraping Canvas for new assignments...
+[2026-04-07T05:55:21.924Z] [ERROR]   ⚠️  Canvas scrape failed: Command failed: node orchestration/scrape-canvas.mjs
+❌ Missing --user-id parameter
+Usage: node scrape-canvas.mjs --user-id=USER_ID
+
+[2026-04-07T05:55:21.924Z] [ERROR] Error: Command failed: node orchestration/scrape-canvas.mjs
+❌ Missing --user-id parameter
+Usage: node scrape-canvas.mjs --user-id=USER_ID
+
+    at genericNodeError (node:internal/errors:985:15)
+    at wrappedFn (node:internal/errors:539:14)
+    at ChildProcess.exithandler (node:child_process:417:12)
+    at ChildProcess.emit (node:events:508:28)
+    at maybeClose (node:internal/child_process:1100:16)
+    at ChildProcess._handle.onexit (node:internal/child_process:305:5)
+[2026-04-07T05:55:21.924Z] [INFO]   → Embedding new messages...
+[2026-04-07T05:55:23.941Z] [INFO]   ✅ Embedded 0 new messages
+[2026-04-07T05:55:23.941Z] [INFO]   → Running project detection...
+[2026-04-07T05:55:24.938Z] [INFO]   ✅ Detected 0 projects
+[2026-04-07T05:55:24.938Z] [INFO] Refresh cycle complete in 3.1s
+[2026-04-07T05:55:51.814Z] [INFO] Starting refresh cycle...
+[2026-04-07T05:55:51.814Z] [INFO]   → Scraping Canvas for new assignments...
+[2026-04-07T05:55:51.944Z] [ERROR]   ⚠️  Canvas scrape failed: Command failed: node orchestration/scrape-canvas.mjs
+❌ Missing --user-id parameter
+Usage: node scrape-canvas.mjs --user-id=USER_ID
+
+[2026-04-07T05:55:51.944Z] [ERROR] Error: Command failed: node orchestration/scrape-canvas.mjs
+❌ Missing --user-id parameter
+Usage: node scrape-canvas.mjs --user-id=USER_ID
+
+    at genericNodeError (node:internal/errors:985:15)
+    at wrappedFn (node:internal/errors:539:14)
+    at ChildProcess.exithandler (node:child_process:417:12)
+    at ChildProcess.emit (node:events:508:28)
+    at maybeClose (node:internal/child_process:1100:16)
+    at ChildProcess._handle.onexit (node:internal/child_process:305:5)
+[2026-04-07T05:55:51.944Z] [INFO]   → Embedding new messages...
+[2026-04-07T05:55:53.943Z] [INFO]   ✅ Embedded 0 new messages
+[2026-04-07T05:55:53.943Z] [INFO]   → Running project detection...
+[2026-04-07T05:55:54.939Z] [INFO]   ✅ Detected 0 projects
+[2026-04-07T05:55:54.939Z] [INFO] Refresh cycle complete in 3.1s
+[2026-04-07T05:56:21.817Z] [INFO] Starting refresh cycle...
+[2026-04-07T05:56:21.817Z] [INFO]   → Scraping Canvas for new assignments...
+[2026-04-07T05:56:21.939Z] [ERROR]   ⚠️  Canvas scrape failed: Command failed: node orchestration/scrape-canvas.mjs
+❌ Missing --user-id parameter
+Usage: node scrape-canvas.mjs --user-id=USER_ID
+
+[2026-04-07T05:56:21.940Z] [ERROR] Error: Command failed: node orchestration/scrape-canvas.mjs
+❌ Missing --user-id parameter
+Usage: node scrape-canvas.mjs --user-id=USER_ID
+
+    at genericNodeError (node:internal/errors:985:15)
+    at wrappedFn (node:internal/errors:539:14)
+    at ChildProcess.exithandler (node:child_process:417:12)
+    at ChildProcess.emit (node:events:508:28)
+    at maybeClose (node:internal/child_process:1100:16)
+    at ChildProcess._handle.onexit (node:internal/child_process:305:5)
+[2026-04-07T05:56:21.940Z] [INFO]   → Embedding new messages...
+[2026-04-07T05:56:23.933Z] [INFO]   ✅ Embedded 0 new messages
+[2026-04-07T05:56:23.934Z] [INFO]   → Running project detection...
+[2026-04-07T05:56:24.924Z] [INFO]   ✅ Detected 0 projects
+[2026-04-07T05:56:24.924Z] [INFO] Refresh cycle complete in 3.1s
+[2026-04-07T05:56:51.822Z] [INFO] Starting refresh cycle...
+[2026-04-07T05:56:51.822Z] [INFO]   → Scraping Canvas for new assignments...
+[2026-04-07T05:56:51.953Z] [ERROR]   ⚠️  Canvas scrape failed: Command failed: node orchestration/scrape-canvas.mjs
+❌ Missing --user-id parameter
+Usage: node scrape-canvas.mjs --user-id=USER_ID
+
+[2026-04-07T05:56:51.954Z] [ERROR] Error: Command failed: node orchestration/scrape-canvas.mjs
+❌ Missing --user-id parameter
+Usage: node scrape-canvas.mjs --user-id=USER_ID
+
+    at genericNodeError (node:internal/errors:985:15)
+    at wrappedFn (node:internal/errors:539:14)
+    at ChildProcess.exithandler (node:child_process:417:12)
+    at ChildProcess.emit (node:events:508:28)
+    at maybeClose (node:internal/child_process:1100:16)
+    at ChildProcess._handle.onexit (node:internal/child_process:305:5)
+[2026-04-07T05:56:51.954Z] [INFO]   → Embedding new messages...
+[2026-04-07T05:56:53.941Z] [INFO]   ✅ Embedded 0 new messages
+[2026-04-07T05:56:53.941Z] [INFO]   → Running project detection...
+[2026-04-07T05:56:54.935Z] [INFO]   ✅ Detected 0 projects
+[2026-04-07T05:56:54.935Z] [INFO] Refresh cycle complete in 3.1s
+[2026-04-07T05:57:21.834Z] [INFO] Starting refresh cycle...
+[2026-04-07T05:57:21.834Z] [INFO]   → Scraping Canvas for new assignments...
+[2026-04-07T05:57:21.955Z] [ERROR]   ⚠️  Canvas scrape failed: Command failed: node orchestration/scrape-canvas.mjs
+❌ Missing --user-id parameter
+Usage: node scrape-canvas.mjs --user-id=USER_ID
+
+[2026-04-07T05:57:21.955Z] [ERROR] Error: Command failed: node orchestration/scrape-canvas.mjs
+❌ Missing --user-id parameter
+Usage: node scrape-canvas.mjs --user-id=USER_ID
+
+    at genericNodeError (node:internal/errors:985:15)
+    at wrappedFn (node:internal/errors:539:14)
+    at ChildProcess.exithandler (node:child_process:417:12)
+    at ChildProcess.emit (node:events:508:28)
+    at maybeClose (node:internal/child_process:1100:16)
+    at ChildProcess._handle.onexit (node:internal/child_process:305:5)
+[2026-04-07T05:57:21.955Z] [INFO]   → Embedding new messages...
+[2026-04-07T05:57:23.982Z] [INFO]   ✅ Embedded 0 new messages
+[2026-04-07T05:57:23.983Z] [INFO]   → Running project detection...
+[2026-04-07T05:57:24.978Z] [INFO]   ✅ Detected 0 projects
+[2026-04-07T05:57:24.978Z] [INFO] Refresh cycle complete in 3.1s
+[2026-04-07T05:57:51.841Z] [INFO] Starting refresh cycle...
+[2026-04-07T05:57:51.841Z] [INFO]   → Scraping Canvas for new assignments...
+[2026-04-07T05:57:51.971Z] [ERROR]   ⚠️  Canvas scrape failed: Command failed: node orchestration/scrape-canvas.mjs
+❌ Missing --user-id parameter
+Usage: node scrape-canvas.mjs --user-id=USER_ID
+
+[2026-04-07T05:57:51.972Z] [ERROR] Error: Command failed: node orchestration/scrape-canvas.mjs
+❌ Missing --user-id parameter
+Usage: node scrape-canvas.mjs --user-id=USER_ID
+
+    at genericNodeError (node:internal/errors:985:15)
+    at wrappedFn (node:internal/errors:539:14)
+    at ChildProcess.exithandler (node:child_process:417:12)
+    at ChildProcess.emit (node:events:508:28)
+    at maybeClose (node:internal/child_process:1100:16)
+    at ChildProcess._handle.onexit (node:internal/child_process:305:5)
+[2026-04-07T05:57:51.972Z] [INFO]   → Embedding new messages...
+[2026-04-07T05:57:54.008Z] [INFO]   ✅ Embedded 0 new messages
+[2026-04-07T05:57:54.008Z] [INFO]   → Running project detection...
+[2026-04-07T05:57:54.993Z] [INFO]   ✅ Detected 0 projects
+[2026-04-07T05:57:54.994Z] [INFO] Refresh cycle complete in 3.2s
+[2026-04-07T05:58:21.854Z] [INFO] Starting refresh cycle...
+[2026-04-07T05:58:21.855Z] [INFO]   → Scraping Canvas for new assignments...
+[2026-04-07T05:58:21.997Z] [ERROR]   ⚠️  Canvas scrape failed: Command failed: node orchestration/scrape-canvas.mjs
+❌ Missing --user-id parameter
+Usage: node scrape-canvas.mjs --user-id=USER_ID
+
+[2026-04-07T05:58:21.998Z] [ERROR] Error: Command failed: node orchestration/scrape-canvas.mjs
+❌ Missing --user-id parameter
+Usage: node scrape-canvas.mjs --user-id=USER_ID
+
+    at genericNodeError (node:internal/errors:985:15)
+    at wrappedFn (node:internal/errors:539:14)
+    at ChildProcess.exithandler (node:child_process:417:12)
+    at ChildProcess.emit (node:events:508:28)
+    at maybeClose (node:internal/child_process:1100:16)
+    at ChildProcess._handle.onexit (node:internal/child_process:305:5)
+[2026-04-07T05:58:21.998Z] [INFO]   → Embedding new messages...
+[2026-04-07T05:58:24.059Z] [INFO]   ✅ Embedded 0 new messages
+[2026-04-07T05:58:24.059Z] [INFO]   → Running project detection...
+[2026-04-07T05:58:25.099Z] [INFO]   ✅ Detected 0 projects
+[2026-04-07T05:58:25.099Z] [INFO] Refresh cycle complete in 3.2s
+[2026-04-07T05:58:51.868Z] [INFO] Starting refresh cycle...
+[2026-04-07T05:58:51.868Z] [INFO]   → Scraping Canvas for new assignments...
+[2026-04-07T05:58:51.988Z] [ERROR]   ⚠️  Canvas scrape failed: Command failed: node orchestration/scrape-canvas.mjs
+❌ Missing --user-id parameter
+Usage: node scrape-canvas.mjs --user-id=USER_ID
+
+[2026-04-07T05:58:51.988Z] [ERROR] Error: Command failed: node orchestration/scrape-canvas.mjs
+❌ Missing --user-id parameter
+Usage: node scrape-canvas.mjs --user-id=USER_ID
+
+    at genericNodeError (node:internal/errors:985:15)
+    at wrappedFn (node:internal/errors:539:14)
+    at ChildProcess.exithandler (node:child_process:417:12)
+    at ChildProcess.emit (node:events:508:28)
+    at maybeClose (node:internal/child_process:1100:16)
+    at ChildProcess._handle.onexit (node:internal/child_process:305:5)
+[2026-04-07T05:58:51.989Z] [INFO]   → Embedding new messages...
+[2026-04-07T05:58:53.964Z] [INFO]   ✅ Embedded 0 new messages
+[2026-04-07T05:58:53.964Z] [INFO]   → Running project detection...
+[2026-04-07T05:58:54.971Z] [INFO]   ✅ Detected 0 projects
+[2026-04-07T05:58:54.971Z] [INFO] Refresh cycle complete in 3.1s
+[2026-04-07T05:59:21.868Z] [INFO] Starting refresh cycle...
+[2026-04-07T05:59:21.869Z] [INFO]   → Scraping Canvas for new assignments...
+[2026-04-07T05:59:21.998Z] [ERROR]   ⚠️  Canvas scrape failed: Command failed: node orchestration/scrape-canvas.mjs
+❌ Missing --user-id parameter
+Usage: node scrape-canvas.mjs --user-id=USER_ID
+
+[2026-04-07T05:59:21.998Z] [ERROR] Error: Command failed: node orchestration/scrape-canvas.mjs
+❌ Missing --user-id parameter
+Usage: node scrape-canvas.mjs --user-id=USER_ID
+
+    at genericNodeError (node:internal/errors:985:15)
+    at wrappedFn (node:internal/errors:539:14)
+    at ChildProcess.exithandler (node:child_process:417:12)
+    at ChildProcess.emit (node:events:508:28)
+    at maybeClose (node:internal/child_process:1100:16)
+    at ChildProcess._handle.onexit (node:internal/child_process:305:5)
+[2026-04-07T05:59:21.998Z] [INFO]   → Embedding new messages...
+[2026-04-07T05:59:23.985Z] [INFO]   ✅ Embedded 0 new messages
+[2026-04-07T05:59:23.985Z] [INFO]   → Running project detection...
+[2026-04-07T05:59:25.008Z] [INFO]   ✅ Detected 0 projects
+[2026-04-07T05:59:25.009Z] [INFO] Refresh cycle complete in 3.1s
+[2026-04-07T05:59:51.884Z] [INFO] Starting refresh cycle...
+[2026-04-07T05:59:51.884Z] [INFO]   → Scraping Canvas for new assignments...
+[2026-04-07T05:59:52.002Z] [ERROR]   ⚠️  Canvas scrape failed: Command failed: node orchestration/scrape-canvas.mjs
+❌ Missing --user-id parameter
+Usage: node scrape-canvas.mjs --user-id=USER_ID
+
+[2026-04-07T05:59:52.002Z] [ERROR] Error: Command failed: node orchestration/scrape-canvas.mjs
+❌ Missing --user-id parameter
+Usage: node scrape-canvas.mjs --user-id=USER_ID
+
+    at genericNodeError (node:internal/errors:985:15)
+    at wrappedFn (node:internal/errors:539:14)
+    at ChildProcess.exithandler (node:child_process:417:12)
+    at ChildProcess.emit (node:events:508:28)
+    at maybeClose (node:internal/child_process:1100:16)
+    at ChildProcess._handle.onexit (node:internal/child_process:305:5)
+[2026-04-07T05:59:52.003Z] [INFO]   → Embedding new messages...
+[2026-04-07T05:59:53.989Z] [INFO]   ✅ Embedded 0 new messages
+[2026-04-07T05:59:53.990Z] [INFO]   → Running project detection...
+[2026-04-07T05:59:54.986Z] [INFO]   ✅ Detected 0 projects
+[2026-04-07T05:59:54.986Z] [INFO] Refresh cycle complete in 3.1s
+[2026-04-07T06:00:21.885Z] [INFO] Starting refresh cycle...
+[2026-04-07T06:00:21.885Z] [INFO]   → Scraping Canvas for new assignments...
+[2026-04-07T06:00:22.004Z] [ERROR]   ⚠️  Canvas scrape failed: Command failed: node orchestration/scrape-canvas.mjs
+❌ Missing --user-id parameter
+Usage: node scrape-canvas.mjs --user-id=USER_ID
+
+[2026-04-07T06:00:22.005Z] [ERROR] Error: Command failed: node orchestration/scrape-canvas.mjs
+❌ Missing --user-id parameter
+Usage: node scrape-canvas.mjs --user-id=USER_ID
+
+    at genericNodeError (node:internal/errors:985:15)
+    at wrappedFn (node:internal/errors:539:14)
+    at ChildProcess.exithandler (node:child_process:417:12)
+    at ChildProcess.emit (node:events:508:28)
+    at maybeClose (node:internal/child_process:1100:16)
+    at ChildProcess._handle.onexit (node:internal/child_process:305:5)
+[2026-04-07T06:00:22.005Z] [INFO]   → Embedding new messages...
+[2026-04-07T06:00:23.995Z] [INFO]   ✅ Embedded 0 new messages
+[2026-04-07T06:00:23.995Z] [INFO]   → Running project detection...
+[2026-04-07T06:00:25.005Z] [INFO]   ✅ Detected 0 projects
+[2026-04-07T06:00:25.005Z] [INFO] Refresh cycle complete in 3.1s
+[2026-04-07T06:00:51.891Z] [INFO] Starting refresh cycle...
+[2026-04-07T06:00:51.892Z] [INFO]   → Scraping Canvas for new assignments...
+[2026-04-07T06:00:52.012Z] [ERROR]   ⚠️  Canvas scrape failed: Command failed: node orchestration/scrape-canvas.mjs
+❌ Missing --user-id parameter
+Usage: node scrape-canvas.mjs --user-id=USER_ID
+
+[2026-04-07T06:00:52.013Z] [ERROR] Error: Command failed: node orchestration/scrape-canvas.mjs
+❌ Missing --user-id parameter
+Usage: node scrape-canvas.mjs --user-id=USER_ID
+
+    at genericNodeError (node:internal/errors:985:15)
+    at wrappedFn (node:internal/errors:539:14)
+    at ChildProcess.exithandler (node:child_process:417:12)
+    at ChildProcess.emit (node:events:508:28)
+    at maybeClose (node:internal/child_process:1100:16)
+    at ChildProcess._handle.onexit (node:internal/child_process:305:5)
+[2026-04-07T06:00:52.013Z] [INFO]   → Embedding new messages...
+[2026-04-07T06:00:53.989Z] [INFO]   ✅ Embedded 0 new messages
+[2026-04-07T06:00:53.990Z] [INFO]   → Running project detection...
+[2026-04-07T06:00:54.992Z] [INFO]   ✅ Detected 0 projects
+[2026-04-07T06:00:54.992Z] [INFO] Refresh cycle complete in 3.1s
+[2026-04-07T06:01:21.892Z] [INFO] Starting refresh cycle...
+[2026-04-07T06:01:21.892Z] [INFO]   → Scraping Canvas for new assignments...
+[2026-04-07T06:01:22.011Z] [ERROR]   ⚠️  Canvas scrape failed: Command failed: node orchestration/scrape-canvas.mjs
+❌ Missing --user-id parameter
+Usage: node scrape-canvas.mjs --user-id=USER_ID
+
+[2026-04-07T06:01:22.011Z] [ERROR] Error: Command failed: node orchestration/scrape-canvas.mjs
+❌ Missing --user-id parameter
+Usage: node scrape-canvas.mjs --user-id=USER_ID
+
+    at genericNodeError (node:internal/errors:985:15)
+    at wrappedFn (node:internal/errors:539:14)
+    at ChildProcess.exithandler (node:child_process:417:12)
+    at ChildProcess.emit (node:events:508:28)
+    at maybeClose (node:internal/child_process:1100:16)
+    at ChildProcess._handle.onexit (node:internal/child_process:305:5)
+[2026-04-07T06:01:22.012Z] [INFO]   → Embedding new messages...
+[2026-04-07T06:01:24.011Z] [INFO]   ✅ Embedded 0 new messages
+[2026-04-07T06:01:24.011Z] [INFO]   → Running project detection...
+[2026-04-07T06:01:25.010Z] [INFO]   ✅ Detected 0 projects
+[2026-04-07T06:01:25.010Z] [INFO] Refresh cycle complete in 3.1s
+[2026-04-07T06:01:51.896Z] [INFO] Starting refresh cycle...
+[2026-04-07T06:01:51.896Z] [INFO]   → Scraping Canvas for new assignments...
+[2026-04-07T06:01:52.017Z] [ERROR]   ⚠️  Canvas scrape failed: Command failed: node orchestration/scrape-canvas.mjs
+❌ Missing --user-id parameter
+Usage: node scrape-canvas.mjs --user-id=USER_ID
+
+[2026-04-07T06:01:52.017Z] [ERROR] Error: Command failed: node orchestration/scrape-canvas.mjs
+❌ Missing --user-id parameter
+Usage: node scrape-canvas.mjs --user-id=USER_ID
+
+    at genericNodeError (node:internal/errors:985:15)
+    at wrappedFn (node:internal/errors:539:14)
+    at ChildProcess.exithandler (node:child_process:417:12)
+    at ChildProcess.emit (node:events:508:28)
+    at maybeClose (node:internal/child_process:1100:16)
+    at ChildProcess._handle.onexit (node:internal/child_process:305:5)
+[2026-04-07T06:01:52.017Z] [INFO]   → Embedding new messages...
+[2026-04-07T06:01:54.003Z] [INFO]   ✅ Embedded 0 new messages
+[2026-04-07T06:01:54.003Z] [INFO]   → Running project detection...
+[2026-04-07T06:01:54.998Z] [INFO]   ✅ Detected 0 projects
+[2026-04-07T06:01:54.998Z] [INFO] Refresh cycle complete in 3.1s
+[2026-04-07T06:02:21.898Z] [INFO] Starting refresh cycle...
+[2026-04-07T06:02:21.899Z] [INFO]   → Scraping Canvas for new assignments...
+[2026-04-07T06:02:22.017Z] [ERROR]   ⚠️  Canvas scrape failed: Command failed: node orchestration/scrape-canvas.mjs
+❌ Missing --user-id parameter
+Usage: node scrape-canvas.mjs --user-id=USER_ID
+
+[2026-04-07T06:02:22.017Z] [ERROR] Error: Command failed: node orchestration/scrape-canvas.mjs
+❌ Missing --user-id parameter
+Usage: node scrape-canvas.mjs --user-id=USER_ID
+
+    at genericNodeError (node:internal/errors:985:15)
+    at wrappedFn (node:internal/errors:539:14)
+    at ChildProcess.exithandler (node:child_process:417:12)
+    at ChildProcess.emit (node:events:508:28)
+    at maybeClose (node:internal/child_process:1100:16)
+    at ChildProcess._handle.onexit (node:internal/child_process:305:5)
+[2026-04-07T06:02:22.017Z] [INFO]   → Embedding new messages...
+[2026-04-07T06:02:24.102Z] [INFO]   ✅ Embedded 0 new messages
+[2026-04-07T06:02:24.103Z] [INFO]   → Running project detection...
+[2026-04-07T06:02:25.104Z] [INFO]   ✅ Detected 0 projects
+[2026-04-07T06:02:25.104Z] [INFO] Refresh cycle complete in 3.2s
+[2026-04-07T06:02:51.913Z] [INFO] Starting refresh cycle...
+[2026-04-07T06:02:51.914Z] [INFO]   → Scraping Canvas for new assignments...
+[2026-04-07T06:02:52.043Z] [ERROR]   ⚠️  Canvas scrape failed: Command failed: node orchestration/scrape-canvas.mjs
+❌ Missing --user-id parameter
+Usage: node scrape-canvas.mjs --user-id=USER_ID
+
+[2026-04-07T06:02:52.043Z] [ERROR] Error: Command failed: node orchestration/scrape-canvas.mjs
+❌ Missing --user-id parameter
+Usage: node scrape-canvas.mjs --user-id=USER_ID
+
+    at genericNodeError (node:internal/errors:985:15)
+    at wrappedFn (node:internal/errors:539:14)
+    at ChildProcess.exithandler (node:child_process:417:12)
+    at ChildProcess.emit (node:events:508:28)
+    at maybeClose (node:internal/child_process:1100:16)
+    at ChildProcess._handle.onexit (node:internal/child_process:305:5)
+[2026-04-07T06:02:52.044Z] [INFO]   → Embedding new messages...
+[2026-04-07T06:02:54.104Z] [INFO]   ✅ Embedded 0 new messages
+[2026-04-07T06:02:54.104Z] [INFO]   → Running project detection...
+[2026-04-07T06:02:55.105Z] [INFO]   ✅ Detected 0 projects
+[2026-04-07T06:02:55.105Z] [INFO] Refresh cycle complete in 3.2s
+[2026-04-07T06:03:21.918Z] [INFO] Starting refresh cycle...
+[2026-04-07T06:03:21.918Z] [INFO]   → Scraping Canvas for new assignments...
+[2026-04-07T06:03:22.046Z] [ERROR]   ⚠️  Canvas scrape failed: Command failed: node orchestration/scrape-canvas.mjs
+❌ Missing --user-id parameter
+Usage: node scrape-canvas.mjs --user-id=USER_ID
+
+[2026-04-07T06:03:22.047Z] [ERROR] Error: Command failed: node orchestration/scrape-canvas.mjs
+❌ Missing --user-id parameter
+Usage: node scrape-canvas.mjs --user-id=USER_ID
+
+    at genericNodeError (node:internal/errors:985:15)
+    at wrappedFn (node:internal/errors:539:14)
+    at ChildProcess.exithandler (node:child_process:417:12)
+    at ChildProcess.emit (node:events:508:28)
+    at maybeClose (node:internal/child_process:1100:16)
+    at ChildProcess._handle.onexit (node:internal/child_process:305:5)
+[2026-04-07T06:03:22.047Z] [INFO]   → Embedding new messages...
+[2026-04-07T06:03:24.063Z] [INFO]   ✅ Embedded 0 new messages
+[2026-04-07T06:03:24.063Z] [INFO]   → Running project detection...
+[2026-04-07T06:03:25.061Z] [INFO]   ✅ Detected 0 projects
+[2026-04-07T06:03:25.062Z] [INFO] Refresh cycle complete in 3.1s
+[2026-04-07T06:03:51.933Z] [INFO] Starting refresh cycle...
+[2026-04-07T06:03:51.933Z] [INFO]   → Scraping Canvas for new assignments...
+[2026-04-07T06:03:52.064Z] [ERROR]   ⚠️  Canvas scrape failed: Command failed: node orchestration/scrape-canvas.mjs
+❌ Missing --user-id parameter
+Usage: node scrape-canvas.mjs --user-id=USER_ID
+
+[2026-04-07T06:03:52.065Z] [ERROR] Error: Command failed: node orchestration/scrape-canvas.mjs
+❌ Missing --user-id parameter
+Usage: node scrape-canvas.mjs --user-id=USER_ID
+
+    at genericNodeError (node:internal/errors:985:15)
+    at wrappedFn (node:internal/errors:539:14)
+    at ChildProcess.exithandler (node:child_process:417:12)
+    at ChildProcess.emit (node:events:508:28)
+    at maybeClose (node:internal/child_process:1100:16)
+    at ChildProcess._handle.onexit (node:internal/child_process:305:5)
+[2026-04-07T06:03:52.065Z] [INFO]   → Embedding new messages...
+[2026-04-07T06:03:54.067Z] [INFO]   ✅ Embedded 0 new messages
+[2026-04-07T06:03:54.067Z] [INFO]   → Running project detection...
+[2026-04-07T06:03:55.074Z] [INFO]   ✅ Detected 0 projects
+[2026-04-07T06:03:55.075Z] [INFO] Refresh cycle complete in 3.1s
+[2026-04-07T06:04:21.943Z] [INFO] Starting refresh cycle...
+[2026-04-07T06:04:21.943Z] [INFO]   → Scraping Canvas for new assignments...
+[2026-04-07T06:04:22.074Z] [ERROR]   ⚠️  Canvas scrape failed: Command failed: node orchestration/scrape-canvas.mjs
+❌ Missing --user-id parameter
+Usage: node scrape-canvas.mjs --user-id=USER_ID
+
+[2026-04-07T06:04:22.074Z] [ERROR] Error: Command failed: node orchestration/scrape-canvas.mjs
+❌ Missing --user-id parameter
+Usage: node scrape-canvas.mjs --user-id=USER_ID
+
+    at genericNodeError (node:internal/errors:985:15)
+    at wrappedFn (node:internal/errors:539:14)
+    at ChildProcess.exithandler (node:child_process:417:12)
+    at ChildProcess.emit (node:events:508:28)
+    at maybeClose (node:internal/child_process:1100:16)
+    at ChildProcess._handle.onexit (node:internal/child_process:305:5)
+[2026-04-07T06:04:22.074Z] [INFO]   → Embedding new messages...
+[2026-04-07T06:04:24.079Z] [INFO]   ✅ Embedded 0 new messages
+[2026-04-07T06:04:24.079Z] [INFO]   → Running project detection...
+[2026-04-07T06:04:25.088Z] [INFO]   ✅ Detected 0 projects
+[2026-04-07T06:04:25.088Z] [INFO] Refresh cycle complete in 3.1s
+[2026-04-07T06:04:51.943Z] [INFO] Starting refresh cycle...
+[2026-04-07T06:04:51.943Z] [INFO]   → Scraping Canvas for new assignments...
+[2026-04-07T06:04:52.061Z] [ERROR]   ⚠️  Canvas scrape failed: Command failed: node orchestration/scrape-canvas.mjs
+❌ Missing --user-id parameter
+Usage: node scrape-canvas.mjs --user-id=USER_ID
+
+[2026-04-07T06:04:52.061Z] [ERROR] Error: Command failed: node orchestration/scrape-canvas.mjs
+❌ Missing --user-id parameter
+Usage: node scrape-canvas.mjs --user-id=USER_ID
+
+    at genericNodeError (node:internal/errors:985:15)
+    at wrappedFn (node:internal/errors:539:14)
+    at ChildProcess.exithandler (node:child_process:417:12)
+    at ChildProcess.emit (node:events:508:28)
+    at maybeClose (node:internal/child_process:1100:16)
+    at ChildProcess._handle.onexit (node:internal/child_process:305:5)
+[2026-04-07T06:04:52.062Z] [INFO]   → Embedding new messages...
+[2026-04-07T06:04:54.052Z] [INFO]   ✅ Embedded 0 new messages
+[2026-04-07T06:04:54.052Z] [INFO]   → Running project detection...
+[2026-04-07T06:04:55.050Z] [INFO]   ✅ Detected 0 projects
+[2026-04-07T06:04:55.050Z] [INFO] Refresh cycle complete in 3.1s
+[2026-04-07T06:05:21.952Z] [INFO] Starting refresh cycle...
+[2026-04-07T06:05:21.952Z] [INFO]   → Scraping Canvas for new assignments...
+[2026-04-07T06:05:22.083Z] [ERROR]   ⚠️  Canvas scrape failed: Command failed: node orchestration/scrape-canvas.mjs
+❌ Missing --user-id parameter
+Usage: node scrape-canvas.mjs --user-id=USER_ID
+
+[2026-04-07T06:05:22.083Z] [ERROR] Error: Command failed: node orchestration/scrape-canvas.mjs
+❌ Missing --user-id parameter
+Usage: node scrape-canvas.mjs --user-id=USER_ID
+
+    at genericNodeError (node:internal/errors:985:15)
+    at wrappedFn (node:internal/errors:539:14)
+    at ChildProcess.exithandler (node:child_process:417:12)
+    at ChildProcess.emit (node:events:508:28)
+    at maybeClose (node:internal/child_process:1100:16)
+    at ChildProcess._handle.onexit (node:internal/child_process:305:5)
+[2026-04-07T06:05:22.084Z] [INFO]   → Embedding new messages...
+[2026-04-07T06:05:24.087Z] [INFO]   ✅ Embedded 0 new messages
+[2026-04-07T06:05:24.087Z] [INFO]   → Running project detection...
+[2026-04-07T06:05:25.082Z] [INFO]   ✅ Detected 0 projects
+[2026-04-07T06:05:25.082Z] [INFO] Refresh cycle complete in 3.1s
+[2026-04-07T06:05:51.966Z] [INFO] Starting refresh cycle...
+[2026-04-07T06:05:51.967Z] [INFO]   → Scraping Canvas for new assignments...
+[2026-04-07T06:05:52.097Z] [ERROR]   ⚠️  Canvas scrape failed: Command failed: node orchestration/scrape-canvas.mjs
+❌ Missing --user-id parameter
+Usage: node scrape-canvas.mjs --user-id=USER_ID
+
+[2026-04-07T06:05:52.097Z] [ERROR] Error: Command failed: node orchestration/scrape-canvas.mjs
+❌ Missing --user-id parameter
+Usage: node scrape-canvas.mjs --user-id=USER_ID
+
+    at genericNodeError (node:internal/errors:985:15)
+    at wrappedFn (node:internal/errors:539:14)
+    at ChildProcess.exithandler (node:child_process:417:12)
+    at ChildProcess.emit (node:events:508:28)
+    at maybeClose (node:internal/child_process:1100:16)
+    at ChildProcess._handle.onexit (node:internal/child_process:305:5)
+[2026-04-07T06:05:52.097Z] [INFO]   → Embedding new messages...
+[2026-04-07T06:05:54.097Z] [INFO]   ✅ Embedded 0 new messages
+[2026-04-07T06:05:54.097Z] [INFO]   → Running project detection...
+[2026-04-07T06:05:55.097Z] [INFO]   ✅ Detected 0 projects
+[2026-04-07T06:05:55.098Z] [INFO] Refresh cycle complete in 3.1s
+[2026-04-07T06:06:21.980Z] [INFO] Starting refresh cycle...
+[2026-04-07T06:06:21.980Z] [INFO]   → Scraping Canvas for new assignments...
+[2026-04-07T06:06:22.114Z] [ERROR]   ⚠️  Canvas scrape failed: Command failed: node orchestration/scrape-canvas.mjs
+❌ Missing --user-id parameter
+Usage: node scrape-canvas.mjs --user-id=USER_ID
+
+[2026-04-07T06:06:22.115Z] [ERROR] Error: Command failed: node orchestration/scrape-canvas.mjs
+❌ Missing --user-id parameter
+Usage: node scrape-canvas.mjs --user-id=USER_ID
+
+    at genericNodeError (node:internal/errors:985:15)
+    at wrappedFn (node:internal/errors:539:14)
+    at ChildProcess.exithandler (node:child_process:417:12)
+    at ChildProcess.emit (node:events:508:28)
+    at maybeClose (node:internal/child_process:1100:16)
+    at ChildProcess._handle.onexit (node:internal/child_process:305:5)
+[2026-04-07T06:06:22.115Z] [INFO]   → Embedding new messages...
+[2026-04-07T06:06:24.142Z] [INFO]   ✅ Embedded 0 new messages
+[2026-04-07T06:06:24.142Z] [INFO]   → Running project detection...
+[2026-04-07T06:06:25.135Z] [INFO]   ✅ Detected 0 projects
+[2026-04-07T06:06:25.135Z] [INFO] Refresh cycle complete in 3.2s
+[2026-04-07T06:06:51.984Z] [INFO] Starting refresh cycle...
+[2026-04-07T06:06:51.984Z] [INFO]   → Scraping Canvas for new assignments...
+[2026-04-07T06:06:52.117Z] [ERROR]   ⚠️  Canvas scrape failed: Command failed: node orchestration/scrape-canvas.mjs
+❌ Missing --user-id parameter
+Usage: node scrape-canvas.mjs --user-id=USER_ID
+
+[2026-04-07T06:06:52.117Z] [ERROR] Error: Command failed: node orchestration/scrape-canvas.mjs
+❌ Missing --user-id parameter
+Usage: node scrape-canvas.mjs --user-id=USER_ID
+
+    at genericNodeError (node:internal/errors:985:15)
+    at wrappedFn (node:internal/errors:539:14)
+    at ChildProcess.exithandler (node:child_process:417:12)
+    at ChildProcess.emit (node:events:508:28)
+    at maybeClose (node:internal/child_process:1100:16)
+    at ChildProcess._handle.onexit (node:internal/child_process:305:5)
+[2026-04-07T06:06:52.118Z] [INFO]   → Embedding new messages...
+[2026-04-07T06:06:54.097Z] [INFO]   ✅ Embedded 0 new messages
+[2026-04-07T06:06:54.097Z] [INFO]   → Running project detection...
+[2026-04-07T06:06:55.095Z] [INFO]   ✅ Detected 0 projects
+[2026-04-07T06:06:55.095Z] [INFO] Refresh cycle complete in 3.1s
+[2026-04-07T06:07:21.994Z] [INFO] Starting refresh cycle...
+[2026-04-07T06:07:21.994Z] [INFO]   → Scraping Canvas for new assignments...
+[2026-04-07T06:07:22.113Z] [ERROR]   ⚠️  Canvas scrape failed: Command failed: node orchestration/scrape-canvas.mjs
+❌ Missing --user-id parameter
+Usage: node scrape-canvas.mjs --user-id=USER_ID
+
+[2026-04-07T06:07:22.114Z] [ERROR] Error: Command failed: node orchestration/scrape-canvas.mjs
+❌ Missing --user-id parameter
+Usage: node scrape-canvas.mjs --user-id=USER_ID
+
+    at genericNodeError (node:internal/errors:985:15)
+    at wrappedFn (node:internal/errors:539:14)
+    at ChildProcess.exithandler (node:child_process:417:12)
+    at ChildProcess.emit (node:events:508:28)
+    at maybeClose (node:internal/child_process:1100:16)
+    at ChildProcess._handle.onexit (node:internal/child_process:305:5)
+[2026-04-07T06:07:22.114Z] [INFO]   → Embedding new messages...
+[2026-04-07T06:07:24.170Z] [INFO]   ✅ Embedded 0 new messages
+[2026-04-07T06:07:24.170Z] [INFO]   → Running project detection...
+[2026-04-07T06:07:25.158Z] [INFO]   ✅ Detected 0 projects
+[2026-04-07T06:07:25.158Z] [INFO] Refresh cycle complete in 3.2s
+[2026-04-07T06:32:11.826Z] [INFO] Starting refresh cycle...
+[2026-04-07T06:32:11.826Z] [INFO]   → Scraping Canvas for new assignments...
+[2026-04-07T06:32:12.208Z] [ERROR]   ⚠️  Canvas scrape failed: Command failed: node orchestration/scrape-canvas.mjs
+❌ Missing --user-id parameter
+Usage: node scrape-canvas.mjs --user-id=USER_ID
+
+[2026-04-07T06:32:12.208Z] [ERROR] Error: Command failed: node orchestration/scrape-canvas.mjs
+❌ Missing --user-id parameter
+Usage: node scrape-canvas.mjs --user-id=USER_ID
+
+    at genericNodeError (node:internal/errors:985:15)
+    at wrappedFn (node:internal/errors:539:14)
+    at ChildProcess.exithandler (node:child_process:417:12)
+    at ChildProcess.emit (node:events:508:28)
+    at maybeClose (node:internal/child_process:1100:16)
+    at ChildProcess._handle.onexit (node:internal/child_process:305:5)
+[2026-04-07T06:32:12.208Z] [INFO]   → Embedding new messages...
+[2026-04-07T06:32:14.875Z] [INFO]   ✅ Embedded 0 new messages
+[2026-04-07T06:32:14.875Z] [INFO]   → Running project detection...
+[2026-04-07T06:32:15.893Z] [INFO]   ✅ Detected 0 projects
+[2026-04-07T06:32:15.893Z] [INFO] Refresh cycle complete in 4.1s
+[2026-04-07T06:32:41.830Z] [INFO] Starting refresh cycle...
+[2026-04-07T06:32:41.830Z] [INFO]   → Scraping Canvas for new assignments...
+[2026-04-07T06:32:41.964Z] [ERROR]   ⚠️  Canvas scrape failed: Command failed: node orchestration/scrape-canvas.mjs
+❌ Missing --user-id parameter
+Usage: node scrape-canvas.mjs --user-id=USER_ID
+
+[2026-04-07T06:32:41.964Z] [ERROR] Error: Command failed: node orchestration/scrape-canvas.mjs
+❌ Missing --user-id parameter
+Usage: node scrape-canvas.mjs --user-id=USER_ID
+
+    at genericNodeError (node:internal/errors:985:15)
+    at wrappedFn (node:internal/errors:539:14)
+    at ChildProcess.exithandler (node:child_process:417:12)
+    at ChildProcess.emit (node:events:508:28)
+    at maybeClose (node:internal/child_process:1100:16)
+    at ChildProcess._handle.onexit (node:internal/child_process:305:5)
+[2026-04-07T06:32:41.964Z] [INFO]   → Embedding new messages...
+[2026-04-07T06:32:44.014Z] [INFO]   ✅ Embedded 0 new messages
+[2026-04-07T06:32:44.014Z] [INFO]   → Running project detection...
+[2026-04-07T06:32:45.026Z] [INFO]   ✅ Detected 0 projects
+[2026-04-07T06:32:45.026Z] [INFO] Refresh cycle complete in 3.2s
+[2026-04-07T06:33:11.844Z] [INFO] Starting refresh cycle...
+[2026-04-07T06:33:11.844Z] [INFO]   → Scraping Canvas for new assignments...
+[2026-04-07T06:33:11.964Z] [ERROR]   ⚠️  Canvas scrape failed: Command failed: node orchestration/scrape-canvas.mjs
+❌ Missing --user-id parameter
+Usage: node scrape-canvas.mjs --user-id=USER_ID
+
+[2026-04-07T06:33:11.964Z] [ERROR] Error: Command failed: node orchestration/scrape-canvas.mjs
+❌ Missing --user-id parameter
+Usage: node scrape-canvas.mjs --user-id=USER_ID
+
+    at genericNodeError (node:internal/errors:985:15)
+    at wrappedFn (node:internal/errors:539:14)
+    at ChildProcess.exithandler (node:child_process:417:12)
+    at ChildProcess.emit (node:events:508:28)
+    at maybeClose (node:internal/child_process:1100:16)
+    at ChildProcess._handle.onexit (node:internal/child_process:305:5)
+[2026-04-07T06:33:11.965Z] [INFO]   → Embedding new messages...
+[2026-04-07T06:33:14.005Z] [INFO]   ✅ Embedded 0 new messages
+[2026-04-07T06:33:14.005Z] [INFO]   → Running project detection...
+[2026-04-07T06:33:15.013Z] [INFO]   ✅ Detected 0 projects
+[2026-04-07T06:33:15.013Z] [INFO] Refresh cycle complete in 3.2s
+[2026-04-07T06:33:41.853Z] [INFO] Starting refresh cycle...
+[2026-04-07T06:33:41.853Z] [INFO]   → Scraping Canvas for new assignments...
+[2026-04-07T06:33:41.969Z] [ERROR]   ⚠️  Canvas scrape failed: Command failed: node orchestration/scrape-canvas.mjs
+❌ Missing --user-id parameter
+Usage: node scrape-canvas.mjs --user-id=USER_ID
+
+[2026-04-07T06:33:41.969Z] [ERROR] Error: Command failed: node orchestration/scrape-canvas.mjs
+❌ Missing --user-id parameter
+Usage: node scrape-canvas.mjs --user-id=USER_ID
+
+    at genericNodeError (node:internal/errors:985:15)
+    at wrappedFn (node:internal/errors:539:14)
+    at ChildProcess.exithandler (node:child_process:417:12)
+    at ChildProcess.emit (node:events:508:28)
+    at maybeClose (node:internal/child_process:1100:16)
+    at ChildProcess._handle.onexit (node:internal/child_process:305:5)
+[2026-04-07T06:33:41.970Z] [INFO]   → Embedding new messages...
+[2026-04-07T06:33:43.937Z] [INFO]   ✅ Embedded 0 new messages
+[2026-04-07T06:33:43.938Z] [INFO]   → Running project detection...
+[2026-04-07T06:33:44.940Z] [INFO]   ✅ Detected 0 projects
+[2026-04-07T06:33:44.941Z] [INFO] Refresh cycle complete in 3.1s
+[2026-04-07T06:34:11.866Z] [INFO] Starting refresh cycle...
+[2026-04-07T06:34:11.866Z] [INFO]   → Scraping Canvas for new assignments...
+[2026-04-07T06:34:11.998Z] [ERROR]   ⚠️  Canvas scrape failed: Command failed: node orchestration/scrape-canvas.mjs
+❌ Missing --user-id parameter
+Usage: node scrape-canvas.mjs --user-id=USER_ID
+
+[2026-04-07T06:34:11.998Z] [ERROR] Error: Command failed: node orchestration/scrape-canvas.mjs
+❌ Missing --user-id parameter
+Usage: node scrape-canvas.mjs --user-id=USER_ID
+
+    at genericNodeError (node:internal/errors:985:15)
+    at wrappedFn (node:internal/errors:539:14)
+    at ChildProcess.exithandler (node:child_process:417:12)
+    at ChildProcess.emit (node:events:508:28)
+    at maybeClose (node:internal/child_process:1100:16)
+    at ChildProcess._handle.onexit (node:internal/child_process:305:5)
+[2026-04-07T06:34:11.998Z] [INFO]   → Embedding new messages...
+[2026-04-07T06:34:14.021Z] [INFO]   ✅ Embedded 0 new messages
+[2026-04-07T06:34:14.021Z] [INFO]   → Running project detection...
+[2026-04-07T06:34:15.043Z] [INFO]   ✅ Detected 0 projects
+[2026-04-07T06:34:15.043Z] [INFO] Refresh cycle complete in 3.2s
+[2026-04-07T06:34:41.869Z] [INFO] Starting refresh cycle...
+[2026-04-07T06:34:41.870Z] [INFO]   → Scraping Canvas for new assignments...
+[2026-04-07T06:34:42.000Z] [ERROR]   ⚠️  Canvas scrape failed: Command failed: node orchestration/scrape-canvas.mjs
+❌ Missing --user-id parameter
+Usage: node scrape-canvas.mjs --user-id=USER_ID
+
+[2026-04-07T06:34:42.000Z] [ERROR] Error: Command failed: node orchestration/scrape-canvas.mjs
+❌ Missing --user-id parameter
+Usage: node scrape-canvas.mjs --user-id=USER_ID
+
+    at genericNodeError (node:internal/errors:985:15)
+    at wrappedFn (node:internal/errors:539:14)
+    at ChildProcess.exithandler (node:child_process:417:12)
+    at ChildProcess.emit (node:events:508:28)
+    at maybeClose (node:internal/child_process:1100:16)
+    at ChildProcess._handle.onexit (node:internal/child_process:305:5)
+[2026-04-07T06:34:42.001Z] [INFO]   → Embedding new messages...
+[2026-04-07T06:34:43.984Z] [INFO]   ✅ Embedded 0 new messages
+[2026-04-07T06:34:43.984Z] [INFO]   → Running project detection...
+[2026-04-07T06:34:44.986Z] [INFO]   ✅ Detected 0 projects
+[2026-04-07T06:34:44.986Z] [INFO] Refresh cycle complete in 3.1s
+[2026-04-07T06:35:11.873Z] [INFO] Starting refresh cycle...
+[2026-04-07T06:35:11.874Z] [INFO]   → Scraping Canvas for new assignments...
+[2026-04-07T06:35:11.995Z] [ERROR]   ⚠️  Canvas scrape failed: Command failed: node orchestration/scrape-canvas.mjs
+❌ Missing --user-id parameter
+Usage: node scrape-canvas.mjs --user-id=USER_ID
+
+[2026-04-07T06:35:11.995Z] [ERROR] Error: Command failed: node orchestration/scrape-canvas.mjs
+❌ Missing --user-id parameter
+Usage: node scrape-canvas.mjs --user-id=USER_ID
+
+    at genericNodeError (node:internal/errors:985:15)
+    at wrappedFn (node:internal/errors:539:14)
+    at ChildProcess.exithandler (node:child_process:417:12)
+    at ChildProcess.emit (node:events:508:28)
+    at maybeClose (node:internal/child_process:1100:16)
+    at ChildProcess._handle.onexit (node:internal/child_process:305:5)
+[2026-04-07T06:35:11.995Z] [INFO]   → Embedding new messages...
+[2026-04-07T06:35:13.991Z] [INFO]   ✅ Embedded 0 new messages
+[2026-04-07T06:35:13.991Z] [INFO]   → Running project detection...
+[2026-04-07T06:35:14.994Z] [INFO]   ✅ Detected 0 projects
+[2026-04-07T06:35:14.994Z] [INFO] Refresh cycle complete in 3.1s
+[2026-04-07T06:35:41.878Z] [INFO] Starting refresh cycle...
+[2026-04-07T06:35:41.878Z] [INFO]   → Scraping Canvas for new assignments...
+[2026-04-07T06:35:42.008Z] [ERROR]   ⚠️  Canvas scrape failed: Command failed: node orchestration/scrape-canvas.mjs
+❌ Missing --user-id parameter
+Usage: node scrape-canvas.mjs --user-id=USER_ID
+
+[2026-04-07T06:35:42.009Z] [ERROR] Error: Command failed: node orchestration/scrape-canvas.mjs
+❌ Missing --user-id parameter
+Usage: node scrape-canvas.mjs --user-id=USER_ID
+
+    at genericNodeError (node:internal/errors:985:15)
+    at wrappedFn (node:internal/errors:539:14)
+    at ChildProcess.exithandler (node:child_process:417:12)
+    at ChildProcess.emit (node:events:508:28)
+    at maybeClose (node:internal/child_process:1100:16)
+    at ChildProcess._handle.onexit (node:internal/child_process:305:5)
+[2026-04-07T06:35:42.009Z] [INFO]   → Embedding new messages...
+[2026-04-07T06:35:44.001Z] [INFO]   ✅ Embedded 0 new messages
+[2026-04-07T06:35:44.001Z] [INFO]   → Running project detection...
+[2026-04-07T06:35:45.010Z] [INFO]   ✅ Detected 0 projects
+[2026-04-07T06:35:45.010Z] [INFO] Refresh cycle complete in 3.1s
+[2026-04-07T06:36:11.890Z] [INFO] Starting refresh cycle...
+[2026-04-07T06:36:11.890Z] [INFO]   → Scraping Canvas for new assignments...
+[2026-04-07T06:36:12.022Z] [ERROR]   ⚠️  Canvas scrape failed: Command failed: node orchestration/scrape-canvas.mjs
+❌ Missing --user-id parameter
+Usage: node scrape-canvas.mjs --user-id=USER_ID
+
+[2026-04-07T06:36:12.022Z] [ERROR] Error: Command failed: node orchestration/scrape-canvas.mjs
+❌ Missing --user-id parameter
+Usage: node scrape-canvas.mjs --user-id=USER_ID
+
+    at genericNodeError (node:internal/errors:985:15)
+    at wrappedFn (node:internal/errors:539:14)
+    at ChildProcess.exithandler (node:child_process:417:12)
+    at ChildProcess.emit (node:events:508:28)
+    at maybeClose (node:internal/child_process:1100:16)
+    at ChildProcess._handle.onexit (node:internal/child_process:305:5)
+[2026-04-07T06:36:12.022Z] [INFO]   → Embedding new messages...
+[2026-04-07T06:36:14.023Z] [INFO]   ✅ Embedded 0 new messages
+[2026-04-07T06:36:14.024Z] [INFO]   → Running project detection...
+[2026-04-07T06:36:15.034Z] [INFO]   ✅ Detected 0 projects
+[2026-04-07T06:36:15.034Z] [INFO] Refresh cycle complete in 3.1s
+[2026-04-07T06:36:41.892Z] [INFO] Starting refresh cycle...
+[2026-04-07T06:36:41.892Z] [INFO]   → Scraping Canvas for new assignments...
+[2026-04-07T06:36:42.022Z] [ERROR]   ⚠️  Canvas scrape failed: Command failed: node orchestration/scrape-canvas.mjs
+❌ Missing --user-id parameter
+Usage: node scrape-canvas.mjs --user-id=USER_ID
+
+[2026-04-07T06:36:42.022Z] [ERROR] Error: Command failed: node orchestration/scrape-canvas.mjs
+❌ Missing --user-id parameter
+Usage: node scrape-canvas.mjs --user-id=USER_ID
+
+    at genericNodeError (node:internal/errors:985:15)
+    at wrappedFn (node:internal/errors:539:14)
+    at ChildProcess.exithandler (node:child_process:417:12)
+    at ChildProcess.emit (node:events:508:28)
+    at maybeClose (node:internal/child_process:1100:16)
+    at ChildProcess._handle.onexit (node:internal/child_process:305:5)
+[2026-04-07T06:36:42.022Z] [INFO]   → Embedding new messages...
+[2026-04-07T06:36:44.008Z] [INFO]   ✅ Embedded 0 new messages
+[2026-04-07T06:36:44.008Z] [INFO]   → Running project detection...
+[2026-04-07T06:36:45.006Z] [INFO]   ✅ Detected 0 projects
+[2026-04-07T06:36:45.006Z] [INFO] Refresh cycle complete in 3.1s
+[2026-04-07T06:37:11.898Z] [INFO] Starting refresh cycle...
+[2026-04-07T06:37:11.898Z] [INFO]   → Scraping Canvas for new assignments...
+[2026-04-07T06:37:12.029Z] [ERROR]   ⚠️  Canvas scrape failed: Command failed: node orchestration/scrape-canvas.mjs
+❌ Missing --user-id parameter
+Usage: node scrape-canvas.mjs --user-id=USER_ID
+
+[2026-04-07T06:37:12.029Z] [ERROR] Error: Command failed: node orchestration/scrape-canvas.mjs
+❌ Missing --user-id parameter
+Usage: node scrape-canvas.mjs --user-id=USER_ID
+
+    at genericNodeError (node:internal/errors:985:15)
+    at wrappedFn (node:internal/errors:539:14)
+    at ChildProcess.exithandler (node:child_process:417:12)
+    at ChildProcess.emit (node:events:508:28)
+    at maybeClose (node:internal/child_process:1100:16)
+    at ChildProcess._handle.onexit (node:internal/child_process:305:5)
+[2026-04-07T06:37:12.029Z] [INFO]   → Embedding new messages...
+[2026-04-07T06:37:14.035Z] [INFO]   ✅ Embedded 0 new messages
+[2026-04-07T06:37:14.035Z] [INFO]   → Running project detection...
+[2026-04-07T06:37:15.050Z] [INFO]   ✅ Detected 0 projects
+[2026-04-07T06:37:15.050Z] [INFO] Refresh cycle complete in 3.2s
+[2026-04-07T06:37:41.914Z] [INFO] Starting refresh cycle...
+[2026-04-07T06:37:41.914Z] [INFO]   → Scraping Canvas for new assignments...
+[2026-04-07T06:37:42.032Z] [ERROR]   ⚠️  Canvas scrape failed: Command failed: node orchestration/scrape-canvas.mjs
+❌ Missing --user-id parameter
+Usage: node scrape-canvas.mjs --user-id=USER_ID
+
+[2026-04-07T06:37:42.032Z] [ERROR] Error: Command failed: node orchestration/scrape-canvas.mjs
+❌ Missing --user-id parameter
+Usage: node scrape-canvas.mjs --user-id=USER_ID
+
+    at genericNodeError (node:internal/errors:985:15)
+    at wrappedFn (node:internal/errors:539:14)
+    at ChildProcess.exithandler (node:child_process:417:12)
+    at ChildProcess.emit (node:events:508:28)
+    at maybeClose (node:internal/child_process:1100:16)
+    at ChildProcess._handle.onexit (node:internal/child_process:305:5)
+[2026-04-07T06:37:42.033Z] [INFO]   → Embedding new messages...
+[2026-04-07T06:37:44.014Z] [INFO]   ✅ Embedded 0 new messages
+[2026-04-07T06:37:44.015Z] [INFO]   → Running project detection...
+[2026-04-07T06:37:45.028Z] [INFO]   ✅ Detected 0 projects
+[2026-04-07T06:37:45.029Z] [INFO] Refresh cycle complete in 3.1s
+[2026-04-07T06:38:11.916Z] [INFO] Starting refresh cycle...
+[2026-04-07T06:38:11.917Z] [INFO]   → Scraping Canvas for new assignments...
+[2026-04-07T06:38:12.046Z] [ERROR]   ⚠️  Canvas scrape failed: Command failed: node orchestration/scrape-canvas.mjs
+❌ Missing --user-id parameter
+Usage: node scrape-canvas.mjs --user-id=USER_ID
+
+[2026-04-07T06:38:12.047Z] [ERROR] Error: Command failed: node orchestration/scrape-canvas.mjs
+❌ Missing --user-id parameter
+Usage: node scrape-canvas.mjs --user-id=USER_ID
+
+    at genericNodeError (node:internal/errors:985:15)
+    at wrappedFn (node:internal/errors:539:14)
+    at ChildProcess.exithandler (node:child_process:417:12)
+    at ChildProcess.emit (node:events:508:28)
+    at maybeClose (node:internal/child_process:1100:16)
+    at ChildProcess._handle.onexit (node:internal/child_process:305:5)
+[2026-04-07T06:38:12.047Z] [INFO]   → Embedding new messages...
+[2026-04-07T06:38:14.061Z] [INFO]   ✅ Embedded 0 new messages
+[2026-04-07T06:38:14.061Z] [INFO]   → Running project detection...
+[2026-04-07T06:38:15.065Z] [INFO]   ✅ Detected 0 projects
+[2026-04-07T06:38:15.065Z] [INFO] Refresh cycle complete in 3.1s
+[2026-04-07T06:38:41.923Z] [INFO] Starting refresh cycle...
+[2026-04-07T06:38:41.924Z] [INFO]   → Scraping Canvas for new assignments...
+[2026-04-07T06:38:42.055Z] [ERROR]   ⚠️  Canvas scrape failed: Command failed: node orchestration/scrape-canvas.mjs
+❌ Missing --user-id parameter
+Usage: node scrape-canvas.mjs --user-id=USER_ID
+
+[2026-04-07T06:38:42.056Z] [ERROR] Error: Command failed: node orchestration/scrape-canvas.mjs
+❌ Missing --user-id parameter
+Usage: node scrape-canvas.mjs --user-id=USER_ID
+
+    at genericNodeError (node:internal/errors:985:15)
+    at wrappedFn (node:internal/errors:539:14)
+    at ChildProcess.exithandler (node:child_process:417:12)
+    at ChildProcess.emit (node:events:508:28)
+    at maybeClose (node:internal/child_process:1100:16)
+    at ChildProcess._handle.onexit (node:internal/child_process:305:5)
+[2026-04-07T06:38:42.056Z] [INFO]   → Embedding new messages...
+[2026-04-07T06:38:44.050Z] [INFO]   ✅ Embedded 0 new messages
+[2026-04-07T06:38:44.050Z] [INFO]   → Running project detection...
+[2026-04-07T06:38:45.046Z] [INFO]   ✅ Detected 0 projects
+[2026-04-07T06:38:45.046Z] [INFO] Refresh cycle complete in 3.1s
+[2026-04-07T06:39:11.925Z] [INFO] Starting refresh cycle...
+[2026-04-07T06:39:11.926Z] [INFO]   → Scraping Canvas for new assignments...
+[2026-04-07T06:39:12.047Z] [ERROR]   ⚠️  Canvas scrape failed: Command failed: node orchestration/scrape-canvas.mjs
+❌ Missing --user-id parameter
+Usage: node scrape-canvas.mjs --user-id=USER_ID
+
+[2026-04-07T06:39:12.047Z] [ERROR] Error: Command failed: node orchestration/scrape-canvas.mjs
+❌ Missing --user-id parameter
+Usage: node scrape-canvas.mjs --user-id=USER_ID
+
+    at genericNodeError (node:internal/errors:985:15)
+    at wrappedFn (node:internal/errors:539:14)
+    at ChildProcess.exithandler (node:child_process:417:12)
+    at ChildProcess.emit (node:events:508:28)
+    at maybeClose (node:internal/child_process:1100:16)
+    at ChildProcess._handle.onexit (node:internal/child_process:305:5)
+[2026-04-07T06:39:12.047Z] [INFO]   → Embedding new messages...
+[2026-04-07T06:39:14.023Z] [INFO]   ✅ Embedded 0 new messages
+[2026-04-07T06:39:14.023Z] [INFO]   → Running project detection...
+[2026-04-07T06:39:15.031Z] [INFO]   ✅ Detected 0 projects
+[2026-04-07T06:39:15.031Z] [INFO] Refresh cycle complete in 3.1s
+[2026-04-07T06:39:41.941Z] [INFO] Starting refresh cycle...
+[2026-04-07T06:39:41.941Z] [INFO]   → Scraping Canvas for new assignments...
+[2026-04-07T06:39:42.062Z] [ERROR]   ⚠️  Canvas scrape failed: Command failed: node orchestration/scrape-canvas.mjs
+❌ Missing --user-id parameter
+Usage: node scrape-canvas.mjs --user-id=USER_ID
+
+[2026-04-07T06:39:42.063Z] [ERROR] Error: Command failed: node orchestration/scrape-canvas.mjs
+❌ Missing --user-id parameter
+Usage: node scrape-canvas.mjs --user-id=USER_ID
+
+    at genericNodeError (node:internal/errors:985:15)
+    at wrappedFn (node:internal/errors:539:14)
+    at ChildProcess.exithandler (node:child_process:417:12)
+    at ChildProcess.emit (node:events:508:28)
+    at maybeClose (node:internal/child_process:1100:16)
+    at ChildProcess._handle.onexit (node:internal/child_process:305:5)
+[2026-04-07T06:39:42.063Z] [INFO]   → Embedding new messages...
+[2026-04-07T06:39:44.092Z] [INFO]   ✅ Embedded 0 new messages
+[2026-04-07T06:39:44.092Z] [INFO]   → Running project detection...
+[2026-04-07T06:39:45.104Z] [INFO]   ✅ Detected 0 projects
+[2026-04-07T06:39:45.104Z] [INFO] Refresh cycle complete in 3.2s
+[2026-04-07T06:40:11.952Z] [INFO] Starting refresh cycle...
+[2026-04-07T06:40:11.952Z] [INFO]   → Scraping Canvas for new assignments...
+[2026-04-07T06:40:12.081Z] [ERROR]   ⚠️  Canvas scrape failed: Command failed: node orchestration/scrape-canvas.mjs
+❌ Missing --user-id parameter
+Usage: node scrape-canvas.mjs --user-id=USER_ID
+
+[2026-04-07T06:40:12.081Z] [ERROR] Error: Command failed: node orchestration/scrape-canvas.mjs
+❌ Missing --user-id parameter
+Usage: node scrape-canvas.mjs --user-id=USER_ID
+
+    at genericNodeError (node:internal/errors:985:15)
+    at wrappedFn (node:internal/errors:539:14)
+    at ChildProcess.exithandler (node:child_process:417:12)
+    at ChildProcess.emit (node:events:508:28)
+    at maybeClose (node:internal/child_process:1100:16)
+    at ChildProcess._handle.onexit (node:internal/child_process:305:5)
+[2026-04-07T06:40:12.081Z] [INFO]   → Embedding new messages...
+[2026-04-07T06:40:14.071Z] [INFO]   ✅ Embedded 0 new messages
+[2026-04-07T06:40:14.071Z] [INFO]   → Running project detection...
+[2026-04-07T06:40:15.081Z] [INFO]   ✅ Detected 0 projects
+[2026-04-07T06:40:15.081Z] [INFO] Refresh cycle complete in 3.1s
+[2026-04-07T06:40:41.953Z] [INFO] Starting refresh cycle...
+[2026-04-07T06:40:41.953Z] [INFO]   → Scraping Canvas for new assignments...
+[2026-04-07T06:40:42.073Z] [ERROR]   ⚠️  Canvas scrape failed: Command failed: node orchestration/scrape-canvas.mjs
+❌ Missing --user-id parameter
+Usage: node scrape-canvas.mjs --user-id=USER_ID
+
+[2026-04-07T06:40:42.073Z] [ERROR] Error: Command failed: node orchestration/scrape-canvas.mjs
+❌ Missing --user-id parameter
+Usage: node scrape-canvas.mjs --user-id=USER_ID
+
+    at genericNodeError (node:internal/errors:985:15)
+    at wrappedFn (node:internal/errors:539:14)
+    at ChildProcess.exithandler (node:child_process:417:12)
+    at ChildProcess.emit (node:events:508:28)
+    at maybeClose (node:internal/child_process:1100:16)
+    at ChildProcess._handle.onexit (node:internal/child_process:305:5)
+[2026-04-07T06:40:42.073Z] [INFO]   → Embedding new messages...
+[2026-04-07T06:40:44.064Z] [INFO]   ✅ Embedded 0 new messages
+[2026-04-07T06:40:44.064Z] [INFO]   → Running project detection...
+[2026-04-07T06:40:45.065Z] [INFO]   ✅ Detected 0 projects
+[2026-04-07T06:40:45.065Z] [INFO] Refresh cycle complete in 3.1s
+[2026-04-07T06:41:11.955Z] [INFO] Starting refresh cycle...
+[2026-04-07T06:41:11.955Z] [INFO]   → Scraping Canvas for new assignments...
+[2026-04-07T06:41:12.075Z] [ERROR]   ⚠️  Canvas scrape failed: Command failed: node orchestration/scrape-canvas.mjs
+❌ Missing --user-id parameter
+Usage: node scrape-canvas.mjs --user-id=USER_ID
+
+[2026-04-07T06:41:12.075Z] [ERROR] Error: Command failed: node orchestration/scrape-canvas.mjs
+❌ Missing --user-id parameter
+Usage: node scrape-canvas.mjs --user-id=USER_ID
+
+    at genericNodeError (node:internal/errors:985:15)
+    at wrappedFn (node:internal/errors:539:14)
+    at ChildProcess.exithandler (node:child_process:417:12)
+    at ChildProcess.emit (node:events:508:28)
+    at maybeClose (node:internal/child_process:1100:16)
+    at ChildProcess._handle.onexit (node:internal/child_process:305:5)
+[2026-04-07T06:41:12.075Z] [INFO]   → Embedding new messages...
+[2026-04-07T06:41:14.070Z] [INFO]   ✅ Embedded 0 new messages
+[2026-04-07T06:41:14.071Z] [INFO]   → Running project detection...
+[2026-04-07T06:41:15.070Z] [INFO]   ✅ Detected 0 projects
+[2026-04-07T06:41:15.071Z] [INFO] Refresh cycle complete in 3.1s
+[2026-04-07T06:41:41.966Z] [INFO] Starting refresh cycle...
+[2026-04-07T06:41:41.966Z] [INFO]   → Scraping Canvas for new assignments...
+[2026-04-07T06:41:42.097Z] [ERROR]   ⚠️  Canvas scrape failed: Command failed: node orchestration/scrape-canvas.mjs
+❌ Missing --user-id parameter
+Usage: node scrape-canvas.mjs --user-id=USER_ID
+
+[2026-04-07T06:41:42.097Z] [ERROR] Error: Command failed: node orchestration/scrape-canvas.mjs
+❌ Missing --user-id parameter
+Usage: node scrape-canvas.mjs --user-id=USER_ID
+
+    at genericNodeError (node:internal/errors:985:15)
+    at wrappedFn (node:internal/errors:539:14)
+    at ChildProcess.exithandler (node:child_process:417:12)
+    at ChildProcess.emit (node:events:508:28)
+    at maybeClose (node:internal/child_process:1100:16)
+    at ChildProcess._handle.onexit (node:internal/child_process:305:5)
+[2026-04-07T06:41:42.098Z] [INFO]   → Embedding new messages...
+[2026-04-07T06:41:44.148Z] [INFO]   ✅ Embedded 0 new messages
+[2026-04-07T06:41:44.148Z] [INFO]   → Running project detection...
+[2026-04-07T06:41:45.160Z] [INFO]   ✅ Detected 0 projects
+[2026-04-07T06:41:45.161Z] [INFO] Refresh cycle complete in 3.2s
+[2026-04-07T06:42:11.978Z] [INFO] Starting refresh cycle...
+[2026-04-07T06:42:11.978Z] [INFO]   → Scraping Canvas for new assignments...
+[2026-04-07T06:42:12.111Z] [ERROR]   ⚠️  Canvas scrape failed: Command failed: node orchestration/scrape-canvas.mjs
+❌ Missing --user-id parameter
+Usage: node scrape-canvas.mjs --user-id=USER_ID
+
+[2026-04-07T06:42:12.112Z] [ERROR] Error: Command failed: node orchestration/scrape-canvas.mjs
+❌ Missing --user-id parameter
+Usage: node scrape-canvas.mjs --user-id=USER_ID
+
+    at genericNodeError (node:internal/errors:985:15)
+    at wrappedFn (node:internal/errors:539:14)
+    at ChildProcess.exithandler (node:child_process:417:12)
+    at ChildProcess.emit (node:events:508:28)
+    at maybeClose (node:internal/child_process:1100:16)
+    at ChildProcess._handle.onexit (node:internal/child_process:305:5)
+[2026-04-07T06:42:12.112Z] [INFO]   → Embedding new messages...
+[2026-04-07T06:42:14.112Z] [INFO]   ✅ Embedded 0 new messages
+[2026-04-07T06:42:14.112Z] [INFO]   → Running project detection...
+[2026-04-07T06:42:15.097Z] [INFO]   ✅ Detected 0 projects
+[2026-04-07T06:42:15.097Z] [INFO] Refresh cycle complete in 3.1s
+[2026-04-07T06:42:41.985Z] [INFO] Starting refresh cycle...
+[2026-04-07T06:42:41.985Z] [INFO]   → Scraping Canvas for new assignments...
+[2026-04-07T06:42:42.119Z] [ERROR]   ⚠️  Canvas scrape failed: Command failed: node orchestration/scrape-canvas.mjs
+❌ Missing --user-id parameter
+Usage: node scrape-canvas.mjs --user-id=USER_ID
+
+[2026-04-07T06:42:42.119Z] [ERROR] Error: Command failed: node orchestration/scrape-canvas.mjs
+❌ Missing --user-id parameter
+Usage: node scrape-canvas.mjs --user-id=USER_ID
+
+    at genericNodeError (node:internal/errors:985:15)
+    at wrappedFn (node:internal/errors:539:14)
+    at ChildProcess.exithandler (node:child_process:417:12)
+    at ChildProcess.emit (node:events:508:28)
+    at maybeClose (node:internal/child_process:1100:16)
+    at ChildProcess._handle.onexit (node:internal/child_process:305:5)
+[2026-04-07T06:42:42.119Z] [INFO]   → Embedding new messages...
+[2026-04-07T06:42:44.103Z] [INFO]   ✅ Embedded 0 new messages
+[2026-04-07T06:42:44.103Z] [INFO]   → Running project detection...
+[2026-04-07T06:42:45.105Z] [INFO]   ✅ Detected 0 projects
+[2026-04-07T06:42:45.106Z] [INFO] Refresh cycle complete in 3.1s
+[2026-04-07T06:43:11.991Z] [INFO] Starting refresh cycle...
+[2026-04-07T06:43:11.991Z] [INFO]   → Scraping Canvas for new assignments...
+[2026-04-07T06:43:12.109Z] [ERROR]   ⚠️  Canvas scrape failed: Command failed: node orchestration/scrape-canvas.mjs
+❌ Missing --user-id parameter
+Usage: node scrape-canvas.mjs --user-id=USER_ID
+
+[2026-04-07T06:43:12.109Z] [ERROR] Error: Command failed: node orchestration/scrape-canvas.mjs
+❌ Missing --user-id parameter
+Usage: node scrape-canvas.mjs --user-id=USER_ID
+
+    at genericNodeError (node:internal/errors:985:15)
+    at wrappedFn (node:internal/errors:539:14)
+    at ChildProcess.exithandler (node:child_process:417:12)
+    at ChildProcess.emit (node:events:508:28)
+    at maybeClose (node:internal/child_process:1100:16)
+    at ChildProcess._handle.onexit (node:internal/child_process:305:5)
+[2026-04-07T06:43:12.110Z] [INFO]   → Embedding new messages...
+[2026-04-07T06:43:14.103Z] [INFO]   ✅ Embedded 0 new messages
+[2026-04-07T06:43:14.103Z] [INFO]   → Running project detection...
+[2026-04-07T06:43:15.107Z] [INFO]   ✅ Detected 0 projects
+[2026-04-07T06:43:15.107Z] [INFO] Refresh cycle complete in 3.1s
+[2026-04-07T06:43:42.004Z] [INFO] Starting refresh cycle...
+[2026-04-07T06:43:42.004Z] [INFO]   → Scraping Canvas for new assignments...
+[2026-04-07T06:43:42.124Z] [ERROR]   ⚠️  Canvas scrape failed: Command failed: node orchestration/scrape-canvas.mjs
+❌ Missing --user-id parameter
+Usage: node scrape-canvas.mjs --user-id=USER_ID
+
+[2026-04-07T06:43:42.124Z] [ERROR] Error: Command failed: node orchestration/scrape-canvas.mjs
+❌ Missing --user-id parameter
+Usage: node scrape-canvas.mjs --user-id=USER_ID
+
+    at genericNodeError (node:internal/errors:985:15)
+    at wrappedFn (node:internal/errors:539:14)
+    at ChildProcess.exithandler (node:child_process:417:12)
+    at ChildProcess.emit (node:events:508:28)
+    at maybeClose (node:internal/child_process:1100:16)
+    at ChildProcess._handle.onexit (node:internal/child_process:305:5)
+[2026-04-07T06:43:42.125Z] [INFO]   → Embedding new messages...
+[2026-04-07T06:43:44.108Z] [INFO]   ✅ Embedded 0 new messages
+[2026-04-07T06:43:44.108Z] [INFO]   → Running project detection...
+[2026-04-07T06:43:45.107Z] [INFO]   ✅ Detected 0 projects
+[2026-04-07T06:43:45.107Z] [INFO] Refresh cycle complete in 3.1s
+[2026-04-07T06:44:12.004Z] [INFO] Starting refresh cycle...
+[2026-04-07T06:44:12.005Z] [INFO]   → Scraping Canvas for new assignments...
+[2026-04-07T06:44:12.124Z] [ERROR]   ⚠️  Canvas scrape failed: Command failed: node orchestration/scrape-canvas.mjs
+❌ Missing --user-id parameter
+Usage: node scrape-canvas.mjs --user-id=USER_ID
+
+[2026-04-07T06:44:12.124Z] [ERROR] Error: Command failed: node orchestration/scrape-canvas.mjs
+❌ Missing --user-id parameter
+Usage: node scrape-canvas.mjs --user-id=USER_ID
+
+    at genericNodeError (node:internal/errors:985:15)
+    at wrappedFn (node:internal/errors:539:14)
+    at ChildProcess.exithandler (node:child_process:417:12)
+    at ChildProcess.emit (node:events:508:28)
+    at maybeClose (node:internal/child_process:1100:16)
+    at ChildProcess._handle.onexit (node:internal/child_process:305:5)
+[2026-04-07T06:44:12.124Z] [INFO]   → Embedding new messages...
+[2026-04-07T06:44:14.130Z] [INFO]   ✅ Embedded 0 new messages
+[2026-04-07T06:44:14.130Z] [INFO]   → Running project detection...
+[2026-04-07T06:44:15.133Z] [INFO]   ✅ Detected 0 projects
+[2026-04-07T06:44:15.134Z] [INFO] Refresh cycle complete in 3.1s
+[2026-04-07T06:44:42.015Z] [INFO] Starting refresh cycle...
+[2026-04-07T06:44:42.015Z] [INFO]   → Scraping Canvas for new assignments...
+[2026-04-07T06:44:42.135Z] [ERROR]   ⚠️  Canvas scrape failed: Command failed: node orchestration/scrape-canvas.mjs
+❌ Missing --user-id parameter
+Usage: node scrape-canvas.mjs --user-id=USER_ID
+
+[2026-04-07T06:44:42.135Z] [ERROR] Error: Command failed: node orchestration/scrape-canvas.mjs
+❌ Missing --user-id parameter
+Usage: node scrape-canvas.mjs --user-id=USER_ID
+
+    at genericNodeError (node:internal/errors:985:15)
+    at wrappedFn (node:internal/errors:539:14)
+    at ChildProcess.exithandler (node:child_process:417:12)
+    at ChildProcess.emit (node:events:508:28)
+    at maybeClose (node:internal/child_process:1100:16)
+    at ChildProcess._handle.onexit (node:internal/child_process:305:5)
+[2026-04-07T06:44:42.135Z] [INFO]   → Embedding new messages...
+[2026-04-07T06:44:44.131Z] [INFO]   ✅ Embedded 0 new messages
+[2026-04-07T06:44:44.132Z] [INFO]   → Running project detection...
+[2026-04-07T06:44:45.136Z] [INFO]   ✅ Detected 0 projects
+[2026-04-07T06:44:45.136Z] [INFO] Refresh cycle complete in 3.1s
+[2026-04-07T06:45:12.030Z] [INFO] Starting refresh cycle...
+[2026-04-07T06:45:12.030Z] [INFO]   → Scraping Canvas for new assignments...
+[2026-04-07T06:45:12.149Z] [ERROR]   ⚠️  Canvas scrape failed: Command failed: node orchestration/scrape-canvas.mjs
+❌ Missing --user-id parameter
+Usage: node scrape-canvas.mjs --user-id=USER_ID
+
+[2026-04-07T06:45:12.149Z] [ERROR] Error: Command failed: node orchestration/scrape-canvas.mjs
+❌ Missing --user-id parameter
+Usage: node scrape-canvas.mjs --user-id=USER_ID
+
+    at genericNodeError (node:internal/errors:985:15)
+    at wrappedFn (node:internal/errors:539:14)
+    at ChildProcess.exithandler (node:child_process:417:12)
+    at ChildProcess.emit (node:events:508:28)
+    at maybeClose (node:internal/child_process:1100:16)
+    at ChildProcess._handle.onexit (node:internal/child_process:305:5)
+[2026-04-07T06:45:12.149Z] [INFO]   → Embedding new messages...
+[2026-04-07T06:45:14.151Z] [INFO]   ✅ Embedded 0 new messages
+[2026-04-07T06:45:14.151Z] [INFO]   → Running project detection...
+[2026-04-07T06:45:15.137Z] [INFO]   ✅ Detected 0 projects
+[2026-04-07T06:45:15.137Z] [INFO] Refresh cycle complete in 3.1s
+[2026-04-07T06:45:42.045Z] [INFO] Starting refresh cycle...
+[2026-04-07T06:45:42.045Z] [INFO]   → Scraping Canvas for new assignments...
+[2026-04-07T06:45:42.164Z] [ERROR]   ⚠️  Canvas scrape failed: Command failed: node orchestration/scrape-canvas.mjs
+❌ Missing --user-id parameter
+Usage: node scrape-canvas.mjs --user-id=USER_ID
+
+[2026-04-07T06:45:42.165Z] [ERROR] Error: Command failed: node orchestration/scrape-canvas.mjs
+❌ Missing --user-id parameter
+Usage: node scrape-canvas.mjs --user-id=USER_ID
+
+    at genericNodeError (node:internal/errors:985:15)
+    at wrappedFn (node:internal/errors:539:14)
+    at ChildProcess.exithandler (node:child_process:417:12)
+    at ChildProcess.emit (node:events:508:28)
+    at maybeClose (node:internal/child_process:1100:16)
+    at ChildProcess._handle.onexit (node:internal/child_process:305:5)
+[2026-04-07T06:45:42.165Z] [INFO]   → Embedding new messages...
+[2026-04-07T06:45:44.142Z] [INFO]   ✅ Embedded 0 new messages
+[2026-04-07T06:45:44.142Z] [INFO]   → Running project detection...
+[2026-04-07T06:45:45.130Z] [INFO]   ✅ Detected 0 projects
+[2026-04-07T06:45:45.130Z] [INFO] Refresh cycle complete in 3.1s
+[2026-04-07T06:46:12.058Z] [INFO] Starting refresh cycle...
+[2026-04-07T06:46:12.058Z] [INFO]   → Scraping Canvas for new assignments...
+[2026-04-07T06:46:12.190Z] [ERROR]   ⚠️  Canvas scrape failed: Command failed: node orchestration/scrape-canvas.mjs
+❌ Missing --user-id parameter
+Usage: node scrape-canvas.mjs --user-id=USER_ID
+
+[2026-04-07T06:46:12.190Z] [ERROR] Error: Command failed: node orchestration/scrape-canvas.mjs
+❌ Missing --user-id parameter
+Usage: node scrape-canvas.mjs --user-id=USER_ID
+
+    at genericNodeError (node:internal/errors:985:15)
+    at wrappedFn (node:internal/errors:539:14)
+    at ChildProcess.exithandler (node:child_process:417:12)
+    at ChildProcess.emit (node:events:508:28)
+    at maybeClose (node:internal/child_process:1100:16)
+    at ChildProcess._handle.onexit (node:internal/child_process:305:5)
+[2026-04-07T06:46:12.190Z] [INFO]   → Embedding new messages...
+[2026-04-07T06:46:14.251Z] [INFO]   ✅ Embedded 0 new messages
+[2026-04-07T06:46:14.251Z] [INFO]   → Running project detection...
+[2026-04-07T06:46:15.234Z] [INFO]   ✅ Detected 0 projects
+[2026-04-07T06:46:15.234Z] [INFO] Refresh cycle complete in 3.2s
+[2026-04-07T06:46:42.059Z] [INFO] Starting refresh cycle...
+[2026-04-07T06:46:42.060Z] [INFO]   → Scraping Canvas for new assignments...
+[2026-04-07T06:46:42.178Z] [ERROR]   ⚠️  Canvas scrape failed: Command failed: node orchestration/scrape-canvas.mjs
+❌ Missing --user-id parameter
+Usage: node scrape-canvas.mjs --user-id=USER_ID
+
+[2026-04-07T06:46:42.179Z] [ERROR] Error: Command failed: node orchestration/scrape-canvas.mjs
+❌ Missing --user-id parameter
+Usage: node scrape-canvas.mjs --user-id=USER_ID
+
+    at genericNodeError (node:internal/errors:985:15)
+    at wrappedFn (node:internal/errors:539:14)
+    at ChildProcess.exithandler (node:child_process:417:12)
+    at ChildProcess.emit (node:events:508:28)
+    at maybeClose (node:internal/child_process:1100:16)
+    at ChildProcess._handle.onexit (node:internal/child_process:305:5)
+[2026-04-07T06:46:42.179Z] [INFO]   → Embedding new messages...
+[2026-04-07T06:46:44.175Z] [INFO]   ✅ Embedded 0 new messages
+[2026-04-07T06:46:44.176Z] [INFO]   → Running project detection...
+[2026-04-07T06:46:45.176Z] [INFO]   ✅ Detected 0 projects
+[2026-04-07T06:46:45.176Z] [INFO] Refresh cycle complete in 3.1s
+[2026-04-07T06:47:12.069Z] [INFO] Starting refresh cycle...
+[2026-04-07T06:47:12.069Z] [INFO]   → Scraping Canvas for new assignments...
+[2026-04-07T06:47:12.205Z] [ERROR]   ⚠️  Canvas scrape failed: Command failed: node orchestration/scrape-canvas.mjs
+❌ Missing --user-id parameter
+Usage: node scrape-canvas.mjs --user-id=USER_ID
+
+[2026-04-07T06:47:12.205Z] [ERROR] Error: Command failed: node orchestration/scrape-canvas.mjs
+❌ Missing --user-id parameter
+Usage: node scrape-canvas.mjs --user-id=USER_ID
+
+    at genericNodeError (node:internal/errors:985:15)
+    at wrappedFn (node:internal/errors:539:14)
+    at ChildProcess.exithandler (node:child_process:417:12)
+    at ChildProcess.emit (node:events:508:28)
+    at maybeClose (node:internal/child_process:1100:16)
+    at ChildProcess._handle.onexit (node:internal/child_process:305:5)
+[2026-04-07T06:47:12.205Z] [INFO]   → Embedding new messages...
+[2026-04-07T06:47:14.209Z] [INFO]   ✅ Embedded 0 new messages
+[2026-04-07T06:47:14.209Z] [INFO]   → Running project detection...
+[2026-04-07T06:47:15.202Z] [INFO]   ✅ Detected 0 projects
+[2026-04-07T06:47:15.202Z] [INFO] Refresh cycle complete in 3.1s

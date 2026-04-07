@@ -7,21 +7,18 @@
 
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Sidebar from '@/components/layout/Sidebar';
 import Header from '@/components/layout/Header';
+import { Loader2, CheckCircle2 } from 'lucide-react';
 
-// TODO: Person 4 — Fetch real user settings from API
-const mockSettings = {
-  autonomyLevel: 1,
-  wakeTime: '07:00',
-  gmailConnected: false,
-  boundaries: [
-    { id: 'b1', rule: 'Never send emails to clients without review', category: 'email', action: 'draft' },
-    { id: 'b2', rule: 'Auto-reply to internal team messages', category: 'email', action: 'auto' },
-    { id: 'b3', rule: 'Never push code to main branch', category: 'code', action: 'never' },
-  ],
-};
+interface Boundary {
+  id: string;
+  rule: string;
+  category: string;
+  action: string;
+  conditions?: any;
+}
 
 const autonomyLabels = [
   { level: 0, name: 'Observe Only', description: 'NightShift watches and learns, but takes no action.' },
@@ -31,8 +28,62 @@ const autonomyLabels = [
 ];
 
 export default function SettingsPage() {
-  const [autonomyLevel, setAutonomyLevel] = useState(mockSettings.autonomyLevel);
-  const [wakeTime, setWakeTime] = useState(mockSettings.wakeTime);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [saveSuccess, setSaveSuccess] = useState(false);
+  const [error, setError] = useState('');
+  const [autonomyLevel, setAutonomyLevel] = useState(1);
+  const [wakeTime, setWakeTime] = useState('07:00');
+  const [gmailConnected, setGmailConnected] = useState(false);
+  const [boundaries, setBoundaries] = useState<Boundary[]>([]);
+
+  useEffect(() => {
+    fetchSettings();
+  }, []);
+
+  async function fetchSettings() {
+    try {
+      const res = await fetch('/api/user/settings');
+      const json = await res.json();
+      if (json.success) {
+        setAutonomyLevel(json.data.autonomyLevel);
+        setWakeTime(json.data.wakeTime);
+        setGmailConnected(json.data.gmailConnected);
+        setBoundaries(json.data.boundaries || []);
+      }
+    } catch (err) {
+      console.error('Failed to fetch settings:', err);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function saveSettings() {
+    setSaving(true);
+    setError('');
+    setSaveSuccess(false);
+    try {
+      const res = await fetch('/api/user/settings', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          autonomyLevel,
+          wakeTime,
+          boundaries,
+        }),
+      });
+      const json = await res.json();
+      if (!res.ok) {
+        throw new Error(json.error || 'Failed to save settings');
+      }
+      setSaveSuccess(true);
+      setTimeout(() => setSaveSuccess(false), 3000);
+    } catch (err: any) {
+      setError(err.message || 'Failed to save settings');
+    } finally {
+      setSaving(false);
+    }
+  }
 
   return (
     <div className="flex h-screen">
@@ -41,12 +92,34 @@ export default function SettingsPage() {
         <Header />
         <main className="flex-1 overflow-y-auto p-6">
           <div className="mx-auto max-w-3xl space-y-8">
-            <h1 className="text-2xl font-bold">Settings</h1>
+            <div className="flex items-center justify-between">
+              <h1 className="text-2xl font-bold">Settings</h1>
+              {saveSuccess && (
+                <div className="flex items-center gap-2 text-nightshift-success">
+                  <CheckCircle2 className="h-5 w-5" />
+                  <span className="text-sm font-medium">Settings saved</span>
+                </div>
+              )}
+            </div>
 
+            {error && (
+              <div className="card border-nightshift-error/50">
+                <p className="text-sm text-nightshift-error">{error}</p>
+              </div>
+            )}
+
+            {loading && (
+              <div className="flex items-center justify-center py-12">
+                <Loader2 className="h-8 w-8 animate-spin text-nightshift-accent" />
+              </div>
+            )}
+
+            {!loading && (
+              <>
             {/* Gmail Connection */}
             <section className="card">
               <h2 className="text-lg font-semibold mb-4">Gmail Connection</h2>
-              {mockSettings.gmailConnected ? (
+              {gmailConnected ? (
                 <div className="flex items-center gap-3">
                   <span className="h-3 w-3 rounded-full bg-nightshift-success" />
                   <span className="text-nightshift-text-primary">Connected</span>
@@ -125,7 +198,7 @@ export default function SettingsPage() {
                 Set rules for what NightShift can and cannot do.
               </p>
               <div className="space-y-3">
-                {mockSettings.boundaries.map((boundary) => (
+                {boundaries.map((boundary) => (
                   <div
                     key={boundary.id}
                     className="flex items-center justify-between p-3 rounded-lg bg-nightshift-bg-light"
@@ -153,15 +226,22 @@ export default function SettingsPage() {
             {/* Save */}
             <div className="flex justify-end">
               <button
-                className="btn-primary"
-                onClick={() => {
-                  // TODO: Person 1 — Save settings to API
-                  console.log('Saving settings:', { autonomyLevel, wakeTime });
-                }}
+                className="btn-primary flex items-center gap-2"
+                onClick={saveSettings}
+                disabled={saving}
               >
-                Save Settings
+                {saving ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    <span>Saving...</span>
+                  </>
+                ) : (
+                  <span>Save Settings</span>
+                )}
               </button>
             </div>
+              </>
+            )}
           </div>
         </main>
       </div>
