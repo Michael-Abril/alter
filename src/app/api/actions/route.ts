@@ -6,8 +6,56 @@
  */
 
 import { NextRequest } from 'next/server';
+import { auth } from '@clerk/nextjs/server';
 import { apiSuccess, apiError } from '@/lib/utils';
 import db from '@/lib/db';
+
+// GET: Fetch all actions for authenticated user
+export async function GET() {
+  const { userId } = await auth();
+  if (!userId) return apiError('Unauthorized', 401);
+
+  try {
+    // Find user with auto-link fallback
+    let user = await db.user.findUnique({ where: { clerkId: userId } });
+    if (!user) {
+      const testUser = await db.user.findUnique({ where: { clerkId: 'user_test_123' } });
+      if (testUser) {
+        user = await db.user.update({
+          where: { id: testUser.id },
+          data: { clerkId: userId },
+        });
+      }
+    }
+
+    if (!user) return apiError('User not found', 404);
+
+    const actions = await db.action.findMany({
+      where: { userId: user.id },
+      orderBy: { createdAt: 'desc' },
+      take: 100,
+    });
+
+    return apiSuccess({
+      actions: actions.map(a => ({
+        id: a.id,
+        userId: a.userId,
+        type: a.type,
+        title: a.title,
+        description: a.description,
+        app: a.app,
+        confidence: a.confidence,
+        status: a.status,
+        metadata: a.metadata,
+        createdAt: a.createdAt.toISOString(),
+      })),
+      count: actions.length,
+    });
+  } catch (error) {
+    console.error('[actions] GET error:', error);
+    return apiError('Failed to fetch actions', 500);
+  }
+}
 
 // POST: OpenClaw reports a completed action
 export async function POST(req: NextRequest) {

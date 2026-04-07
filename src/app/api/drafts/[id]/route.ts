@@ -95,7 +95,44 @@ export async function PATCH(
 
     // Handle approval - trigger send flow
     if (status === 'approved') {
-      // Parse context to get recipient info
+      // For non-email drafts (doc, code, task), just update status to approved
+      if (draft.type !== 'email') {
+        await db.draft.update({
+          where: { id: params.id },
+          data: {
+            status: 'approved',
+            content: content || draft.content, // Update content if edited
+          },
+        });
+
+        // Create Action record
+        await db.action.create({
+          data: {
+            userId: user.id,
+            type: 'task_completed',
+            title: `Approved ${draft.type}: ${draft.title}`,
+            description: `User approved ${draft.type} draft`,
+            app: draft.targetApp,
+            confidence: draft.confidenceScore,
+            status: 'completed',
+            metadata: JSON.stringify({
+              draftId: draft.id,
+              draftType: draft.type,
+            }),
+          },
+        });
+
+        console.log(`[drafts/${params.id}] Non-email draft approved (type: ${draft.type})`);
+
+        return apiSuccess({
+          id: params.id,
+          status: 'approved',
+          message: `${draft.type} draft approved successfully`,
+          type: draft.type,
+        });
+      }
+
+      // For email drafts, send via Gmail
       const context = draft.context ? JSON.parse(draft.context) : {};
       const recipientEmail = context.recipientEmail;
       const threadId = context.threadId;

@@ -2,88 +2,63 @@
  * OWNER: Person 4 (Voice/UI)
  * PURPOSE: Activity log view — shows all NightShift actions over time
  * DEPENDENCIES: @clerk/nextjs, components/layout/*
- * STATUS: Scaffold — needs real data integration
+ * STATUS: LIVE — fetches real data from API
  */
 
-import { auth } from '@clerk/nextjs/server';
-import { redirect } from 'next/navigation';
+'use client';
+
+import { useState, useEffect } from 'react';
 import Sidebar from '@/components/layout/Sidebar';
 import Header from '@/components/layout/Header';
 import ConfidenceBadge from '@/components/shared/ConfidenceBadge';
 import AppIcon from '@/components/shared/AppIcon';
 import { timeAgo } from '@/lib/utils';
 import type { Action } from '@/types';
-import db from '@/lib/db';
+import { Loader2 } from 'lucide-react';
 
-export default async function ActivityPage() {
-  const { userId } = await auth();
-  if (!userId) redirect('/sign-in');
+export default function ActivityPage() {
+  const [actions, setActions] = useState<Action[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [filter, setFilter] = useState<'all' | 'completed' | 'flagged' | 'failed'>('all');
 
-  // Fetch real actions from DB
-  let user = await db.user.findUnique({ where: { clerkId: userId } });
-
-  // Dev convenience: auto-link to test user if no user found
-  if (!user) {
-    const testUser = await db.user.findUnique({ where: { clerkId: 'user_test_123' } });
-    if (testUser) {
-      user = await db.user.update({
-        where: { id: testUser.id },
-        data: { clerkId: userId },
-      });
+  useEffect(() => {
+    async function fetchActions() {
+      try {
+        const res = await fetch('/api/actions');
+        const json = await res.json();
+        if (json.success) {
+          setActions(json.data.actions || []);
+        }
+      } catch (err) {
+        console.error('Failed to fetch actions:', err);
+      } finally {
+        setLoading(false);
+      }
     }
-  }
+    fetchActions();
+  }, []);
 
-  let actions: Action[] = [];
+  const filteredActions = actions.filter(action => {
+    if (filter === 'all') return true;
+    return action.status === filter;
+  });
 
-  if (user) {
-    const dbActions = await db.action.findMany({
-      where: { userId: user.id },
-      orderBy: { createdAt: 'desc' },
-      take: 50,
-    });
-
-    actions = dbActions.map((a) => ({
-      id: a.id,
-      userId: a.userId,
-      type: a.type as Action['type'],
-      title: a.title,
-      description: a.description || '',
-      app: a.app,
-      confidence: a.confidence,
-      status: a.status as Action['status'],
-      metadata: a.metadata,
-      createdAt: a.createdAt.toISOString(),
-    }));
-  }
-
-  // Fallback to mock data only when no real actions exist
-  if (actions.length === 0) {
-    actions = [
-      {
-        id: 'mock_act_1',
-        userId: 'mock',
-        type: 'email_sent',
-        title: 'Follow-up email to Sarah Chen',
-        description: 'Sent re: Q2 marketing timeline — confirmed Tuesday meeting',
-        app: 'gmail',
-        confidence: 0.92,
-        status: 'completed',
-        metadata: null,
-        createdAt: new Date(Date.now() - 3600000 * 3).toISOString(),
-      },
-      {
-        id: 'mock_act_2',
-        userId: 'mock',
-        type: 'task_completed',
-        title: 'Updated project timeline in Notion',
-        description: 'Adjusted milestones based on new deadline',
-        app: 'notion',
-        confidence: 0.85,
-        status: 'completed',
-        metadata: null,
-        createdAt: new Date(Date.now() - 3600000 * 28).toISOString(),
-      },
-    ];
+  if (loading) {
+    return (
+      <div className="flex h-screen">
+        <Sidebar />
+        <div className="flex flex-1 flex-col overflow-hidden">
+          <Header />
+          <main className="flex-1 overflow-y-auto p-6">
+            <div className="mx-auto max-w-4xl">
+              <div className="flex items-center justify-center py-12">
+                <Loader2 className="h-8 w-8 animate-spin text-nightshift-accent" />
+              </div>
+            </div>
+          </main>
+        </div>
+      </div>
+    );
   }
 
   return (
@@ -102,19 +77,27 @@ export default async function ActivityPage() {
 
             {/* Filter Bar */}
             <div className="flex gap-2">
-              {['All', 'Completed', 'Flagged', 'Failed'].map((filter) => (
+              {[{label: 'All', value: 'all'}, {label: 'Completed', value: 'completed'}, {label: 'Flagged', value: 'flagged'}, {label: 'Failed', value: 'failed'}].map((f) => (
                 <button
-                  key={filter}
-                  className={`btn-ghost text-sm ${filter === 'All' ? 'bg-nightshift-bg-card text-nightshift-text-primary' : ''}`}
+                  key={f.value}
+                  onClick={() => setFilter(f.value as any)}
+                  className={`btn-ghost text-sm ${filter === f.value ? 'bg-nightshift-bg-card text-nightshift-text-primary' : ''}`}
                 >
-                  {filter}
+                  {f.label}
                 </button>
               ))}
             </div>
 
             {/* Activity List */}
             <div className="space-y-3">
-              {actions.map((action) => (
+              {filteredActions.length === 0 ? (
+                <div className="card text-center py-12">
+                  <p className="text-nightshift-text-secondary">
+                    No {filter !== 'all' ? filter : ''} actions found.
+                  </p>
+                </div>
+              ) : (
+                filteredActions.map((action) => (
                 <div
                   key={action.id}
                   className="card flex items-start gap-4 hover:border-nightshift-accent/20 transition-colors"
@@ -179,7 +162,7 @@ export default async function ActivityPage() {
                     </div>
                   </div>
                 </div>
-              ))}
+              )))}
             </div>
           </div>
         </main>
