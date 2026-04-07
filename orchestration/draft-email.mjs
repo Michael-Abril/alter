@@ -224,6 +224,9 @@ async function saveDraft(userId, incomingEmail, draft, confidence, tokensUsed, a
         confidenceScore: confidence,
         status: 'pending',
         context: JSON.stringify({
+          recipientEmail: incomingEmail.from, // For send pipeline
+          threadId: incomingEmail.threadId || null, // Gmail thread ID
+          inReplyTo: incomingEmail.messageId || null, // For email headers
           incomingFrom: incomingEmail.from,
           incomingSubject: incomingEmail.subject,
           tokensUsed,

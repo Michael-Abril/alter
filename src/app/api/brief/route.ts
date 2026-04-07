@@ -1,13 +1,16 @@
 /**
  * OWNER: Person 3 (Royce/OpenClaw)
- * PURPOSE: GET: generate/return morning brief — aggregates real project data and chat stats
- * DEPENDENCIES: Prisma, @clerk/nextjs
- * STATUS: LIVE — returns real data from projects + chat history, falls back to starter brief
+ * PURPOSE: GET: generate/return morning brief — genuinely useful daily summary
+ * DEPENDENCIES: Prisma, @clerk/nextjs, Anthropic
+ * STATUS: LIVE — work completed, deadlines, emails, today's focus
  */
 
 import { auth } from '@clerk/nextjs/server';
 import { apiSuccess, apiError } from '@/lib/utils';
 import db from '@/lib/db';
+import Anthropic from '@anthropic-ai/sdk';
+import fs from 'fs';
+import path from 'path';
 
 // GET: Generate and return morning brief
 export async function GET() {
@@ -17,143 +20,254 @@ export async function GET() {
   try {
     // Find the user
     const user = await db.user.findUnique({ where: { clerkId: userId } });
+    if (!user) return apiError('User not found', 404);
 
-    // Get real projects
-    const projects = user ? await db.project.findMany({
-      where: { userId: user.id },
-      orderBy: { lastActive: 'desc' },
-    }) : [];
-
-    // Get chat stats
-    const chatCount = user ? await db.chatMessage.count({
-      where: { userId: user.id },
-    }) : 0;
-
-    const embeddedCount = user ? await db.chatMessage.count({
-      where: { userId: user.id, embedded: true },
-    }) : 0;
-
-    // Get unique sessions
-    const sessions = user ? await db.chatMessage.groupBy({
-      by: ['sessionId'],
-      where: { userId: user.id },
-    }) : [];
-
-    // Build real brief from detected projects
-    const inProgress = projects.filter(p => p.status === 'in_progress');
-    const completed = projects.filter(p => p.status === 'completed');
-    const stalled = projects.filter(p => p.status === 'stalled');
-
-    // Generate summary from real data
-    const summaryParts: string[] = [];
-    if (projects.length > 0) {
-      summaryParts.push(`I've analyzed ${chatCount} chat messages across ${sessions.length} conversations and detected ${projects.length} projects.`);
-      if (inProgress.length > 0) {
-        summaryParts.push(`${inProgress.length} project${inProgress.length > 1 ? 's are' : ' is'} in progress.`);
-      }
-      if (completed.length > 0) {
-        summaryParts.push(`${completed.length} project${completed.length > 1 ? 's appear' : ' appears'} completed.`);
-      }
-      if (stalled.length > 0) {
-        summaryParts.push(`${stalled.length} project${stalled.length > 1 ? 's need' : ' needs'} attention.`);
-      }
-    } else {
-      summaryParts.push('No projects detected yet. Run the project detector to analyze your chat history.');
-    }
-
-    // Get real Action records from database (last 24 hours)
+    // ─── Section 1: Work Completed Overnight ────────────────────────────────
     const yesterday = new Date();
     yesterday.setDate(yesterday.getDate() - 1);
     
-    const recentActions = user ? await db.action.findMany({
+    const recentActions = await db.action.findMany({
       where: {
         userId: user.id,
         createdAt: { gte: yesterday },
-        status: 'completed',
+        type: 'work_continued',
       },
       orderBy: { createdAt: 'desc' },
-      take: 10,
-    }) : [];
+    });
 
-    // Build completed actions from real Action records
-    const completedActions = recentActions.length > 0 
-      ? recentActions.map(a => ({
-          id: a.id,
-          userId: a.userId,
-          type: a.type,
-          title: a.title,
-          description: a.description || '',
-          app: a.app,
-          confidence: a.confidence || 0.8,
-          status: a.status,
-          metadata: a.metadata,
-          createdAt: a.createdAt.toISOString(),
-        }))
-      : completed.map(p => {
-          // Fallback to completed projects if no actions exist
-          const ctx = p.context ? JSON.parse(p.context) : {};
-          return {
-            id: p.id,
-            userId: p.userId,
-            type: 'task_completed' as const,
-            title: p.name,
-            description: p.description || ctx.nextStep || 'Project completed',
-            app: 'claude',
-            confidence: (p.progress / 100),
-            status: 'completed' as const,
-            metadata: null,
-            createdAt: p.updatedAt.toISOString(),
-          };
-        });
-
-    // Build flagged items from stalled projects
-    const flaggedItems = stalled.map(p => {
-      const ctx = p.context ? JSON.parse(p.context) : {};
+    const workCompleted = recentActions.map(action => {
+      const metadata = action.metadata ? JSON.parse(action.metadata) : {};
       return {
-        id: p.id,
-        userId: p.userId,
-        type: 'flagged' as const,
-        title: `${p.name} — stalled`,
-        description: ctx.nextStep || 'This project has gone quiet. Review and decide next steps.',
-        app: 'claude',
-        confidence: 0.4,
-        status: 'flagged' as const,
-        metadata: null,
-        createdAt: p.lastActive.toISOString(),
+        projectName: action.title,
+        description: action.description || '',
+        outputFile: metadata.outputPath || null,
+        tokensUsed: metadata.tokensUsed || 0,
+        completedAt: action.createdAt.toISOString(),
       };
     });
 
-    // Build suggested focus from in-progress projects sorted by progress (lowest first)
-    const suggestedFocus = inProgress
-      .sort((a, b) => b.progress - a.progress)
-      .slice(0, 4)
-      .map(p => {
-        const ctx = p.context ? JSON.parse(p.context) : {};
+    // ─── Section 2: Deadlines Coming Up ─────────────────────────────────────
+    const sevenDaysFromNow = new Date();
+    sevenDaysFromNow.setDate(sevenDaysFromNow.getDate() + 7);
+
+    const canvasMessages = await db.chatMessage.findMany({
+      where: {
+        userId: user.id,
+        source: 'canvas',
+        content: { contains: 'due' },
+      },
+      orderBy: { timestamp: 'desc' },
+      take: 50,
+    });
+
+    // Parse deadlines from Canvas messages
+    const deadlines = canvasMessages
+      .map(msg => {
+        const match = msg.content.match(/Assignment: ([A-Z]+\d+).*?due (.*?)\./i);
+        if (!match) return null;
+        
+        const courseName = match[1];
+        const dueDateStr = match[2];
+        const dueDate = new Date(msg.timestamp);
+        
+        // Extract actual due date from content if possible
+        const dateMatch = msg.content.match(/(Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday),? (\w+ \d+)/i);
+        if (dateMatch) {
+          const dateStr = dateMatch[2];
+          const year = new Date().getFullYear();
+          const parsedDate = new Date(`${dateStr} ${year}`);
+          if (!isNaN(parsedDate.getTime())) {
+            dueDate.setTime(parsedDate.getTime());
+          }
+        }
+
         return {
-          title: p.name,
-          reason: ctx.nextStep || `${p.progress}% complete — continue this work`,
-          priority: (p.progress >= 70 ? 'high' : p.progress >= 40 ? 'medium' : 'low') as 'high' | 'medium' | 'low',
+          courseName,
+          assignmentName: msg.content.split(' - ')[1]?.split(' due ')[0] || 'Assignment',
+          dueDate: dueDate.toISOString(),
+          daysUntil: Math.ceil((dueDate.getTime() - Date.now()) / (1000 * 60 * 60 * 24)),
+          content: msg.content,
         };
+      })
+      .filter(d => d !== null && d.daysUntil >= 0 && d.daysUntil <= 7)
+      .sort((a, b) => a!.daysUntil - b!.daysUntil)
+      .slice(0, 10);
+
+    // ─── Section 3: Emails Needing Attention ────────────────────────────────
+    const recentDrafts = await db.draft.findMany({
+      where: {
+        userId: user.id,
+        type: 'email',
+        status: 'pending',
+        createdAt: { gte: yesterday },
+      },
+      orderBy: { createdAt: 'desc' },
+      take: 10,
+    });
+
+    const emailsNeedingAttention = recentDrafts.map(draft => ({
+      subject: draft.title,
+      draftSummary: draft.content.slice(0, 200) + '...',
+      confidenceScore: draft.confidenceScore,
+      status: draft.confidenceScore >= 0.7 ? 'ready_to_review' : 'flagged_low_confidence',
+      createdAt: draft.createdAt.toISOString(),
+    }));
+
+    // ─── Section 4: Today's Focus ───────────────────────────────────────────
+    const projects = await db.project.findMany({
+      where: { userId: user.id, status: 'in_progress' },
+      orderBy: { lastActive: 'desc' },
+    });
+
+    // Determine today's focus based on:
+    // 1. Deadlines in next 2 days
+    // 2. Projects worked on overnight
+    // 3. High-urgency in-progress projects
+    const urgentDeadlines = deadlines.filter(d => d!.daysUntil <= 2);
+    const workedOnProjects = workCompleted.map(w => w.projectName);
+    
+    const todaysFocus: Array<{ task: string; reason: string; priority: 'urgent' | 'high' | 'medium' }> = [];
+
+    // Add urgent deadlines
+    urgentDeadlines.forEach(d => {
+      todaysFocus.push({
+        task: `${d!.courseName}: ${d!.assignmentName}`,
+        reason: `Due ${d!.daysUntil === 0 ? 'today' : d!.daysUntil === 1 ? 'tomorrow' : `in ${d!.daysUntil} days`}`,
+        priority: 'urgent',
+      });
+    });
+
+    // Add projects worked on overnight
+    workedOnProjects.slice(0, 2).forEach(projectName => {
+      if (todaysFocus.length < 3) {
+        todaysFocus.push({
+          task: projectName,
+          reason: 'Continued overnight — review the output and keep momentum',
+          priority: 'high',
+        });
+      }
+    });
+
+    // Add high-priority in-progress projects
+    projects
+      .filter(p => !workedOnProjects.includes(p.name))
+      .slice(0, 3 - todaysFocus.length)
+      .forEach(p => {
+        const ctx = p.context ? JSON.parse(p.context) : {};
+        todaysFocus.push({
+          task: p.name,
+          reason: ctx.nextStep || `${p.progress}% complete`,
+          priority: 'medium',
+        });
       });
 
-    return apiSuccess({
-      summary: summaryParts.join(' '),
-      actionsCompleted: completed.length,
-      flaggedForReview: stalled.length,
-      completedActions,
-      flaggedItems,
-      suggestedFocus,
+    // ─── Generate Natural Language Summary with Haiku ───────────────────────
+    const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+    
+    const summaryPrompt = [
+      'Generate a 2-sentence natural language morning greeting based on this data:',
+      '',
+      `Work completed overnight: ${workCompleted.length} projects`,
+      workCompleted.slice(0, 2).map(w => `- ${w.projectName}`).join('\n'),
+      '',
+      `Urgent deadlines: ${urgentDeadlines.length}`,
+      urgentDeadlines.slice(0, 2).map(d => `- ${d!.courseName} ${d!.assignmentName} due ${d!.daysUntil === 0 ? 'today' : d!.daysUntil === 1 ? 'tomorrow' : `in ${d!.daysUntil} days`}`).join('\n'),
+      '',
+      'Write a friendly, concise 2-sentence summary. Start with "Good morning."',
+    ].join('\n');
+
+    const summaryResponse = await anthropic.messages.create({
+      model: 'claude-haiku-4-5-20251001',
+      max_tokens: 200,
+      messages: [{ role: 'user', content: summaryPrompt }],
+    });
+
+    const naturalLanguageSummary = summaryResponse.content
+      .filter(block => block.type === 'text')
+      .map(block => block.text)
+      .join(' ');
+
+    // ─── Build Brief Object ─────────────────────────────────────────────────
+    const brief = {
+      summary: naturalLanguageSummary,
       generatedAt: new Date().toISOString(),
-      stats: {
-        totalProjects: projects.length,
-        inProgress: inProgress.length,
-        completed: completed.length,
-        stalled: stalled.length,
-        totalMessages: chatCount,
-        embeddedMessages: embeddedCount,
-        conversations: sessions.length,
+      sections: {
+        workCompleted,
+        deadlines,
+        emailsNeedingAttention,
+        todaysFocus,
       },
-      source: projects.length > 0 ? 'database' : 'empty',
+      stats: {
+        actionsCompleted: workCompleted.length,
+        upcomingDeadlines: deadlines.length,
+        emailsDrafted: emailsNeedingAttention.length,
+        focusItems: todaysFocus.length,
+      },
+    };
+
+    // ─── Save Brief to File ─────────────────────────────────────────────────
+    const briefsDir = path.join(process.cwd(), 'data', 'briefs');
+    if (!fs.existsSync(briefsDir)) {
+      fs.mkdirSync(briefsDir, { recursive: true });
+    }
+
+    const date = new Date().toISOString().split('T')[0];
+    const briefPath = path.join(briefsDir, `${date}.md`);
+
+    const briefMarkdown = [
+      '# NightShift Morning Brief',
+      '',
+      `**Date:** ${new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}`,
+      `**Generated:** ${new Date().toISOString()}`,
+      '',
+      '---',
+      '',
+      naturalLanguageSummary,
+      '',
+      '---',
+      '',
+      '## 📂 Work Completed Overnight',
+      '',
+      workCompleted.length > 0
+        ? workCompleted.map(w => [
+            `### ${w.projectName}`,
+            w.description,
+            w.outputFile ? `📄 Output: \`${w.outputFile}\`` : '',
+            `⏱️  Completed: ${new Date(w.completedAt).toLocaleTimeString()}`,
+            '',
+          ].filter(Boolean).join('\n')).join('\n')
+        : 'No work completed overnight.',
+      '',
+      '## 📅 Deadlines Coming Up',
+      '',
+      deadlines.length > 0
+        ? deadlines.map(d => `- **${d!.courseName}**: ${d!.assignmentName} — Due ${d!.daysUntil === 0 ? 'today' : d!.daysUntil === 1 ? 'tomorrow' : `in ${d!.daysUntil} days`}`).join('\n')
+        : 'No upcoming deadlines in the next 7 days.',
+      '',
+      '## 📧 Emails Needing Attention',
+      '',
+      emailsNeedingAttention.length > 0
+        ? emailsNeedingAttention.map(e => [
+            `### ${e.subject}`,
+            `Confidence: ${(e.confidenceScore * 100).toFixed(0)}% ${e.status === 'flagged_low_confidence' ? '⚠️ (Low confidence)' : '✅'}`,
+            e.draftSummary,
+            '',
+          ].join('\n')).join('\n')
+        : 'No emails needing attention.',
+      '',
+      '## 🎯 Today\'s Focus',
+      '',
+      todaysFocus.length > 0
+        ? todaysFocus.map((f, i) => `${i + 1}. **${f.task}** ${f.priority === 'urgent' ? '🔴' : f.priority === 'high' ? '🟡' : '🟢'}\n   ${f.reason}`).join('\n\n')
+        : 'No specific focus items for today.',
+      '',
+    ].join('\n');
+
+    fs.writeFileSync(briefPath, briefMarkdown, 'utf-8');
+
+    return apiSuccess({
+      ...brief,
+      briefPath,
     });
   } catch (error) {
     console.error('[brief] Error:', error);

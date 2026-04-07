@@ -39,6 +39,9 @@ const INSTRUCTIONS_ARG = args.find(a => a.startsWith('--instructions='))?.split(
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000';
 const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY;
+const MAX_PROJECTS = 3; // Only process top 3 most urgent projects
+const HAIKU_MODEL = 'claude-haiku-4-5-20251001'; // For classification/summarization
+const SONNET_MODEL = 'claude-sonnet-4-20250514'; // For work continuation only
 
 // ─── Main Function ───────────────────────────────────────────────────────────
 
@@ -61,10 +64,38 @@ export async function runOvernightLoop(config, options = {}) {
   console.log('🌙 NightShift Overnight Loop');
   console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
   console.log(`👤 User: ${userId}`);
-  console.log(`📋 Projects: ${projectIds.length}`);
+  console.log(`📋 Projects: ${projectIds.length} (processing top ${Math.min(projectIds.length, MAX_PROJECTS)})`);
   if (instructions) console.log(`💬 Instructions: ${instructions}`);
   console.log(`⏰ Started: ${new Date().toISOString()}`);
   console.log('');
+
+  // Cost estimation
+  const limitedProjects = projectIds.slice(0, MAX_PROJECTS);
+  const estimatedTokens = {
+    continuation: limitedProjects.length * 2000, // ~2k tokens per continuation (500 words)
+    brief: 1000, // Morning brief generation
+    total: 0
+  };
+  estimatedTokens.total = estimatedTokens.continuation + estimatedTokens.brief;
+  
+  const estimatedCost = {
+    haiku: (estimatedTokens.brief / 1000000) * 0.80, // $0.80 per 1M tokens
+    sonnet: (estimatedTokens.continuation / 1000000) * 3.00, // $3.00 per 1M tokens
+    total: 0
+  };
+  estimatedCost.total = estimatedCost.haiku + estimatedCost.sonnet;
+
+  console.log('💰 Cost Estimate:');
+  console.log(`   Continuation: ~${estimatedTokens.continuation.toLocaleString()} tokens × $3.00/M = $${estimatedCost.sonnet.toFixed(4)}`);
+  console.log(`   Brief: ~${estimatedTokens.brief.toLocaleString()} tokens × $0.80/M = $${estimatedCost.haiku.toFixed(4)}`);
+  console.log(`   Total: ~${estimatedTokens.total.toLocaleString()} tokens = $${estimatedCost.total.toFixed(4)}`);
+  console.log('');
+
+  if (!SIMULATE && !options.skipConfirmation) {
+    console.log('⚠️  This will use real API credits. Run with --simulate to test without cost.');
+    console.log('   Press Ctrl+C to cancel, or the script will continue in 5 seconds...');
+    await new Promise(resolve => setTimeout(resolve, 5000));
+  }
 
   const startTime = Date.now();
   const results = {
@@ -91,9 +122,12 @@ export async function runOvernightLoop(config, options = {}) {
   console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
   console.log('');
 
-  for (let i = 0; i < projectIds.length; i++) {
-    const projectId = projectIds[i];
-    console.log(`[${i + 1}/${projectIds.length}] Processing project: ${projectId}`);
+  // Limit to top MAX_PROJECTS
+  const projectsToProcess = projectIds.slice(0, MAX_PROJECTS);
+  
+  for (let i = 0; i < projectsToProcess.length; i++) {
+    const projectId = projectsToProcess[i];
+    console.log(`[${i + 1}/${projectsToProcess.length}] Processing project: ${projectId}`);
     console.log('');
 
     try {
@@ -117,6 +151,8 @@ export async function runOvernightLoop(config, options = {}) {
         apiKey,
         apiUrl,
         dryRun: false,
+        model: SONNET_MODEL,
+        maxTokens: 2000, // ~500 words
       });
 
       if (result.success) {
@@ -433,6 +469,89 @@ function saveBriefToFile(brief, startTime) {
 
 // ─── CLI Entry Point ─────────────────────────────────────────────────────────
 
+// ─── Project Classification ──────────────────────────────────────────────────
+
+function classifyProject(project) {
+  const name = project.name.toLowerCase();
+  const description = (project.description || '').toLowerCase();
+  const topics = project.context?.keyTopics || [];
+  const combined = `${name} ${description} ${topics.join(' ')}`.toLowerCase();
+
+  // Casual - brainstorming, exploration, trip planning, personal projects (check FIRST)
+  if (combined.match(/\b(trip|adventure|travel|peru|empanada|merchandise|sorority|adpi)\b/)) {
+    return 'casual';
+  }
+
+  // Academic study - exam prep, quiz prep, study guides (check BEFORE deliverables)
+  if (combined.match(/\b(study guide|exam|quiz|midterm|practice|review|prep)\b/)) {
+    return 'academic_study';
+  }
+
+  // Quick tasks - one-off help, solved problems
+  if (combined.match(/\b(verification|test|quick|solved)\b/) && project.progress > 50) {
+    return 'quick_task';
+  }
+
+  // Academic deliverables - problem sets, papers, presentations with Canvas deadlines
+  if (combined.match(/\b(homework|problem set|assignment|case study|deliverable|session \d+|abc|accounting|finance)\b/) ||
+      (combined.match(/\b(presentation|paper)\b/) && combined.match(/\b(course|class|ent\d+|acc\d+|ecn\d+|mac)\b/))) {
+    return 'academic_deliverable';
+  }
+
+  // Code builds - actively writing code for startups/businesses
+  if (combined.match(/\b(nightshift|github|integration|setup|api|backend|frontend|deploy)\b/) ||
+      (combined.match(/\b(website|web app|landing page|platform)\b/) && !combined.match(/\b(empanada|merchandise|sorority)\b/))) {
+    return 'code_build';
+  }
+
+  // Document builds - proposals, pitch decks, business plans, papers
+  if (combined.match(/\b(pitch deck|proposal|business plan|incubator|platform|model|presentation|analysis)\b/) &&
+      !combined.match(/\b(study|exam|quiz|midterm|practice)\b/)) {
+    return 'document_build';
+  }
+
+  // Default to document_build for unclassified projects
+  return 'document_build';
+}
+
+function prioritizeProjects(projects) {
+  // Classify all projects
+  const classified = projects.map(p => ({
+    ...p,
+    classification: classifyProject(p),
+  }));
+
+  // Filter to continuable projects
+  const continuable = classified.filter(p => 
+    ['code_build', 'document_build', 'academic_deliverable'].includes(p.classification)
+  );
+
+  // Separate by type
+  const codeBuilds = continuable.filter(p => p.classification === 'code_build');
+  const documentBuilds = continuable.filter(p => p.classification === 'document_build');
+  const academicDeliverables = continuable.filter(p => p.classification === 'academic_deliverable');
+
+  // Priority order: code builds first, then document builds, then max 1 academic
+  const prioritized = [
+    ...codeBuilds,
+    ...documentBuilds,
+    ...academicDeliverables.slice(0, 1), // Cap at 1 academic deliverable
+  ];
+
+  return {
+    prioritized,
+    skipped: classified.filter(p => !prioritized.includes(p)),
+    stats: {
+      code_build: codeBuilds.length,
+      document_build: documentBuilds.length,
+      academic_deliverable: academicDeliverables.length,
+      academic_study: classified.filter(p => p.classification === 'academic_study').length,
+      quick_task: classified.filter(p => p.classification === 'quick_task').length,
+      casual: classified.filter(p => p.classification === 'casual').length,
+    },
+  };
+}
+
 async function main() {
   if (SIMULATE) {
     // Simulate mode: fetch current handoff data and run immediately
@@ -452,7 +571,22 @@ async function main() {
       process.exit(1);
     }
 
-    const projectIds = inProgressProjects.map(p => p.id);
+    // Classify and prioritize projects
+    const { prioritized, skipped, stats } = prioritizeProjects(inProgressProjects);
+    
+    console.log('📊 Project Classification:');
+    console.log(`   Code Builds: ${stats.code_build}`);
+    console.log(`   Document Builds: ${stats.document_build}`);
+    console.log(`   Academic Deliverables: ${stats.academic_deliverable} (max 1 will run)`);
+    console.log(`   Academic Study: ${stats.academic_study} (skipped - reminders only)`);
+    console.log(`   Quick Tasks: ${stats.quick_task} (skipped)`);
+    console.log(`   Casual: ${stats.casual} (skipped)`);
+    console.log('');
+    console.log(`✅ Will continue: ${Math.min(prioritized.length, MAX_PROJECTS)} projects`);
+    console.log(`⏭️  Will skip: ${skipped.length} projects`);
+    console.log('');
+
+    const projectIds = prioritized.slice(0, MAX_PROJECTS).map(p => p.id);
     
     console.log(`📋 Found ${projectIds.length} in-progress projects`);
     console.log('');

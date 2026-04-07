@@ -21,8 +21,8 @@ const __dirname = path.dirname(__filename);
 
 const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY;
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000';
-const MODEL = 'claude-sonnet-4-20250514';
-const MAX_TOKENS = 8192;
+const DEFAULT_MODEL = 'claude-sonnet-4-20250514';
+const DEFAULT_MAX_TOKENS = 2000; // ~500 words for cost optimization
 
 // ─── Main Function ───────────────────────────────────────────────────────────
 
@@ -47,6 +47,8 @@ export async function continueWork(project, options = {}) {
   const apiKey = options.apiKey || ANTHROPIC_API_KEY;
   const apiUrl = options.apiUrl || API_BASE_URL;
   const dryRun = options.dryRun || false;
+  const model = options.model || DEFAULT_MODEL;
+  const maxTokens = options.maxTokens || DEFAULT_MAX_TOKENS;
 
   if (!apiKey) {
     throw new Error('ANTHROPIC_API_KEY is not set');
@@ -78,8 +80,8 @@ export async function continueWork(project, options = {}) {
   const anthropic = new Anthropic({ apiKey });
   
   const response = await anthropic.messages.create({
-    model: MODEL,
-    max_tokens: MAX_TOKENS,
+    model: model,
+    max_tokens: maxTokens,
     system: prompt.system,
     messages: [{ role: 'user', content: prompt.user }],
   });
@@ -175,11 +177,13 @@ function buildContinuationPrompt(project, contextPackage) {
     'Guidelines:',
     '- Analyze what was being built and where they stopped',
     '- Continue the work in the same style and direction',
-    '- Be thorough and complete — produce real, usable output',
-    '- If writing code, make it production-ready',
-    '- If writing docs, make them comprehensive',
-    '- If planning, provide actionable next steps',
+    '- Produce a meaningful next chunk of work (maximum 500 words)',
+    '- Focus on the most important next step, not the entire project',
+    '- If writing code, provide key functions or components',
+    '- If writing docs, provide the next section or outline',
+    '- If planning, provide concrete actionable next steps',
     '- Reference specific context from their history when relevant',
+    '- Be concise and focused — quality over quantity',
   ].join('\n');
 
   // Build conversations section
@@ -245,6 +249,7 @@ function buildContinuationPrompt(project, contextPackage) {
     '---',
     '',
     '**Your task:** Continue this work. Produce the next meaningful chunk of progress.',
+    '**IMPORTANT:** Keep your output to a maximum of 500 words. Focus on the single most important next step.',
     'Output should be complete, usable, and ready for the user to review when they wake up.',
   ].join('\n');
 
