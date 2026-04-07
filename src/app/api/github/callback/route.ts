@@ -76,9 +76,9 @@ export async function GET(request: NextRequest) {
       defaultBranch: 'main',
     });
 
-    // Redirect back to onboarding with success flag
+    // Redirect back to onboarding with step and success flag
     const baseUrl = new URL(request.url).origin;
-    return NextResponse.redirect(`${baseUrl}/onboarding?github_connected=true`);
+    return NextResponse.redirect(`${baseUrl}/onboarding?step=4&github=connected`);
   } catch (error) {
     console.error('GitHub callback error:', error);
     return NextResponse.redirect(

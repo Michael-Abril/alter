@@ -71,12 +71,38 @@ export default function OnboardingPage() {
     checkGmailStatus();
     checkGitHubStatus();
     
-    // Check for GitHub OAuth callback
+    // Check for OAuth callback query params
     const params = new URLSearchParams(window.location.search);
+    const stepParam = params.get('step');
+    const gmailParam = params.get('gmail');
+    const githubParam = params.get('github');
+    
+    // Gmail OAuth callback
+    if (gmailParam === 'connected') {
+      setGmailConnected(true);
+      if (stepParam) {
+        setStep(stepParam as OnboardingStep);
+      } else {
+        setStep('github'); // Default to next step
+      }
+    }
+    
+    // GitHub OAuth callback
+    if (githubParam === 'connected') {
+      setGithubConnected(true);
+      if (stepParam) {
+        setStep(stepParam as OnboardingStep);
+      } else {
+        setStep('github'); // Stay on GitHub step to select repo
+      }
+      // Fetch repos after successful OAuth
+      fetchGitHubRepos();
+    }
+    
+    // Legacy support for old query param
     if (params.get('github_connected') === 'true') {
       setGithubConnected(true);
       setStep('github');
-      // Fetch repos after successful OAuth
       fetchGitHubRepos();
     }
   }, []);

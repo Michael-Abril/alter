@@ -24,17 +24,17 @@ export async function GET(req: NextRequest) {
   // Handle OAuth errors from Google
   if (error) {
     console.error('[gmail/callback] OAuth error:', error);
-    return Response.redirect(new URL('/dashboard/settings?gmail=error&reason=' + encodeURIComponent(error), req.url));
+    return Response.redirect(new URL('/onboarding?step=2&gmail=error&reason=' + encodeURIComponent(error), req.url));
   }
 
   if (!code) {
     console.error('[gmail/callback] Missing authorization code');
-    return Response.redirect(new URL('/dashboard/settings?gmail=error&reason=missing_code', req.url));
+    return Response.redirect(new URL('/onboarding?step=2&gmail=error&reason=missing_code', req.url));
   }
 
   if (!state) {
     console.error('[gmail/callback] Missing state parameter');
-    return Response.redirect(new URL('/dashboard/settings?gmail=error&reason=missing_state', req.url));
+    return Response.redirect(new URL('/onboarding?step=2&gmail=error&reason=missing_state', req.url));
   }
 
   try {
@@ -77,7 +77,13 @@ export async function GET(req: NextRequest) {
     });
 
     console.log(`[gmail/callback] Successfully connected Gmail for user ${clerkId}`);
-    return Response.redirect(new URL('/dashboard/settings?gmail=connected', req.url));
+    
+    // Check if we came from onboarding (state contains onboarding flag)
+    const redirectUrl = stateData.onboarding 
+      ? '/onboarding?step=3&gmail=connected'
+      : '/dashboard/settings?gmail=connected';
+    
+    return Response.redirect(new URL(redirectUrl, req.url));
   } catch (error) {
     console.error('[gmail/callback] Error exchanging code:', error);
     return Response.redirect(new URL('/dashboard/settings?gmail=error&reason=exchange_failed', req.url));

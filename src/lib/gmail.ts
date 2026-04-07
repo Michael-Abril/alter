@@ -22,11 +22,14 @@ export function createOAuth2Client() {
  * Generate the Gmail OAuth authorization URL with a state param
  * for CSRF protection that encodes the Clerk userId.
  */
-export function getAuthUrl(clerkUserId: string): string {
+export function getAuthUrl(clerkUserId: string, onboarding = false): string {
   const oauth2Client = createOAuth2Client();
 
-  const state = Buffer.from(JSON.stringify({ clerkId: clerkUserId, ts: Date.now() }))
-    .toString('base64url');
+  const state = Buffer.from(JSON.stringify({ 
+    clerkId: clerkUserId, 
+    ts: Date.now(),
+    onboarding 
+  })).toString('base64url');
 
   return oauth2Client.generateAuthUrl({
     access_type: 'offline',
