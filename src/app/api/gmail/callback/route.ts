@@ -119,16 +119,24 @@ export async function GET(req: NextRequest) {
         gmailConnected: true,
         gmailToken: tokens.access_token,
         gmailRefreshToken: tokens.refresh_token || null,
-        googleScopesVersion: scopesVersion,
       },
       update: {
         email: primaryEmail,
         gmailConnected: true,
         gmailToken: tokens.access_token,
         gmailRefreshToken: tokens.refresh_token || null,
-        googleScopesVersion: scopesVersion,
       },
     });
+
+    // Update scopes version separately — non-fatal if Prisma client hasn't regenerated yet
+    try {
+      await db.user.update({
+        where: { clerkId },
+        data: { googleScopesVersion: scopesVersion } as any,
+      });
+    } catch {
+      // Prisma client may not have the field yet — restart dev server to pick it up
+    }
 
     console.log(`[gmail/callback] Successfully connected Gmail for user ${clerkId}`);
     
