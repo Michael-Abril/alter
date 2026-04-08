@@ -452,20 +452,31 @@ export default function OnboardingPage() {
                 <span className="text-green-500 font-medium">Gmail Connected</span>
               </div>
             ) : (
-              <button
-                className="btn-primary w-full mb-3 flex items-center justify-center gap-2"
-                onClick={connectGmail}
-                disabled={gmailLoading}
-              >
-                {gmailLoading ? (
-                  <>
-                    <Loader2 className="w-5 h-5 animate-spin" />
-                    Connecting...
-                  </>
-                ) : (
-                  'Connect Gmail'
-                )}
-              </button>
+              <>
+                <div className="flex items-center gap-3 p-4 rounded-lg bg-yellow-500/10 border border-yellow-500/30 mb-4">
+                  <AlertCircle className="w-6 h-6 text-yellow-500" />
+                  <div className="text-sm text-yellow-500">
+                    <p className="font-medium">Gmail OAuth Not Configured</p>
+                    <p className="text-xs mt-1">
+                      Gmail setup requires Google Cloud credentials. You can skip this step and connect later from Settings.
+                    </p>
+                  </div>
+                </div>
+                <button
+                  className="btn-primary w-full mb-3 flex items-center justify-center gap-2"
+                  onClick={connectGmail}
+                  disabled={gmailLoading}
+                >
+                  {gmailLoading ? (
+                    <>
+                      <Loader2 className="w-5 h-5 animate-spin" />
+                      Connecting...
+                    </>
+                  ) : (
+                    'Try to Connect Gmail'
+                  )}
+                </button>
+              </>
             )}
             
             <div className="flex gap-2">
@@ -473,7 +484,7 @@ export default function OnboardingPage() {
                 className="btn-ghost flex-1"
                 onClick={() => setStep('github')}
               >
-                Skip
+                Skip for Now
               </button>
               {gmailConnected && (
                 <button

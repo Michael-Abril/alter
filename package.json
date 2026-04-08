@@ -10,7 +10,10 @@
     "postinstall": "prisma generate",
     "db:push": "prisma db push",
     "db:studio": "prisma studio",
-    "db:seed": "tsx prisma/seed.ts"
+    "db:seed": "tsx prisma/seed.ts",
+    "gmail:test": "node scripts/test-gmail-flow.mjs",
+    "gmail:sync": "node scripts/sync-gmail.mjs",
+    "embed:emails": "node scripts/embed-emails.mjs"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.24.3",
