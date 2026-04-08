@@ -59,11 +59,13 @@ export default function OnboardingPage() {
   const [canvasConnected, setCanvasConnected] = useState(false);
   const [canvasError, setCanvasError] = useState('');
   
-  // Import state
-  const [importMethod, setImportMethod] = useState<'claude' | 'chatgpt' | null>(null);
-  const [importing, setImporting] = useState(false);
-  const [importStatus, setImportStatus] = useState('');
-  const [messagesScanned, setMessagesScanned] = useState(0);
+  // Import state - track both Claude and ChatGPT separately
+  const [claudeImporting, setClaudeImporting] = useState(false);
+  const [claudeStatus, setClaudeStatus] = useState('');
+  const [claudeMessages, setClaudeMessages] = useState(0);
+  const [chatgptImporting, setChatgptImporting] = useState(false);
+  const [chatgptStatus, setChatgptStatus] = useState('');
+  const [chatgptMessages, setChatgptMessages] = useState(0);
   const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null);
   
   // Processing state
@@ -249,10 +251,13 @@ export default function OnboardingPage() {
   }
   
   async function startImport(method: 'claude' | 'chatgpt') {
-    setImportMethod(method);
+    const setImporting = method === 'claude' ? setClaudeImporting : setChatgptImporting;
+    const setStatus = method === 'claude' ? setClaudeStatus : setChatgptStatus;
+    const setMessages = method === 'claude' ? setClaudeMessages : setChatgptMessages;
+    
     setImporting(true);
-    setImportStatus('Starting scraper...');
-    setMessagesScanned(0);
+    setStatus('Starting scraper...');
+    setMessages(0);
     
     try {
       // Start the scraper
@@ -262,20 +267,24 @@ export default function OnboardingPage() {
       
       if (data.success) {
         // Start polling for message count
-        setImportStatus('Scanning your conversations...');
-        startPollingMessageCount();
+        setStatus('Scanning your conversations...');
+        startPollingMessageCount(method);
       } else {
-        setImportStatus('Failed to start scraper');
+        setStatus('Failed to start scraper');
         setImporting(false);
       }
     } catch (err) {
       console.error('Import failed:', err);
-      setImportStatus('Import failed');
+      setStatus('Import failed');
       setImporting(false);
     }
   }
   
-  function startPollingMessageCount() {
+  function startPollingMessageCount(method: 'claude' | 'chatgpt') {
+    const setMessages = method === 'claude' ? setClaudeMessages : setChatgptMessages;
+    const setStatus = method === 'claude' ? setClaudeStatus : setChatgptStatus;
+    const setImporting = method === 'claude' ? setClaudeImporting : setChatgptImporting;
+    
     let lastCount = 0;
     let stableCount = 0;
     
@@ -286,19 +295,19 @@ export default function OnboardingPage() {
         
         if (data.success) {
           const totalCount = data.data?.total || 0;
-          setMessagesScanned(totalCount);
+          setMessages(totalCount);
           
           if (totalCount === lastCount) {
             stableCount++;
             if (stableCount >= 3) { // 15 seconds (3 * 5 seconds)
               stopPolling();
-              setImportStatus(`✓ Found ${totalCount} messages`);
+              setStatus(`✓ Found ${totalCount} messages`);
               setImporting(false);
             }
           } else {
             stableCount = 0;
             lastCount = totalCount;
-            setImportStatus(`Scanning... ${totalCount} messages found so far`);
+            setStatus(`Scanning... ${totalCount} messages found so far`);
           }
         }
       } catch (err) {
@@ -315,9 +324,8 @@ export default function OnboardingPage() {
   }
   
   async function handleChatGPTUpload(file: File) {
-    setImportMethod('chatgpt');
-    setImporting(true);
-    setImportStatus('Uploading file...');
+    setChatgptImporting(true);
+    setChatgptStatus('Uploading file...');
     
     try {
       const formData = new FormData();
@@ -331,14 +339,14 @@ export default function OnboardingPage() {
       const data = await res.json();
       
       if (data.success) {
-        setImportStatus(`✓ Imported ${data.messagesImported || 0} messages`);
-        setMessagesScanned(data.messagesImported || 0);
-        setImporting(false);
+        setChatgptStatus(`✓ Imported ${data.messagesImported || 0} messages`);
+        setChatgptMessages(data.messagesImported || 0);
+        setChatgptImporting(false);
       }
     } catch (err) {
       console.error('Upload failed:', err);
-      setImportStatus('Upload failed');
-      setImporting(false);
+      setChatgptStatus('Upload failed');
+      setChatgptImporting(false);
     }
   }
   
@@ -699,105 +707,120 @@ export default function OnboardingPage() {
           <div className="card">
             <h2 className="text-2xl font-bold mb-3">Import AI Chat History</h2>
             <p className="text-nightshift-text-secondary mb-6">
-              NightShift learns from your conversations with AI assistants to understand what you're working on.
+              NightShift learns from your conversations with AI assistants. You can import from both Claude and ChatGPT.
             </p>
             
-            {importing ? (
-              <div className="space-y-4 mb-4">
-                <div className="flex items-center gap-3">
-                  <Loader2 className="w-6 h-6 animate-spin text-nightshift-accent" />
-                  <span className="text-nightshift-text-secondary">
-                    {importStatus}
-                  </span>
+            <div className="space-y-3 mb-4">
+              {/* Claude Import */}
+              <div className="p-4 rounded-lg border border-nightshift-border">
+                <div className="flex items-center gap-3 mb-3">
+                  <div className="w-10 h-10 rounded-lg bg-nightshift-accent/10 flex items-center justify-center">
+                    <span className="text-xl">🤖</span>
+                  </div>
+                  <div className="flex-1">
+                    <div className="font-medium">Claude</div>
+                    <div className="text-xs text-nightshift-text-secondary">
+                      Import your Claude conversations
+                    </div>
+                  </div>
+                  {!claudeImporting && claudeMessages === 0 && (
+                    <button
+                      className="btn-ghost px-4 py-2"
+                      onClick={() => startImport('claude')}
+                    >
+                      Import
+                    </button>
+                  )}
                 </div>
-                {messagesScanned > 0 && (
-                  <div className="text-center">
-                    <div className="text-3xl font-bold text-nightshift-accent">{messagesScanned}</div>
-                    <div className="text-sm text-nightshift-text-secondary">messages found</div>
+                {claudeImporting && (
+                  <div className="flex items-center gap-2 text-sm">
+                    <Loader2 className="w-4 h-4 animate-spin text-nightshift-accent" />
+                    <span className="text-nightshift-text-secondary">{claudeStatus}</span>
+                  </div>
+                )}
+                {claudeMessages > 0 && !claudeImporting && (
+                  <div className="flex items-center gap-2 text-sm text-green-500">
+                    <CheckCircle2 className="w-4 h-4" />
+                    <span>{claudeStatus}</span>
                   </div>
                 )}
               </div>
-            ) : messagesScanned > 0 ? (
-              <div className="flex items-center gap-3 p-4 rounded-lg bg-green-500/10 border border-green-500/30 mb-4">
-                <CheckCircle2 className="w-6 h-6 text-green-500" />
-                <span className="text-green-500 font-medium">{importStatus}</span>
-              </div>
-            ) : (
-              <div className="space-y-3 mb-4">
-                <button
-                  className="w-full p-4 text-left rounded-lg border border-nightshift-border hover:border-nightshift-accent transition-colors"
-                  onClick={() => startImport('claude')}
-                >
-                  <div className="flex items-center gap-3 mb-2">
-                    <div className="w-10 h-10 rounded-lg bg-nightshift-accent/10 flex items-center justify-center">
-                      <span className="text-xl">🤖</span>
-                    </div>
-                    <div className="flex-1">
-                      <div className="font-medium">Connect to Claude</div>
-                      <div className="text-sm text-nightshift-text-secondary">
-                        Import your recent Claude conversations
-                      </div>
+
+              {/* ChatGPT Import */}
+              <div className="p-4 rounded-lg border border-nightshift-border">
+                <div className="flex items-center gap-3 mb-3">
+                  <div className="w-10 h-10 rounded-lg bg-nightshift-accent/10 flex items-center justify-center">
+                    <span className="text-xl">💬</span>
+                  </div>
+                  <div className="flex-1">
+                    <div className="font-medium">ChatGPT</div>
+                    <div className="text-xs text-nightshift-text-secondary">
+                      Import your ChatGPT conversations
                     </div>
                   </div>
-                </button>
-                
-                <button
-                  className="w-full p-4 text-left rounded-lg border border-nightshift-border hover:border-nightshift-accent transition-colors"
-                  onClick={() => startImport('chatgpt')}
-                >
-                  <div className="flex items-center gap-3 mb-2">
-                    <div className="w-10 h-10 rounded-lg bg-nightshift-accent/10 flex items-center justify-center">
-                      <span className="text-xl">💬</span>
-                    </div>
-                    <div className="flex-1">
-                      <div className="font-medium">Connect to ChatGPT</div>
-                      <div className="text-sm text-nightshift-text-secondary">
-                        Import your recent ChatGPT conversations
-                      </div>
-                    </div>
-                  </div>
-                </button>
-                
-                <div className="relative">
-                  <input
-                    type="file"
-                    accept=".json,.zip"
-                    onChange={(e) => {
-                      const file = e.target.files?.[0];
-                      if (file) handleChatGPTUpload(file);
-                    }}
-                    className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
-                    id="chatgpt-upload"
-                  />
-                  <label
-                    htmlFor="chatgpt-upload"
-                    className="block w-full p-4 text-left rounded-lg border border-nightshift-border hover:border-nightshift-accent transition-colors cursor-pointer"
-                  >
-                    <div className="flex items-center gap-3 mb-2">
-                      <div className="w-10 h-10 rounded-lg bg-nightshift-accent/10 flex items-center justify-center">
-                        <Upload className="w-5 h-5 text-nightshift-accent" />
-                      </div>
-                      <div className="flex-1">
-                        <div className="font-medium">Or Upload Export File</div>
-                        <div className="text-sm text-nightshift-text-secondary">
-                          Upload ChatGPT or Claude JSON export (fallback)
-                        </div>
-                      </div>
-                    </div>
-                  </label>
+                  {!chatgptImporting && chatgptMessages === 0 && (
+                    <button
+                      className="btn-ghost px-4 py-2"
+                      onClick={() => startImport('chatgpt')}
+                    >
+                      Import
+                    </button>
+                  )}
                 </div>
+                {chatgptImporting && (
+                  <div className="flex items-center gap-2 text-sm">
+                    <Loader2 className="w-4 h-4 animate-spin text-nightshift-accent" />
+                    <span className="text-nightshift-text-secondary">{chatgptStatus}</span>
+                  </div>
+                )}
+                {chatgptMessages > 0 && !chatgptImporting && (
+                  <div className="flex items-center gap-2 text-sm text-green-500">
+                    <CheckCircle2 className="w-4 h-4" />
+                    <span>{chatgptStatus}</span>
+                  </div>
+                )}
               </div>
-            )}
+
+              {/* Upload Option */}
+              <div className="relative">
+                <input
+                  type="file"
+                  accept=".json,.zip"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (file) handleChatGPTUpload(file);
+                  }}
+                  className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                  id="chatgpt-upload"
+                />
+                <label
+                  htmlFor="chatgpt-upload"
+                  className="block w-full p-4 text-left rounded-lg border border-nightshift-border hover:border-nightshift-accent transition-colors cursor-pointer"
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-lg bg-nightshift-accent/10 flex items-center justify-center">
+                      <Upload className="w-5 h-5 text-nightshift-accent" />
+                    </div>
+                    <div className="flex-1">
+                      <div className="font-medium">Or Upload Export File</div>
+                      <div className="text-xs text-nightshift-text-secondary">
+                        Upload ChatGPT or Claude JSON export
+                      </div>
+                    </div>
+                  </div>
+                </label>
+              </div>
+            </div>
             
             <div className="flex gap-2">
               <button
                 className="btn-ghost flex-1"
                 onClick={() => setStep('processing')}
-                disabled={importing}
+                disabled={claudeImporting || chatgptImporting}
               >
                 Skip
               </button>
-              {messagesScanned > 0 && !importing && (
+              {(claudeMessages > 0 || chatgptMessages > 0) && !claudeImporting && !chatgptImporting && (
                 <button
                   className="btn-primary flex-1"
                   onClick={() => setStep('processing')}
