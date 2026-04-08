@@ -111,11 +111,22 @@ export default function OnboardingPage() {
   async function connectGmail() {
     setGmailLoading(true);
     try {
-      // Redirect to Google OAuth with onboarding flag
-      window.location.href = '/api/gmail/connect?onboarding=true';
+      // Try to use Clerk's stored Google token first
+      const res = await fetch('/api/gmail/connect', { method: 'POST' });
+      const data = await res.json();
+      
+      if (data.success) {
+        setGmailConnected(true);
+        setGmailLoading(false);
+      } else {
+        // Fall back to OAuth redirect if Clerk token not available
+        window.location.href = '/api/gmail/connect?onboarding=true';
+      }
     } catch (err) {
       console.error('Failed to connect Gmail:', err);
       setGmailLoading(false);
+      // Show error but allow continuing
+      alert('Gmail OAuth not configured. You can skip this step and configure it later in Settings.');
     }
   }
   
