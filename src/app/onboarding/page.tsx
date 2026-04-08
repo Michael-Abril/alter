@@ -614,7 +614,13 @@ export default function OnboardingPage() {
               </>
             )}
             
-            <div className="flex gap-2">
+            <div className="flex gap-2 mt-2">
+              <button
+                className="btn-ghost"
+                onClick={() => setStep('welcome')}
+              >
+                ← Back
+              </button>
               <button
                 className="btn-ghost flex-1"
                 onClick={() => setStep('github')}
@@ -626,7 +632,7 @@ export default function OnboardingPage() {
                   className="btn-primary flex-1"
                   onClick={() => setStep('github')}
                 >
-                  Next
+                  Next →
                 </button>
               )}
             </div>
@@ -717,7 +723,13 @@ export default function OnboardingPage() {
               </>
             )}
             
-            <div className="flex gap-2">
+            <div className="flex gap-2 mt-2">
+              <button
+                className="btn-ghost"
+                onClick={() => setStep('gmail')}
+              >
+                ← Back
+              </button>
               <button
                 className="btn-ghost flex-1"
                 onClick={() => setStep('canvas')}
@@ -732,7 +744,7 @@ export default function OnboardingPage() {
                     setStep('canvas');
                   }}
                 >
-                  Confirm & Next
+                  Confirm & Next →
                 </button>
               )}
             </div>
@@ -829,7 +841,13 @@ export default function OnboardingPage() {
               </>
             )}
             
-            <div className="flex gap-2">
+            <div className="flex gap-2 mt-2">
+              <button
+                className="btn-ghost"
+                onClick={() => setStep('github')}
+              >
+                ← Back
+              </button>
               <button
                 className="btn-ghost flex-1"
                 onClick={() => setStep('import')}
@@ -841,7 +859,7 @@ export default function OnboardingPage() {
                   className="btn-primary flex-1"
                   onClick={() => setStep('import')}
                 >
-                  Next
+                  Next →
                 </button>
               )}
             </div>
@@ -1015,7 +1033,14 @@ export default function OnboardingPage() {
               </div>
             </div>
             
-            <div className="flex gap-2">
+            <div className="flex gap-2 mt-2">
+              <button
+                className="btn-ghost"
+                onClick={() => setStep('canvas')}
+                disabled={claudeImporting || chatgptImporting}
+              >
+                ← Back
+              </button>
               <button
                 className="btn-ghost flex-1"
                 onClick={() => setStep('processing')}
@@ -1028,7 +1053,7 @@ export default function OnboardingPage() {
                   className="btn-primary flex-1"
                   onClick={() => setStep('processing')}
                 >
-                  {claudeMessages > 0 || chatgptMessages > 0 ? 'Next' : 'Continue with existing data'}
+                  {claudeMessages > 0 || chatgptMessages > 0 ? 'Next →' : 'Continue with existing data →'}
                 </button>
               )}
             </div>
