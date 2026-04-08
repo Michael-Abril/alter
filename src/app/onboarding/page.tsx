@@ -9,6 +9,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
+import { useUser } from '@clerk/nextjs';
 import { CheckCircle2, Loader2, Upload, AlertCircle } from 'lucide-react';
 
 type OnboardingStep = 'welcome' | 'gmail' | 'github' | 'canvas' | 'import' | 'processing' | 'reveal';
@@ -30,7 +31,15 @@ interface ProcessingStatus {
 
 export default function OnboardingPage() {
   const router = useRouter();
+  const { isLoaded, isSignedIn } = useUser();
   const [step, setStep] = useState<OnboardingStep>('welcome');
+  
+  // Redirect to sign-in if not authenticated
+  useEffect(() => {
+    if (isLoaded && !isSignedIn) {
+      router.push('/sign-in?redirect_url=/onboarding');
+    }
+  }, [isLoaded, isSignedIn, router]);
   
   // Gmail connection state
   const [gmailConnected, setGmailConnected] = useState(false);
@@ -371,6 +380,15 @@ export default function OnboardingPage() {
 
   const steps: OnboardingStep[] = ['welcome', 'gmail', 'github', 'canvas', 'import', 'processing', 'reveal'];
   const currentStepIndex = steps.indexOf(step);
+  
+  // Show loading while checking auth
+  if (!isLoaded || !isSignedIn) {
+    return (
+      <div className="flex min-h-screen items-center justify-center px-4 bg-nightshift-bg">
+        <Loader2 className="w-8 h-8 animate-spin text-nightshift-accent" />
+      </div>
+    );
+  }
   
   return (
     <div className="flex min-h-screen items-center justify-center px-4 bg-nightshift-bg">
