@@ -19,15 +19,17 @@ const __dirname = path.dirname(__filename);
 dotenv.config({ path: path.join(__dirname, '..', '.env') });
 
 import { draftEmailReply } from './draft-email.mjs';
+import { resolveInternalUserId } from './user-resolver.mjs';
 
 // ─── Config ──────────────────────────────────────────────────────────────────
-
-const USER_ID = 'cmndvesaa000011r5gk3avaoo'; // Default user ID
 
 // ─── Main ────────────────────────────────────────────────────────────────────
 
 async function main() {
   console.log('🧪 Email Draft Generation Test');
+  console.log('');
+  const userId = await resolveTestUserId();
+  console.log(`👤 Using user ID: ${userId}`);
   console.log('');
 
   // Create a fake incoming email
@@ -44,26 +46,37 @@ async function main() {
   console.log('');
 
   try {
-    const result = await draftEmailReply(incomingEmail, USER_ID, {
+    const withoutVoice = await draftEmailReply(incomingEmail, userId, {
       apiKey: process.env.ANTHROPIC_API_KEY,
+      useVoiceProfile: false,
+    });
+    const withVoice = await draftEmailReply(incomingEmail, userId, {
+      apiKey: process.env.ANTHROPIC_API_KEY,
+      useVoiceProfile: true,
     });
 
-    if (result.success) {
+    if (withoutVoice.success && withVoice.success) {
       console.log('');
       console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-      console.log('📝 GENERATED DRAFT');
+      console.log('📝 DRAFT COMPARISON');
       console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
       console.log('');
-      console.log(result.draft);
+      console.log('WITHOUT VOICE PROFILE');
+      console.log('---------------------');
+      console.log(withoutVoice.draft);
+      console.log('');
+      console.log('WITH VOICE PROFILE');
+      console.log('------------------');
+      console.log(withVoice.draft);
       console.log('');
       console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-      console.log(`📊 Confidence Score: ${result.confidence.toFixed(2)}`);
-      console.log(`🆔 Draft ID: ${result.draftId}`);
-      console.log(`🆔 Action ID: ${result.actionId}`);
-      console.log(`🪙 Tokens Used: ${result.tokensUsed}`);
+      console.log(`Without profile confidence: ${withoutVoice.confidence.toFixed(2)}`);
+      console.log(`With profile confidence: ${withVoice.confidence.toFixed(2)}`);
+      console.log(`Without profile tokens: ${withoutVoice.tokensUsed}`);
+      console.log(`With profile tokens: ${withVoice.tokensUsed}`);
       console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
       console.log('');
-      console.log('✅ Test complete! NightShift drafted an email based on your chat history.');
+      console.log('✅ Test complete! Compared draft quality with and without voice profile.');
     }
   } catch (error) {
     console.error('');
@@ -74,6 +87,10 @@ async function main() {
     console.error(error.stack);
     process.exit(1);
   }
+}
+
+async function resolveTestUserId() {
+  return resolveInternalUserId(undefined);
 }
 
 main().catch(err => {

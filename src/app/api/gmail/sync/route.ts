@@ -1,84 +1,64 @@
 /**
- * OWNER: Person 1 (Backend)
- * PURPOSE: Sync Gmail emails — pull last 200 sent emails and store in Email table
- * DEPENDENCIES: Prisma, Gmail API, @clerk/nextjs
- * STATUS: LIVE — pulls and stores emails with deduplication
+ * Gmail sync — pulls sent AND received emails and stores in Email table.
  */
 
 import { NextRequest } from 'next/server';
 import { auth } from '@clerk/nextjs/server';
-import { fetchSentEmails, refreshAccessToken } from '@/lib/gmail';
+import { fetchSentEmails, fetchInboxEmails, refreshAccessToken } from '@/lib/gmail';
 import { apiSuccess, apiError } from '@/lib/utils';
 import db from '@/lib/db';
 
-// POST: Trigger email sync from Gmail
 export async function POST(req: NextRequest) {
   const { userId: clerkId } = await auth();
   if (!clerkId) return apiError('Unauthorized', 401);
 
   try {
-    // Get user's Gmail tokens
     const user = await db.user.findUnique({
       where: { clerkId },
-      select: {
-        id: true,
-        gmailConnected: true,
-        gmailToken: true,
-        gmailRefreshToken: true,
-      },
+      select: { id: true, gmailConnected: true, gmailToken: true, gmailRefreshToken: true },
     });
 
     if (!user || !user.gmailConnected || !user.gmailToken) {
       return apiError('Gmail not connected', 400);
     }
 
-    console.log(`[gmail/sync] Starting sync for user ${user.id}`);
+    const body = await req.json().catch(() => ({}));
+    const direction: string = body.direction || 'both';
+    const sinceDays: number = body.sinceDays || 3;
 
-    // Try to fetch emails, refreshing token if needed
-    let emails;
-    try {
-      emails = await fetchSentEmails(user.gmailToken, user.gmailRefreshToken, 200);
-    } catch (fetchError: any) {
-      // If it's an auth error, try refreshing the token
-      if (fetchError.code === 401 || fetchError.message?.includes('401')) {
-        if (!user.gmailRefreshToken) {
-          return apiError('Gmail token expired and no refresh token available', 401);
+    let accessToken = user.gmailToken;
+
+    async function withTokenRefresh<T>(fn: (token: string) => Promise<T>): Promise<T> {
+      try {
+        return await fn(accessToken);
+      } catch (error: any) {
+        if (user.gmailRefreshToken && (error.code === 401 || error.message?.includes('401'))) {
+          accessToken = await refreshAccessToken(user.gmailRefreshToken);
+          await db.user.update({ where: { id: user.id }, data: { gmailToken: accessToken } });
+          return await fn(accessToken);
         }
-
-        console.log('[gmail/sync] Refreshing access token');
-        const newAccessToken = await refreshAccessToken(user.gmailRefreshToken);
-
-        // Update stored access token
-        await db.user.update({
-          where: { id: user.id },
-          data: { gmailToken: newAccessToken },
-        });
-
-        // Retry fetch with new token
-        emails = await fetchSentEmails(newAccessToken, user.gmailRefreshToken, 200);
-      } else {
-        throw fetchError;
+        throw error;
       }
     }
 
-    console.log(`[gmail/sync] Fetched ${emails.length} emails from Gmail`);
+    let sentEmails: any[] = [];
+    let inboxEmails: any[] = [];
 
-    // Store emails in database with deduplication
+    if (direction === 'sent' || direction === 'both') {
+      sentEmails = await withTokenRefresh(t => fetchSentEmails(t, user.gmailRefreshToken, 100));
+    }
+    if (direction === 'received' || direction === 'both') {
+      inboxEmails = await withTokenRefresh(t => fetchInboxEmails(t, user.gmailRefreshToken, 50, sinceDays));
+    }
+
+    const allEmails = [...sentEmails, ...inboxEmails];
     let newEmails = 0;
-    let skippedEmails = 0;
+    let skipped = 0;
 
-    for (const email of emails) {
-      // Check if email already exists
-      const existing = await db.email.findUnique({
-        where: { gmailId: email.gmailId },
-      });
+    for (const email of allEmails) {
+      const existing = await db.email.findUnique({ where: { gmailId: email.gmailId } });
+      if (existing) { skipped++; continue; }
 
-      if (existing) {
-        skippedEmails++;
-        continue;
-      }
-
-      // Store new email
       await db.email.create({
         data: {
           userId: user.id,
@@ -89,21 +69,21 @@ export async function POST(req: NextRequest) {
           subject: email.subject,
           body: email.body,
           direction: email.direction,
-          isRead: true, // Sent emails are always read
+          isRead: email.direction === 'sent',
           receivedAt: email.receivedAt,
         },
       });
-
       newEmails++;
     }
 
-    console.log(`[gmail/sync] Sync complete: ${newEmails} new, ${skippedEmails} skipped`);
+    console.log(`[gmail/sync] Sync complete: ${newEmails} new, ${skipped} skipped`);
 
     return apiSuccess({
-      message: 'Email sync completed',
-      totalFetched: emails.length,
+      totalFetched: allEmails.length,
       newEmails,
-      skippedEmails,
+      skippedEmails: skipped,
+      sent: sentEmails.length,
+      received: inboxEmails.length,
     });
   } catch (error) {
     console.error('[gmail/sync] Error:', error);

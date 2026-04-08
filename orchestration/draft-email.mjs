@@ -12,6 +12,7 @@ import Anthropic from '@anthropic-ai/sdk';
 import dotenv from 'dotenv';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import { resolveInternalUserId } from './user-resolver.mjs';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -49,6 +50,8 @@ export async function draftEmailReply(incomingEmail, userId, options = {}) {
     throw new Error('ANTHROPIC_API_KEY is not set');
   }
 
+  const resolvedUserId = await resolveInternalUserId(userId);
+
   console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
   console.log('✉️  Email Draft Generator');
   console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
@@ -58,7 +61,7 @@ export async function draftEmailReply(incomingEmail, userId, options = {}) {
 
   // Step 1: Query vector DB for similar past messages
   console.log('🔍 Step 1: Retrieving similar past messages from vector DB...');
-  const contextResults = await queryVectorDB(incomingEmail, userId, apiUrl);
+  const contextResults = await queryVectorDB(incomingEmail, resolvedUserId, apiUrl);
   console.log(`   ✅ Retrieved ${contextResults.length} relevant messages`);
   console.log('');
 
@@ -69,7 +72,9 @@ export async function draftEmailReply(incomingEmail, userId, options = {}) {
 
   // Step 2: Build the draft prompt
   console.log('🧠 Step 2: Building draft prompt with context...');
-  const prompt = buildDraftPrompt(incomingEmail, contextResults);
+  const voiceProfile =
+    options.useVoiceProfile === false ? null : await loadVoiceProfile(resolvedUserId, apiUrl);
+  const prompt = buildDraftPrompt(incomingEmail, contextResults, voiceProfile);
   console.log('   ✅ Prompt built');
   console.log('');
 
@@ -95,13 +100,26 @@ export async function draftEmailReply(incomingEmail, userId, options = {}) {
 
   // Step 4: Save draft to database
   console.log('💾 Step 4: Saving draft to database...');
-  const draftResult = await saveDraft(userId, incomingEmail, draft, confidence, tokensUsed, apiUrl);
+  const draftResult = await saveDraft(
+    resolvedUserId,
+    incomingEmail,
+    draft,
+    confidence,
+    tokensUsed,
+    apiUrl
+  );
   console.log(`   ✅ Draft saved (ID: ${draftResult.draftId})`);
   console.log('');
 
   // Step 5: Log action
   console.log('📝 Step 5: Logging action...');
-  const actionResult = await logAction(userId, incomingEmail, draftResult.draftId, confidence, apiUrl);
+  const actionResult = await logAction(
+    resolvedUserId,
+    incomingEmail,
+    draftResult.draftId,
+    confidence,
+    apiUrl
+  );
   console.log(`   ✅ Action logged (ID: ${actionResult.actionId})`);
   console.log('');
 
@@ -165,13 +183,16 @@ function calculateConfidence(contextResults) {
 /**
  * Build the draft prompt for Claude.
  */
-function buildDraftPrompt(incomingEmail, contextResults) {
-  const system = [
+function buildDraftPrompt(incomingEmail, contextResults, voiceProfile = null) {
+  const baseSystem = [
     'You are NightShift AI, drafting email replies on behalf of the user.',
     'You have access to examples of the user\'s past messages to learn their communication style.',
     'Match their tone, formality level, sentence structure, and vocabulary.',
     'Be concise and professional. Output ONLY the reply body — no subject line, no "Here\'s a draft:", no metadata.',
   ].join('\n');
+  const system = voiceProfile?.systemPrompt
+    ? `${voiceProfile.systemPrompt}\n\n${baseSystem}`
+    : baseSystem;
 
   const contextSection = contextResults.length > 0
     ? [
@@ -205,6 +226,18 @@ function buildDraftPrompt(incomingEmail, contextResults) {
   ].join('\n');
 
   return { system, user };
+}
+
+async function loadVoiceProfile(userId, apiUrl) {
+  try {
+    const res = await fetch(`${apiUrl}/api/internal/voice-profile?userId=${encodeURIComponent(userId)}`);
+    if (!res.ok) return null;
+    const data = await res.json();
+    if (!data.success) return null;
+    return data.data || null;
+  } catch {
+    return null;
+  }
 }
 
 /**

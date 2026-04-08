@@ -71,7 +71,18 @@ export default function DraftsPage() {
         throw new Error(json.error || 'Action failed');
       }
 
-      // Remove draft from list after successful action
+      const data = json.data;
+      if (data?.gmailDraftUrl) {
+        setError(`Draft approved! Open in Gmail: ${data.gmailDraftUrl}`);
+      } else if (data?.errorCode) {
+        const messages: Record<string, string> = {
+          GMAIL_NOT_CONNECTED: 'Draft approved. To create Gmail drafts, connect Gmail in Settings.',
+          GMAIL_API_NOT_ENABLED: 'Draft approved. Enable the Gmail API in your Google Cloud Console, then retry.',
+          GMAIL_SEND_FAILED: `Draft approved but Gmail draft failed: ${data.message || 'unknown error'}`,
+        };
+        setError(messages[data.errorCode] || data.message || 'Draft approved with warnings.');
+      }
+
       setDrafts((prev) => prev.filter((d) => d.id !== draftId));
       setEditingId(null);
     } catch (err: any) {
@@ -150,8 +161,22 @@ export default function DraftsPage() {
             </div>
 
             {error && (
-              <div className="card border-nightshift-error/50">
-                <p className="text-sm text-nightshift-error">{error}</p>
+              <div className={`card ${error.startsWith('Draft approved') ? 'border-nightshift-success/50' : 'border-nightshift-error/50'}`}>
+                {error.includes('Open in Gmail:') ? (
+                  <div className="text-sm text-nightshift-success">
+                    <span>Draft approved! </span>
+                    <a
+                      href={error.split('Open in Gmail: ')[1]}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="underline hover:text-nightshift-accent transition-colors"
+                    >
+                      Open in Gmail →
+                    </a>
+                  </div>
+                ) : (
+                  <p className={`text-sm ${error.startsWith('Draft approved') ? 'text-nightshift-warning' : 'text-nightshift-error'}`}>{error}</p>
+                )}
               </div>
             )}
 

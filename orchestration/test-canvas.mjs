@@ -13,6 +13,7 @@ import dotenv from 'dotenv';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { spawn } from 'child_process';
+import { resolveInternalUserId } from './user-resolver.mjs';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -21,7 +22,7 @@ dotenv.config({ path: path.join(__dirname, '..', '.env') });
 
 const args = parseArgs(process.argv.slice(2));
 const MOCK_MODE = args.mock !== undefined;
-const USER_ID = args['user-id'] || 'cmndvesaa000011r5gk3avaoo';
+const USER_ID = args['user-id'];
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000';
 
 function parseArgs(argv) {
@@ -167,6 +168,7 @@ async function mockGetAnnouncements() {
 // ─── Main Test Function ──────────────────────────────────────────────────────
 
 async function main() {
+  const resolvedUserId = await resolveInternalUserId(USER_ID);
   console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
   console.log('🎓 Canvas LMS Integration Test');
   console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
@@ -270,7 +272,7 @@ async function main() {
     // Send to ingest API
     const ingestUrl = `${API_URL}/api/chat-history/ingest`;
     const payload = {
-      userId: USER_ID,
+      userId: resolvedUserId,
       source: 'canvas',
       messages,
     };
@@ -330,7 +332,7 @@ async function main() {
 
     // Run the real scraper
     const scriptPath = path.join(__dirname, 'scrape-canvas.mjs');
-    const child = spawn('node', [scriptPath, `--user-id=${USER_ID}`], {
+    const child = spawn('node', [scriptPath, `--user-id=${resolvedUserId}`], {
       cwd: process.cwd(),
       stdio: 'inherit',
     });

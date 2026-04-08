@@ -23,10 +23,35 @@ interface Project {
 }
 
 interface ProcessingStatus {
-  stage: 'embedding' | 'detecting' | 'complete';
+  stage: 'embedding' | 'profiling' | 'detecting' | 'complete';
   messagesFound: number;
   projectsFound: number;
   progress: number;
+}
+
+type ImportSource = 'claude' | 'chatgpt';
+type SyncState = 'idle' | 'running' | 'completed' | 'failed' | 'auth_required';
+
+function resolveOnboardingStep(stepParam: string | null): OnboardingStep | null {
+  if (!stepParam) return null;
+  const normalized = stepParam.toLowerCase();
+  const stepMap: Record<string, OnboardingStep> = {
+    '1': 'welcome',
+    '2': 'gmail',
+    '3': 'github',
+    '4': 'canvas',
+    '5': 'import',
+    '6': 'processing',
+    '7': 'reveal',
+    welcome: 'welcome',
+    gmail: 'gmail',
+    github: 'github',
+    canvas: 'canvas',
+    import: 'import',
+    processing: 'processing',
+    reveal: 'reveal',
+  };
+  return stepMap[normalized] ?? null;
 }
 
 export default function OnboardingPage() {
@@ -66,14 +91,18 @@ export default function OnboardingPage() {
   const [chatgptImporting, setChatgptImporting] = useState(false);
   const [chatgptStatus, setChatgptStatus] = useState('');
   const [chatgptMessages, setChatgptMessages] = useState(0);
-  const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const [contextWindowDays, setContextWindowDays] = useState(3);
+  const [resettingTestState, setResettingTestState] = useState(false);
+  const pollingIntervalRef = useRef<Partial<Record<ImportSource, NodeJS.Timeout>>>({});
+  const autoResetDoneRef = useRef(false);
   
   // Processing state
   const [processing, setProcessing] = useState(false);
-  const [processingStage, setProcessingStage] = useState<'embedding' | 'detecting' | 'complete'>('embedding');
+  const [processingStage, setProcessingStage] = useState<'embedding' | 'profiling' | 'detecting' | 'complete'>('embedding');
   const [embeddedCount, setEmbeddedCount] = useState(0);
   const [totalMessages, setTotalMessages] = useState(0);
   const [projectsDetected, setProjectsDetected] = useState(0);
+  const [voiceProfileStatus, setVoiceProfileStatus] = useState('');
   
   // Detected projects
   const [projects, setProjects] = useState<Project[]>([]);
@@ -88,24 +117,78 @@ export default function OnboardingPage() {
     const stepParam = params.get('step');
     const gmailParam = params.get('gmail');
     const githubParam = params.get('github');
+    const testResetParam = params.get('testReset');
+    const resolvedStep = resolveOnboardingStep(stepParam);
+
+    if (testResetParam === '1' && !autoResetDoneRef.current) {
+      autoResetDoneRef.current = true;
+      void resetOnboardingTestState(true);
+      return;
+    }
     
     // Gmail OAuth callback
     if (gmailParam === 'connected') {
       setGmailConnected(true);
-      if (stepParam === '2') {
-        setStep('gmail');
-      }
+      setStep(resolvedStep ?? 'github');
     }
     
     // GitHub OAuth callback
     if (githubParam === 'connected') {
       setGithubConnected(true);
-      if (stepParam === '3') {
-        setStep('github');
-      }
+      setStep(resolvedStep ?? 'github');
       fetchGitHubRepos();
     }
+
+    if (resolvedStep && gmailParam !== 'connected' && githubParam !== 'connected') {
+      setStep(resolvedStep);
+    }
   }, []);
+
+  async function resetOnboardingTestState(silent = false) {
+    setResettingTestState(true);
+    try {
+      const res = await fetch('/api/onboarding/test-reset', { method: 'POST' });
+      const data = await res.json();
+      if (!data.success) {
+        throw new Error(data.error || 'Failed to reset test state');
+      }
+
+      // Reset local onboarding view state to mimic fresh first-time user.
+      setStep('welcome');
+      setGmailConnected(false);
+      setGithubConnected(false);
+      setGithubRepos([]);
+      setSelectedRepo('');
+      setGithubError('');
+      setCanvasConnected(false);
+      setCanvasToken('');
+      setCanvasError('');
+      setClaudeImporting(false);
+      setClaudeStatus('');
+      setClaudeMessages(0);
+      setChatgptImporting(false);
+      setChatgptStatus('');
+      setChatgptMessages(0);
+      setProcessing(false);
+      setProcessingStage('embedding');
+      setEmbeddedCount(0);
+      setTotalMessages(0);
+      setProjectsDetected(0);
+      setProjects([]);
+      stopPolling();
+
+      if (!silent) {
+        alert('Onboarding test state reset. You can now test as a brand-new user.');
+      }
+    } catch (err: any) {
+      console.error('Failed to reset onboarding test state:', err);
+      if (!silent) {
+        alert(`Reset failed: ${err.message}`);
+      }
+    } finally {
+      setResettingTestState(false);
+    }
+  }
   
   async function checkGmailStatus() {
     try {
@@ -250,24 +333,37 @@ export default function OnboardingPage() {
     }
   }
   
-  async function startImport(method: 'claude' | 'chatgpt') {
+  async function startImport(
+    method: ImportSource,
+    silent = false,
+    options?: { resetProfile?: boolean }
+  ) {
     const setImporting = method === 'claude' ? setClaudeImporting : setChatgptImporting;
     const setStatus = method === 'claude' ? setClaudeStatus : setChatgptStatus;
     const setMessages = method === 'claude' ? setClaudeMessages : setChatgptMessages;
     
+    stopPolling(method);
     setImporting(true);
-    setStatus('Starting scraper...');
+    setStatus(silent ? 'Syncing recent context in background...' : 'Starting scraper...');
     setMessages(0);
     
     try {
       // Start the scraper
       const endpoint = method === 'claude' ? '/api/onboarding/import-claude' : '/api/onboarding/import-chatgpt';
-      const res = await fetch(endpoint, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({}) });
+      const res = await fetch(endpoint, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          days: contextWindowDays,
+          resetProfile: Boolean(options?.resetProfile),
+          // Keep silent prewarm invisible; manual imports open browser like old behavior.
+          headless: silent,
+        }),
+      });
       const data = await res.json();
       
       if (data.success) {
-        // Start polling for message count
-        setStatus('Scanning your conversations...');
+        setStatus(`Syncing your last ${contextWindowDays} days in the background...`);
         startPollingMessageCount(method);
       } else {
         setStatus('Failed to start scraper');
@@ -280,48 +376,63 @@ export default function OnboardingPage() {
     }
   }
   
-  function startPollingMessageCount(method: 'claude' | 'chatgpt') {
+  function startPollingMessageCount(method: ImportSource) {
     const setMessages = method === 'claude' ? setClaudeMessages : setChatgptMessages;
     const setStatus = method === 'claude' ? setClaudeStatus : setChatgptStatus;
     const setImporting = method === 'claude' ? setClaudeImporting : setChatgptImporting;
-    
-    let lastCount = 0;
-    let stableCount = 0;
-    
-    pollingIntervalRef.current = setInterval(async () => {
+
+    pollingIntervalRef.current[method] = setInterval(async () => {
       try {
-        const res = await fetch('/api/chat-history/stats');
+        const res = await fetch(`/api/onboarding/import-status?source=${method}`);
         const data = await res.json();
         
         if (data.success) {
-          const totalCount = data.data?.total || 0;
-          setMessages(totalCount);
-          
-          if (totalCount === lastCount) {
-            stableCount++;
-            if (stableCount >= 3) { // 15 seconds (3 * 5 seconds)
-              stopPolling();
-              setStatus(`✓ Found ${totalCount} messages`);
-              setImporting(false);
-            }
-          } else {
-            stableCount = 0;
-            lastCount = totalCount;
-            setStatus(`Scanning... ${totalCount} messages found so far`);
+          const syncState = data.data?.state as SyncState;
+          const imported = data.data?.importedMessages || 0;
+          const message = data.data?.message as string | undefined;
+          setMessages(imported);
+
+          if (syncState === 'running') {
+            setStatus(message || `Background sync running (${contextWindowDays}d window)...`);
+          } else if (syncState === 'completed') {
+            stopPolling(method);
+            setStatus(message || `✓ Imported ${imported} recent messages`);
+            setImporting(false);
+          } else if (syncState === 'auth_required') {
+            stopPolling(method);
+            setStatus(message || 'Sign in to this source once, then retry import.');
+            setImporting(false);
+          } else if (syncState === 'failed') {
+            stopPolling(method);
+            setStatus(data.data?.message || 'Import failed');
+            setImporting(false);
           }
         }
       } catch (err) {
         console.error('Polling error:', err);
       }
-    }, 5000); // Poll every 5 seconds
+    }, 2000);
   }
   
-  function stopPolling() {
-    if (pollingIntervalRef.current) {
-      clearInterval(pollingIntervalRef.current);
-      pollingIntervalRef.current = null;
+  function stopPolling(method?: ImportSource) {
+    if (method) {
+      const timer = pollingIntervalRef.current[method];
+      if (timer) {
+        clearInterval(timer);
+        delete pollingIntervalRef.current[method];
+      }
+      return;
     }
+    const claudeTimer = pollingIntervalRef.current.claude;
+    const chatgptTimer = pollingIntervalRef.current.chatgpt;
+    if (claudeTimer) clearInterval(claudeTimer);
+    if (chatgptTimer) clearInterval(chatgptTimer);
+    pollingIntervalRef.current = {};
   }
+
+  useEffect(() => {
+    return () => stopPolling();
+  }, []);
   
   async function handleChatGPTUpload(file: File) {
     setChatgptImporting(true);
@@ -358,20 +469,35 @@ export default function OnboardingPage() {
     
     try {
       // Get total message count
-      const statsRes = await fetch('/api/chat-history/stats');
+      const statsRes = await fetch(`/api/chat-history/stats?sinceDays=${contextWindowDays}`);
       const statsData = await statsRes.json();
       setTotalMessages(statsData.data?.total || 0);
       
       // Start embedding
-      const embedRes = await fetch('/api/onboarding/embed', { method: 'POST' });
+      const embedRes = await fetch(`/api/onboarding/embed?sinceDays=${contextWindowDays}`, {
+        method: 'POST',
+      });
       const embedData = await embedRes.json();
       
       if (embedData.success) {
         setEmbeddedCount(embedData.data?.messagesEmbedded || 0);
+        setProcessingStage('profiling');
+        setVoiceProfileStatus('Learning your writing style...');
+
+        const voiceRes = await fetch('/api/onboarding/build-profile', { method: 'POST' });
+        const voiceData = await voiceRes.json();
+        if (voiceData.success) {
+          setVoiceProfileStatus('Voice profile created — NightShift will write like you.');
+        } else {
+          setVoiceProfileStatus('Could not build voice profile yet. Continuing with default style.');
+        }
+
         setProcessingStage('detecting');
         
         // Run project detection
-        const detectRes = await fetch('/api/onboarding/detect-projects', { method: 'POST' });
+        const detectRes = await fetch(`/api/onboarding/detect-projects?sinceDays=${contextWindowDays}`, {
+          method: 'POST',
+        });
         const detectData = await detectRes.json();
         
         if (detectData.success) {
@@ -410,6 +536,15 @@ export default function OnboardingPage() {
   return (
     <div className="flex min-h-screen items-center justify-center px-4 bg-nightshift-bg">
       <div className="w-full max-w-2xl">
+        <div className="mb-4 flex items-center justify-end">
+          <button
+            className="btn-ghost text-xs"
+            onClick={() => resetOnboardingTestState(false)}
+            disabled={resettingTestState}
+          >
+            {resettingTestState ? 'Resetting test state...' : 'Reset First-Time Test State'}
+          </button>
+        </div>
         {/* Progress Bar */}
         <div className="mb-8 flex gap-2">
           {steps.map((s, i) => (
@@ -720,10 +855,32 @@ export default function OnboardingPage() {
             <p className="text-nightshift-text-secondary mb-6">
               NightShift learns from your conversations with AI assistants. You can import from both Claude and ChatGPT.
             </p>
+            <div className="mb-4 rounded-lg border border-nightshift-border p-3">
+              <label className="mb-2 block text-xs uppercase tracking-wide text-nightshift-text-secondary">
+                Context Window
+              </label>
+              <select
+                value={contextWindowDays}
+                onChange={(e) => setContextWindowDays(parseInt(e.target.value, 10))}
+                className="w-full rounded-lg border border-nightshift-border bg-nightshift-surface px-3 py-2 text-sm"
+              >
+                <option value={3}>Last 3 days (default)</option>
+                <option value={7}>Last 7 days</option>
+                <option value={14}>Last 14 days</option>
+              </select>
+              <p className="mt-2 text-xs text-nightshift-text-secondary">
+                Start lightweight, then expand context only when needed.
+              </p>
+            </div>
             
             <div className="space-y-3 mb-4">
               {/* Claude Import */}
-              <div className="p-4 rounded-lg border border-nightshift-border">
+              <div className={`p-4 rounded-lg border transition-colors ${
+                claudeMessages > 0 && !claudeImporting ? 'border-green-500/50' :
+                claudeStatus.includes('auth') || claudeStatus.includes('Sign in') ? 'border-yellow-500/50' :
+                claudeStatus.includes('Failed') || claudeStatus.includes('failed') ? 'border-red-500/50' :
+                'border-nightshift-border'
+              }`}>
                 <div className="flex items-center gap-3 mb-3">
                   <div className="w-10 h-10 rounded-lg bg-nightshift-accent/10 flex items-center justify-center">
                     <span className="text-xl">🤖</span>
@@ -734,13 +891,22 @@ export default function OnboardingPage() {
                       Import your Claude conversations
                     </div>
                   </div>
-                  {!claudeImporting && claudeMessages === 0 && (
-                    <button
-                      className="btn-ghost px-4 py-2"
-                      onClick={() => startImport('claude')}
-                    >
-                      Import
-                    </button>
+                  {!claudeImporting && (
+                    <div className="flex gap-2">
+                      <button
+                        className="btn-ghost px-4 py-2"
+                        onClick={() => startImport('claude')}
+                      >
+                        {claudeMessages > 0 ? 'Re-import' : 'Import'}
+                      </button>
+                      <button
+                        className="btn-ghost px-3 py-2 text-xs"
+                        onClick={() => startImport('claude', false, { resetProfile: true })}
+                        title="Clear saved browser session and import fresh"
+                      >
+                        Reset Session
+                      </button>
+                    </div>
                   )}
                 </div>
                 {claudeImporting && (
@@ -749,16 +915,27 @@ export default function OnboardingPage() {
                     <span className="text-nightshift-text-secondary">{claudeStatus}</span>
                   </div>
                 )}
-                {claudeMessages > 0 && !claudeImporting && (
+                {!claudeImporting && claudeMessages > 0 && (
                   <div className="flex items-center gap-2 text-sm text-green-500">
                     <CheckCircle2 className="w-4 h-4" />
-                    <span>{claudeStatus}</span>
+                    <span>{claudeStatus || `${claudeMessages} messages imported`}</span>
+                  </div>
+                )}
+                {!claudeImporting && claudeMessages === 0 && claudeStatus && (
+                  <div className="flex items-center gap-2 text-sm">
+                    <AlertCircle className="w-4 h-4 text-yellow-500" />
+                    <span className="text-nightshift-text-secondary">{claudeStatus}</span>
                   </div>
                 )}
               </div>
 
               {/* ChatGPT Import */}
-              <div className="p-4 rounded-lg border border-nightshift-border">
+              <div className={`p-4 rounded-lg border transition-colors ${
+                chatgptMessages > 0 && !chatgptImporting ? 'border-green-500/50' :
+                chatgptStatus.includes('auth') || chatgptStatus.includes('Sign in') ? 'border-yellow-500/50' :
+                chatgptStatus.includes('Failed') || chatgptStatus.includes('failed') ? 'border-red-500/50' :
+                'border-nightshift-border'
+              }`}>
                 <div className="flex items-center gap-3 mb-3">
                   <div className="w-10 h-10 rounded-lg bg-nightshift-accent/10 flex items-center justify-center">
                     <span className="text-xl">💬</span>
@@ -769,13 +946,22 @@ export default function OnboardingPage() {
                       Import your ChatGPT conversations
                     </div>
                   </div>
-                  {!chatgptImporting && chatgptMessages === 0 && (
-                    <button
-                      className="btn-ghost px-4 py-2"
-                      onClick={() => startImport('chatgpt')}
-                    >
-                      Import
-                    </button>
+                  {!chatgptImporting && (
+                    <div className="flex gap-2">
+                      <button
+                        className="btn-ghost px-4 py-2"
+                        onClick={() => startImport('chatgpt')}
+                      >
+                        {chatgptMessages > 0 ? 'Re-import' : 'Import'}
+                      </button>
+                      <button
+                        className="btn-ghost px-3 py-2 text-xs"
+                        onClick={() => startImport('chatgpt', false, { resetProfile: true })}
+                        title="Clear saved browser session and import fresh"
+                      >
+                        Reset Session
+                      </button>
+                    </div>
                   )}
                 </div>
                 {chatgptImporting && (
@@ -784,10 +970,16 @@ export default function OnboardingPage() {
                     <span className="text-nightshift-text-secondary">{chatgptStatus}</span>
                   </div>
                 )}
-                {chatgptMessages > 0 && !chatgptImporting && (
+                {!chatgptImporting && chatgptMessages > 0 && (
                   <div className="flex items-center gap-2 text-sm text-green-500">
                     <CheckCircle2 className="w-4 h-4" />
-                    <span>{chatgptStatus}</span>
+                    <span>{chatgptStatus || `${chatgptMessages} messages imported`}</span>
+                  </div>
+                )}
+                {!chatgptImporting && chatgptMessages === 0 && chatgptStatus && (
+                  <div className="flex items-center gap-2 text-sm">
+                    <AlertCircle className="w-4 h-4 text-yellow-500" />
+                    <span className="text-nightshift-text-secondary">{chatgptStatus}</span>
                   </div>
                 )}
               </div>
@@ -829,17 +1021,20 @@ export default function OnboardingPage() {
                 onClick={() => setStep('processing')}
                 disabled={claudeImporting || chatgptImporting}
               >
-                Skip
+                {claudeMessages > 0 || chatgptMessages > 0 ? 'Skip additional imports' : 'Skip'}
               </button>
-              {(claudeMessages > 0 || chatgptMessages > 0) && !claudeImporting && !chatgptImporting && (
+              {!claudeImporting && !chatgptImporting && (
                 <button
                   className="btn-primary flex-1"
                   onClick={() => setStep('processing')}
                 >
-                  Next
+                  {claudeMessages > 0 || chatgptMessages > 0 ? 'Next' : 'Continue with existing data'}
                 </button>
               )}
             </div>
+            <p className="text-xs text-nightshift-text-muted text-center mt-2">
+              If you have previously imported data, you can proceed directly.
+            </p>
           </div>
         )}
 
@@ -881,11 +1076,13 @@ export default function OnboardingPage() {
                 
                 <h2 className="text-2xl font-bold mb-3">
                   {processingStage === 'embedding' && 'Embedding your messages...'}
+                  {processingStage === 'profiling' && 'Learning your writing style...'}
                   {processingStage === 'detecting' && 'Detecting projects...'}
                 </h2>
                 
                 <p className="text-nightshift-text-secondary mb-6">
                   {processingStage === 'embedding' && `${embeddedCount} of ${totalMessages} messages embedded`}
+                  {processingStage === 'profiling' && (voiceProfileStatus || 'Learning your writing style...')}
                   {processingStage === 'detecting' && `Found ${projectsDetected} projects`}
                 </p>
               </>

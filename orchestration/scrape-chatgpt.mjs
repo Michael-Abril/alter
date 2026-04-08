@@ -11,6 +11,8 @@
  */
 
 import { chromium } from 'playwright';
+import fs from 'fs';
+import { resolveInternalUserId } from './user-resolver.mjs';
 
 // ─── Config ──────────────────────────────────────────────────────────
 const args = parseArgs(process.argv.slice(2));
@@ -19,6 +21,8 @@ const API_URL = args.api || 'http://localhost:3000/api/chat-history/ingest';
 const USER_ID = args.user || 'user_3Bge5cdx4LkgxWgYXeYlU6Tm42a';
 const DRY_RUN = args['dry-run'] !== undefined;
 const HEADLESS = args.headless !== undefined;
+const SINCE_DAYS = Math.max(1, parseInt(args['since-days'] || '3', 10));
+const RESET_PROFILE = args['reset-profile'] !== undefined;
 
 function parseArgs(argv) {
   const result = {};
@@ -39,13 +43,55 @@ function warn(msg) {
   console.warn(`[openclaw:chatgpt] ⚠ ${msg}`);
 }
 
+function isChatGPTLoginUrl(url) {
+  return url.includes('/auth/login') || url.includes('login');
+}
+
+async function isLikelyAuthStep(page) {
+  try {
+    return await page.evaluate(() => {
+      const url = window.location.href.toLowerCase();
+      if (url.includes('auth') || url.includes('login') || url.includes('signin')) return true;
+      if (document.querySelector('input[type="password"], input[type="email"]')) return true;
+      const text = document.body?.innerText?.toLowerCase() || '';
+      return (
+        text.includes('continue with google') ||
+        text.includes('enter your password') ||
+        text.includes('sign in') ||
+        text.includes('log in')
+      );
+    });
+  } catch {
+    return false;
+  }
+}
+
+async function waitForChatGPTLogin(page) {
+  log('⏳ Waiting for ChatGPT login to complete...');
+  log('   This window will stay open until you finish logging in.');
+  while (true) {
+    await page.waitForTimeout(3000);
+    const currentUrl = page.url();
+    const stillAuth = isChatGPTLoginUrl(currentUrl) || (await isLikelyAuthStep(page));
+    if (!stillAuth) {
+      log('✅ ChatGPT auth flow completed. Continuing scrape...');
+      break;
+    }
+  }
+}
+
 // ─── Main ────────────────────────────────────────────────────────────
 async function main() {
+  const resolvedUserId = await resolveInternalUserId(USER_ID);
   log('Starting ChatGPT scraper');
-  log(`Config: max=${MAX_CONVERSATIONS}, api=${API_URL}, user=${USER_ID}, dry-run=${DRY_RUN}`);
+  log(`Config: max=${MAX_CONVERSATIONS}, api=${API_URL}, user=${resolvedUserId}, dry-run=${DRY_RUN}, since-days=${SINCE_DAYS}`);
 
   const userDataDir = getUserDataDir();
   log(`Using browser profile: ${userDataDir}`);
+  if (RESET_PROFILE && fs.existsSync(userDataDir)) {
+    log('Resetting ChatGPT browser profile...');
+    fs.rmSync(userDataDir, { recursive: true, force: true });
+  }
 
   const context = await chromium.launchPersistentContext(userDataDir, {
     headless: HEADLESS,
@@ -63,23 +109,33 @@ async function main() {
     const currentUrl = page.url();
     log(`Current URL: ${currentUrl}`);
 
-    if (currentUrl.includes('/auth/login') || currentUrl.includes('login')) {
-      warn('Not logged in. Please log in to ChatGPT in your browser first.');
-      await context.close();
-      return;
+    if (isChatGPTLoginUrl(currentUrl)) {
+      if (HEADLESS) {
+        warn('AUTH_REQUIRED: Not logged in to ChatGPT.');
+        await context.close();
+        process.exit(2);
+      }
+      await waitForChatGPTLogin(page);
+      await page.goto('https://chatgpt.com', { waitUntil: 'domcontentloaded', timeout: 30000 });
+      await page.waitForTimeout(2500);
     }
-
-    // Wait for user to manually log in if needed
-    log('⏸️  Waiting 30 seconds for you to log in if needed...');
-    log('   (Browser window should be visible - please log in to ChatGPT)');
-    await page.waitForTimeout(30000);
 
     log('✅ Proceeding with scrape...');
     log('✅ Logged in — session active');
     await page.waitForTimeout(2000);
 
     // Get conversation links from the sidebar
-    const conversations = await getConversationList(page);
+    let conversations = await getConversationList(page, !HEADLESS);
+    if (!HEADLESS && conversations.length === 0) {
+      log('⏳ Waiting for ChatGPT conversations to appear after login...');
+      while (conversations.length === 0) {
+        if (await isLikelyAuthStep(page)) {
+          log('⏳ Still in ChatGPT auth flow...');
+        }
+        await page.waitForTimeout(3000);
+        conversations = await getConversationList(page, false);
+      }
+    }
     const toScrape = conversations.slice(0, MAX_CONVERSATIONS);
     log(`Found ${conversations.length} conversations, scraping ${toScrape.length}`);
 
@@ -107,9 +163,16 @@ async function main() {
       }
     }
 
-    log(`Total messages extracted: ${allMessages.length}`);
+    const cutoffTs = Date.now() - SINCE_DAYS * 24 * 60 * 60 * 1000;
+    const recentMessages = allMessages.filter((msg) => {
+      const ts = new Date(msg.timestamp).getTime();
+      return Number.isFinite(ts) && ts >= cutoffTs;
+    });
 
-    if (allMessages.length === 0) {
+    log(`Total messages extracted: ${allMessages.length}`);
+    log(`Messages within last ${SINCE_DAYS} day(s): ${recentMessages.length}`);
+
+    if (recentMessages.length === 0) {
       warn('No messages extracted. Nothing to send.');
       await context.close();
       return;
@@ -118,12 +181,12 @@ async function main() {
     if (DRY_RUN) {
       log('DRY RUN — would send this payload:');
       console.log(JSON.stringify({
-        userId: USER_ID,
+        userId: resolvedUserId,
         source: 'chatgpt',
-        messages: allMessages,
+        messages: recentMessages,
       }, null, 2));
     } else {
-      await sendToApi(allMessages);
+      await sendToApi(recentMessages, resolvedUserId);
     }
 
     log('Done ✅');
@@ -135,7 +198,7 @@ async function main() {
 }
 
 // ─── Get conversation list from sidebar ──────────────────────────────
-async function getConversationList(page) {
+async function getConversationList(page, allowNavigationFallback = true) {
   // ChatGPT UI has changed frequently - try multiple selectors
   const selectors = [
     'nav a[href*="/c/"]',
@@ -162,7 +225,7 @@ async function getConversationList(page) {
   const totalLinks = await page.$$('a');
   log(`Found ${totalLinks.length} total links on page`);
   
-  if (totalLinks.length === 0) {
+  if (allowNavigationFallback && totalLinks.length === 0) {
     log('No links found - trying to navigate directly to conversation list');
     // Try navigating to the conversation list directly
     // Try alternative ChatGPT URLs
@@ -188,7 +251,7 @@ async function getConversationList(page) {
     log(`After retry: Found ${retryLinks.length} total links`);
   }
   
-  const conversationLinks = await page.$$eval('a', links => 
+  const conversationLinks = await page.$$eval('a', links =>
     links.filter(link => link.href && link.href.includes('/c/')).map(link => ({
       href: link.href,
       text: link.innerText?.slice(0, 50) || 'No text'
@@ -350,9 +413,9 @@ async function autoScroll(page) {
 }
 
 // ─── Send to NightShift ingest API ───────────────────────────────────
-async function sendToApi(messages) {
+async function sendToApi(messages, resolvedUserId) {
   const payload = {
-    userId: USER_ID,
+    userId: resolvedUserId,
     source: 'chatgpt',
     messages,
   };
@@ -387,7 +450,8 @@ async function sendToApi(messages) {
 function getUserDataDir() {
   const home = process.env.HOME || process.env.USERPROFILE;
   if (args['profile-dir']) return args['profile-dir'];
-  return `${home}/.nightshift-browser`;
+  // Source-specific profile avoids wrong-account carryover.
+  return `${home}/.nightshift-browser-chatgpt`;
 }
 
 // ─── Run ─────────────────────────────────────────────────────────────

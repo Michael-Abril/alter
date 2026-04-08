@@ -68,26 +68,34 @@ export async function POST(req: NextRequest) {
 
     console.log(`[handoff] Triggering overnight loop for user ${user.id} with ${projectIds.length} projects`);
 
-    // Trigger the overnight loop orchestration agent
-    // In production, this would be queued as a background job
-    // For now, we'll spawn it as a child process
     const { spawn } = await import('child_process');
-    const path = await import('path');
-    const scriptPath = path.join(process.cwd(), 'orchestration', 'overnight-loop.mjs');
-    
-    const args = [
+    const pathMod = await import('path');
+    const fsMod = await import('fs');
+    const scriptPath = pathMod.join(process.cwd(), 'orchestration', 'overnight-loop.mjs');
+
+    const runStatusPath = pathMod.join(process.cwd(), 'data', `handoff-run-${user.id}.json`);
+    const statusDir = pathMod.dirname(runStatusPath);
+    if (!fsMod.existsSync(statusDir)) fsMod.mkdirSync(statusDir, { recursive: true });
+
+    fsMod.writeFileSync(runStatusPath, JSON.stringify({
+      state: 'running',
+      projectIds,
+      startedAt: new Date().toISOString(),
+      projectsQueued: projectIds.length,
+    }, null, 2));
+
+    const loopArgs = [
       scriptPath,
       `--user-id=${user.id}`,
       `--project-ids=${projectIds.join(',')}`,
       '--skip-confirmation',
     ];
-    
+
     if (instructions) {
-      args.push(`--instructions=${instructions}`);
+      loopArgs.push(`--instructions=${instructions}`);
     }
 
-    // Spawn the overnight loop as a background process
-    const child = spawn('node', args, {
+    const child = spawn('node', loopArgs, {
       detached: true,
       stdio: 'ignore',
       cwd: process.cwd(),
@@ -95,10 +103,11 @@ export async function POST(req: NextRequest) {
         ...process.env,
         ANTHROPIC_API_KEY: process.env.ANTHROPIC_API_KEY,
         NEXT_PUBLIC_API_URL: process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000',
+        NIGHTSHIFT_RUN_STATUS_PATH: runStatusPath,
       },
     });
 
-    child.unref(); // Allow parent to exit independently
+    child.unref();
 
     console.log(`[handoff] Overnight loop started (PID: ${child.pid})`);
 

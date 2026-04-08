@@ -52,6 +52,8 @@ const args = process.argv.slice(2);
 const RESET = args.includes('--reset');
 const DRY_RUN = args.includes('--dry-run');
 const FORCE = args.includes('--force');
+const recentDaysArg = args.find((a) => a.startsWith('--recent-days='));
+const RECENT_DAYS = recentDaysArg ? Math.max(1, parseInt(recentDaysArg.split('=')[1], 10)) : null;
 
 function log(msg: string) {
   console.log(`[detect] ${new Date().toISOString().slice(11, 19)} ${msg}`);
@@ -330,6 +332,9 @@ async function main() {
   log(`Backend: ${backend}`);
   log(`Mode: ${FORCE ? 'FORCE (re-analyze all)' : 'INCREMENTAL (new only)'}`);
   log(`Reset: ${RESET} | Dry run: ${DRY_RUN}`);
+  if (RECENT_DAYS) {
+    log(`Recent window: last ${RECENT_DAYS} day(s)`);
+  }
 
   try {
     // Get all users with embedded messages or emails
@@ -377,11 +382,18 @@ async function main() {
       }
 
       // Fetch chat messages (incremental or all)
+      const recentFilter = RECENT_DAYS
+        ? { gte: new Date(Date.now() - RECENT_DAYS * 24 * 60 * 60 * 1000) }
+        : undefined;
+
       const messageWhere = FORCE
         ? { userId, embedded: true }
         : lastAnalysis
         ? { userId, embedded: true, timestamp: { gt: lastAnalysis } }
         : { userId, embedded: true };
+      if (recentFilter) {
+        (messageWhere as any).timestamp = recentFilter;
+      }
       
       const messages = await db.chatMessage.findMany({
         where: messageWhere,
@@ -394,6 +406,9 @@ async function main() {
         : lastAnalysis
         ? { userId, embedded: true, receivedAt: { gt: lastAnalysis } }
         : { userId, embedded: true };
+      if (recentFilter) {
+        (emailWhere as any).receivedAt = recentFilter;
+      }
       
       const emails = await db.email.findMany({
         where: emailWhere,

@@ -7,20 +7,14 @@
 
 import { google } from 'googleapis';
 import type { gmail_v1 } from 'googleapis';
+import { createOAuth2Client, GOOGLE_SCOPES, CURRENT_SCOPES_VERSION } from '@/lib/google-auth';
 
-// ─── OAuth Setup ─────────────────────────────────────────────────────────────
-
-export function createOAuth2Client() {
-  return new google.auth.OAuth2(
-    process.env.GMAIL_CLIENT_ID,
-    process.env.GMAIL_CLIENT_SECRET,
-    process.env.GMAIL_REDIRECT_URI
-  );
-}
+// Re-export for backward compat
+export { createOAuth2Client };
 
 /**
- * Generate the Gmail OAuth authorization URL with a state param
- * for CSRF protection that encodes the Clerk userId.
+ * Generate the Google OAuth authorization URL with expanded scopes
+ * (Gmail + Drive + Calendar).
  */
 export function getAuthUrl(clerkUserId: string, onboarding = false): string {
   const oauth2Client = createOAuth2Client();
@@ -28,17 +22,14 @@ export function getAuthUrl(clerkUserId: string, onboarding = false): string {
   const state = Buffer.from(JSON.stringify({ 
     clerkId: clerkUserId, 
     ts: Date.now(),
-    onboarding 
+    onboarding,
+    scopesVersion: CURRENT_SCOPES_VERSION,
   })).toString('base64url');
 
   return oauth2Client.generateAuthUrl({
     access_type: 'offline',
     prompt: 'consent',
-    scope: [
-      'https://www.googleapis.com/auth/gmail.readonly',
-      'https://www.googleapis.com/auth/gmail.send',
-      'https://www.googleapis.com/auth/gmail.modify',
-    ],
+    scope: GOOGLE_SCOPES,
     state,
   });
 }
@@ -285,4 +276,124 @@ export async function sendEmail(
   });
 
   return { messageId: response.data.id || '' };
+}
+
+// ─── Inbox / Received Emails ─────────────────────────────────────────────────
+
+/**
+ * Fetch received emails from Gmail inbox (last N days).
+ */
+export async function fetchInboxEmails(
+  accessToken: string,
+  refreshToken: string | null,
+  maxTotal: number = 50,
+  sinceDays: number = 3
+): Promise<FetchedEmail[]> {
+  const { gmail } = createGmailClient(accessToken, refreshToken);
+
+  const since = new Date();
+  since.setDate(since.getDate() - sinceDays);
+  const query = `after:${since.getFullYear()}/${since.getMonth() + 1}/${since.getDate()} in:inbox`;
+
+  const messageIds: string[] = [];
+  let pageToken: string | undefined;
+
+  while (messageIds.length < maxTotal) {
+    const remaining = maxTotal - messageIds.length;
+    const response = await gmail.users.messages.list({
+      userId: 'me',
+      q: query,
+      maxResults: Math.min(remaining, 100),
+      pageToken,
+    });
+
+    for (const msg of response.data.messages || []) {
+      if (msg.id) messageIds.push(msg.id);
+    }
+    pageToken = response.data.nextPageToken || undefined;
+    if (!pageToken) break;
+  }
+
+  console.log(`[gmail] Found ${messageIds.length} inbox message IDs (last ${sinceDays}d)`);
+
+  const emails: FetchedEmail[] = [];
+  const BATCH_SIZE = 20;
+
+  for (let i = 0; i < messageIds.length; i += BATCH_SIZE) {
+    const batch = messageIds.slice(i, i + BATCH_SIZE);
+    const results = await Promise.allSettled(
+      batch.map((id) => gmail.users.messages.get({ userId: 'me', id, format: 'full' }))
+    );
+
+    for (const result of results) {
+      if (result.status !== 'fulfilled') continue;
+      const detail = result.value.data;
+      if (!detail.id) continue;
+
+      const hdrs = detail.payload?.headers || [];
+      const getH = (name: string) =>
+        hdrs.find((h) => h.name?.toLowerCase() === name.toLowerCase())?.value || '';
+
+      emails.push({
+        gmailId: detail.id,
+        threadId: detail.threadId || null,
+        from: getH('From'),
+        to: getH('To'),
+        subject: getH('Subject'),
+        body: extractBody(detail.payload).slice(0, 50000),
+        direction: 'received',
+        receivedAt: new Date(parseInt(detail.internalDate || '0')),
+      });
+    }
+  }
+
+  console.log(`[gmail] Parsed ${emails.length} inbox emails`);
+  return emails;
+}
+
+// ─── Gmail Draft Creation ────────────────────────────────────────────────────
+
+/**
+ * Create a native Gmail draft (appears in user's Drafts folder).
+ */
+export async function createGmailDraft(
+  accessToken: string,
+  refreshToken: string | null,
+  params: { to: string; subject: string; body: string; threadId?: string; inReplyTo?: string }
+): Promise<{ draftId: string; draftUrl: string }> {
+  const { gmail } = createGmailClient(accessToken, refreshToken);
+
+  const headers = [
+    `To: ${params.to}`,
+    `Subject: ${params.subject}`,
+    'Content-Type: text/plain; charset=utf-8',
+    'MIME-Version: 1.0',
+  ];
+  if (params.inReplyTo) {
+    headers.push(`In-Reply-To: ${params.inReplyTo}`);
+    headers.push(`References: ${params.inReplyTo}`);
+  }
+
+  const raw = Buffer.from(headers.join('\r\n') + '\r\n\r\n' + params.body)
+    .toString('base64')
+    .replace(/\+/g, '-')
+    .replace(/\//g, '_')
+    .replace(/=+$/, '');
+
+  const response = await gmail.users.drafts.create({
+    userId: 'me',
+    requestBody: {
+      message: {
+        raw,
+        threadId: params.threadId,
+      },
+    },
+  });
+
+  const draftId = response.data.id || '';
+  const messageId = response.data.message?.id || '';
+  const draftUrl = `https://mail.google.com/mail/u/0/#drafts?compose=${messageId}`;
+
+  console.log(`[gmail] Created draft: ${draftId}`);
+  return { draftId, draftUrl };
 }

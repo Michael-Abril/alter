@@ -8,25 +8,30 @@ datasource db {
 }
 
 model User {
-  id                String   @id @default(cuid())
-  clerkId           String   @unique
-  email             String   @unique
-  name              String?
-  gmailConnected    Boolean  @default(false)
-  gmailToken        String?  // encrypted OAuth token
-  gmailRefreshToken String?  // encrypted refresh token
-  autonomyLevel     Int      @default(0) // 0=observe, 1=draft, 2=auto-low, 3=full
-  wakeTime          String   @default("07:00")
-  createdAt         DateTime @default(now())
-  updatedAt         DateTime @updatedAt
+  id                  String   @id @default(cuid())
+  clerkId             String   @unique
+  email               String   @unique
+  name                String?
+  gmailConnected      Boolean  @default(false)
+  gmailToken          String?
+  gmailRefreshToken   String?
+  googleScopesVersion Int      @default(0)
+  autonomyLevel       Int      @default(0)
+  wakeTime            String   @default("07:00")
+  outputDirectory     String?
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
 
-  emails       Email[]
-  chatMessages ChatMessage[]
-  drafts       Draft[]
-  actions      Action[]
-  projects     Project[]
-  boundaries   Boundary[]
-  voiceProfile VoiceProfile?
+  emails          Email[]
+  chatMessages    ChatMessage[]
+  drafts          Draft[]
+  actions         Action[]
+  projects        Project[]
+  boundaries      Boundary[]
+  voiceProfile    VoiceProfile?
+  calendarEvents  CalendarEvent[]
+  driveDocuments  DriveDocument[]
+  githubActivity  GitHubActivity[]
 }
 
 model Email {
@@ -39,11 +44,11 @@ model Email {
   to         String
   subject    String
   body       String
-  direction  String   // "sent" or "received"
+  direction  String
   isRead     Boolean  @default(false)
   receivedAt DateTime
   createdAt  DateTime @default(now())
-  embedded   Boolean  @default(false) // has been processed into vectors
+  embedded   Boolean  @default(false)
 
   @@index([userId, direction])
   @@index([userId, embedded])
@@ -53,10 +58,10 @@ model ChatMessage {
   id        String   @id @default(cuid())
   userId    String
   user      User     @relation(fields: [userId], references: [id])
-  source    String   // "claude", "chatgpt", "other"
-  role      String   // "user" or "assistant"
+  source    String
+  role      String
   content   String
-  sessionId String?  // group messages by conversation
+  sessionId String?
   timestamp DateTime
   createdAt DateTime @default(now())
   embedded  Boolean  @default(false)
@@ -71,10 +76,10 @@ model Project {
   user        User     @relation(fields: [userId], references: [id])
   name        String
   description String?
-  status      String   @default("in_progress") // in_progress, completed, stalled
-  context     String?  // JSON blob of relevant context
+  status      String   @default("in_progress")
+  context     String?
   lastActive  DateTime
-  progress    Int      @default(0) // 0-100
+  progress    Int      @default(0)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
@@ -85,13 +90,13 @@ model Draft {
   id              String   @id @default(cuid())
   userId          String
   user            User     @relation(fields: [userId], references: [id])
-  type            String   // "email", "doc", "code", "task"
+  type            String
   title           String
   content         String
-  targetApp       String   // "gmail", "gdocs", "github", "notion"
+  targetApp       String
   confidenceScore Float
-  status          String   @default("pending") // pending, approved, rejected, sent
-  context         String?  // JSON: retrieved sources, project reference
+  status          String   @default("pending")
+  context         String?
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 
@@ -102,13 +107,13 @@ model Action {
   id          String   @id @default(cuid())
   userId      String
   user        User     @relation(fields: [userId], references: [id])
-  type        String   // "email_sent", "doc_edited", "task_completed", "flagged"
+  type        String
   title       String
   description String?
-  app         String   // which app the action was taken in
+  app         String
   confidence  Float?
-  status      String   @default("completed") // completed, failed, flagged
-  metadata    String?  // JSON blob for extra data
+  status      String   @default("completed")
+  metadata    String?
   createdAt   DateTime @default(now())
 
   @@index([userId, createdAt])
@@ -118,10 +123,10 @@ model Boundary {
   id         String   @id @default(cuid())
   userId     String
   user       User     @relation(fields: [userId], references: [id])
-  rule       String   // human-readable rule
-  category   String   // "email", "docs", "code", "general"
-  action     String   // "auto", "draft", "flag", "never"
-  conditions String?  // JSON: conditions for this rule
+  rule       String
+  category   String
+  action     String
+  conditions String?
   createdAt  DateTime @default(now())
 
   @@index([userId])
@@ -132,12 +137,61 @@ model VoiceProfile {
   userId         String   @unique
   user           User     @relation(fields: [userId], references: [id])
   avgSentenceLen Float?
-  formalityScore Float?   // 0=very casual, 1=very formal
+  formalityScore Float?
   emojiFrequency Float?
   signOffStyle   String?
-  toneKeywords   String?  // JSON array of tone descriptors
-  systemPrompt   String?  // the generated system prompt for this user
-  sampleOutputs  String?  // JSON array of example outputs for few-shot
+  toneKeywords   String?
+  systemPrompt   String?
+  sampleOutputs  String?
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
+}
+
+model CalendarEvent {
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id])
+  googleId    String   @unique
+  calendarId  String   @default("primary")
+  title       String
+  description String?
+  startTime   DateTime
+  endTime     DateTime
+  location    String?
+  isAllDay    Boolean  @default(false)
+  syncedAt    DateTime @default(now())
+
+  @@index([userId, startTime])
+}
+
+model DriveDocument {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  driveId   String   @unique
+  title     String
+  url       String
+  mimeType  String   @default("application/vnd.google-apps.document")
+  folderId  String?
+  projectId String?
+  createdAt DateTime @default(now())
+
+  @@index([userId, createdAt])
+}
+
+model GitHubActivity {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  repoName  String
+  type      String
+  title     String
+  body      String?
+  url       String
+  githubId  String   @unique
+  authoredAt DateTime
+  syncedAt  DateTime @default(now())
+
+  @@index([userId, type])
+  @@index([userId, authoredAt])
 }

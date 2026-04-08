@@ -20,6 +20,7 @@ import { promisify } from 'util';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import { resolveInternalUserId } from './user-resolver.mjs';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -31,7 +32,7 @@ const execAsync = promisify(exec);
 const args = parseArgs(process.argv.slice(2));
 const TEST_MODE = args.test !== undefined;
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000';
-const USER_ID = 'cmndvesaa000011r5gk3avaoo'; // Default user
+const USER_ID = args['user-id'];
 
 // Schedule configuration
 const SCHEDULE = TEST_MODE ? {
@@ -63,6 +64,7 @@ const state = {
   briefCount: 0,
   lastUpdate: null,
 };
+let RESOLVED_USER_ID = null;
 
 // Logging
 let logStream = null;
@@ -150,7 +152,7 @@ async function loadDaemonConfig() {
   
   // Try to fetch from User model
   try {
-    const res = await fetch(`${API_BASE_URL}/api/internal/user-config?userId=${USER_ID}`);
+    const res = await fetch(`${API_BASE_URL}/api/internal/user-config?userId=${RESOLVED_USER_ID}`);
     if (res.ok) {
       const data = await res.json();
       if (data.success && data.data) {
@@ -182,7 +184,7 @@ async function runRefresh() {
     // Step 1: Scrape Canvas
     log('  → Scraping Canvas for new assignments...');
     try {
-      await execAsync('node orchestration/scrape-canvas.mjs');
+      await execAsync(`node orchestration/scrape-canvas.mjs --user-id=${RESOLVED_USER_ID}`);
       log('  ✅ Canvas scrape complete');
     } catch (err) {
       logError('  ⚠️  Canvas scrape failed', err);
@@ -234,7 +236,7 @@ async function runOvernightLoop() {
   try {
     // Fetch projects from handoff queue
     log('  → Fetching handoff queue...');
-    const res = await fetch(`${API_BASE_URL}/api/projects?userId=${USER_ID}`);
+    const res = await fetch(`${API_BASE_URL}/api/projects?userId=${RESOLVED_USER_ID}`);
     const data = await res.json();
     
     if (!data.success) {
@@ -377,7 +379,7 @@ async function generateMorningBrief() {
       log('  → Sending brief via email...');
       
       // Get user email
-      const userRes = await fetch(`${API_BASE_URL}/api/internal/user?userId=${USER_ID}`);
+      const userRes = await fetch(`${API_BASE_URL}/api/internal/user?userId=${RESOLVED_USER_ID}`);
       const userData = await userRes.json();
       
       if (userData.success && userData.data?.email) {
@@ -570,6 +572,7 @@ async function startDaemon() {
     return;
   }
   
+  RESOLVED_USER_ID = await resolveInternalUserId(USER_ID);
   state.running = true;
   state.startTime = new Date();
   
@@ -579,6 +582,7 @@ async function startDaemon() {
   log('NightShift Daemon Starting');
   log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
   log(`Mode: ${TEST_MODE ? 'TEST' : 'PRODUCTION'}`);
+  log(`User: ${RESOLVED_USER_ID}`);
   log(`Refresh interval: ${SCHEDULE.REFRESH_INTERVAL / 1000}s`);
   log(`Log file: ${logPath}`);
   log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');

@@ -20,6 +20,7 @@ import { chromium } from 'playwright';
 import fs from 'fs';
 import path from 'path';
 import { spawn } from 'child_process';
+import { resolveInternalUserId } from './user-resolver.mjs';
 
 // ─── Config ──────────────────────────────────────────────────────────
 const args = parseArgs(process.argv.slice(2));
@@ -30,6 +31,8 @@ const DRY_RUN = args['dry-run'] !== undefined;
 const HEADLESS = args.headless !== undefined;
 const CONTINUOUS = args.continuous !== undefined;
 const SCRAPE_INTERVAL = 30 * 60 * 1000; // 30 minutes
+const SINCE_DAYS = Math.max(1, parseInt(args['since-days'] || '3', 10));
+const RESET_PROFILE = args['reset-profile'] !== undefined;
 
 const SESSION_TRACKER_PATH = path.join(process.cwd(), 'data', 'scraped-sessions.json');
 
@@ -50,6 +53,23 @@ function log(msg) {
 
 function warn(msg) {
   console.warn(`[openclaw:claude] ⚠ ${msg}`);
+}
+
+function isClaudeLoginUrl(url) {
+  return url.includes('/login') || url.includes('/sign');
+}
+
+async function waitForClaudeLogin(page) {
+  log('⏳ Waiting for Claude login to complete...');
+  log('   This window will stay open until you finish logging in.');
+  while (true) {
+    await page.waitForTimeout(3000);
+    const currentUrl = page.url();
+    if (!isClaudeLoginUrl(currentUrl)) {
+      log('✅ Claude login detected. Continuing scrape...');
+      break;
+    }
+  }
 }
 
 // ─── Session Tracking ────────────────────────────────────────────────
@@ -81,8 +101,9 @@ function shouldScrapeConversation(sessionId, lastMessageCount, trackedSessions) 
 
 // ─── Main ────────────────────────────────────────────────────────────
 async function main() {
+  const resolvedUserId = await resolveInternalUserId(USER_ID);
   log('Starting Claude.ai scraper');
-  log(`Config: max=${MAX_CONVERSATIONS}, api=${API_URL}, user=${USER_ID}, dry-run=${DRY_RUN}, continuous=${CONTINUOUS}`);
+  log(`Config: max=${MAX_CONVERSATIONS}, api=${API_URL}, user=${resolvedUserId}, dry-run=${DRY_RUN}, continuous=${CONTINUOUS}, since-days=${SINCE_DAYS}`);
 
   // Load session tracker
   const trackedSessions = loadScrapedSessions();
@@ -91,6 +112,10 @@ async function main() {
   // Launch browser with persistent context to reuse existing login session
   const userDataDir = getUserDataDir();
   log(`Using browser profile: ${userDataDir}`);
+  if (RESET_PROFILE && fs.existsSync(userDataDir)) {
+    log('Resetting Claude browser profile...');
+    fs.rmSync(userDataDir, { recursive: true, force: true });
+  }
 
   const context = await chromium.launchPersistentContext(userDataDir, {
     headless: HEADLESS,
@@ -110,12 +135,15 @@ async function main() {
     const currentUrl = page.url();
     log(`Current URL: ${currentUrl}`);
 
-    if (currentUrl.includes('/login') || currentUrl.includes('/sign')) {
-      log('❌ Not logged in. Please log into claude.ai manually in this browser window.');
-      log('   The browser will stay open for 60 seconds. Log in, then re-run the script.');
-      await page.waitForTimeout(60000);
-      await context.close();
-      process.exit(1);
+    if (isClaudeLoginUrl(currentUrl)) {
+      if (HEADLESS) {
+        log('❌ AUTH_REQUIRED: Not logged in to claude.ai');
+        await context.close();
+        process.exit(2);
+      }
+      await waitForClaudeLogin(page);
+      await page.goto('https://claude.ai', { waitUntil: 'domcontentloaded', timeout: 30000 });
+      await page.waitForTimeout(2500);
     }
 
     log('✅ Logged in — session active');
@@ -125,9 +153,17 @@ async function main() {
 
     // Get conversation links from the sidebar
     const conversations = await getConversationList(page);
-    log(`Found ${conversations.length} conversations`);
+    let finalConversations = conversations;
+    if (!HEADLESS && finalConversations.length === 0) {
+      log('⏳ Waiting for Claude conversations to appear after login...');
+      while (finalConversations.length === 0) {
+        await page.waitForTimeout(3000);
+        finalConversations = await getConversationList(page);
+      }
+    }
+    log(`Found ${finalConversations.length} conversations`);
 
-    if (conversations.length === 0) {
+    if (finalConversations.length === 0) {
       warn('No conversations found. The page layout may have changed.');
       await context.close();
       process.exit(1);
@@ -135,11 +171,13 @@ async function main() {
 
     // Filter to only scrape new or updated conversations
     const toScrape = [];
-    for (const conv of conversations) {
+    for (const conv of finalConversations) {
       if (toScrape.length >= MAX_CONVERSATIONS) break;
       
       // For incremental scraping, check if we need to scrape this conversation
-      if (!CONTINUOUS && trackedSessions.claude[conv.id]) {
+      // For recent-window onboarding sync, always rescan top recent conversations.
+      const incrementalMode = !CONTINUOUS && !args['since-days'];
+      if (incrementalMode && trackedSessions.claude[conv.id]) {
         // Skip already scraped conversations (unless in continuous mode)
         continue;
       }
@@ -147,7 +185,7 @@ async function main() {
       toScrape.push(conv);
     }
 
-    log(`Scraping ${toScrape.length} conversations (${conversations.length - toScrape.length} already scraped)`);
+    log(`Scraping ${toScrape.length} conversations (${finalConversations.length - toScrape.length} already scraped)`);
 
     if (toScrape.length === 0) {
       log('✅ All conversations already scraped. Nothing new to process.');
@@ -184,9 +222,16 @@ async function main() {
       }
     }
 
-    log(`Total messages extracted: ${allMessages.length}`);
+    const cutoffTs = Date.now() - SINCE_DAYS * 24 * 60 * 60 * 1000;
+    const recentMessages = allMessages.filter((msg) => {
+      const ts = new Date(msg.timestamp).getTime();
+      return Number.isFinite(ts) && ts >= cutoffTs;
+    });
 
-    if (allMessages.length === 0) {
+    log(`Total messages extracted: ${allMessages.length}`);
+    log(`Messages within last ${SINCE_DAYS} day(s): ${recentMessages.length}`);
+
+    if (recentMessages.length === 0) {
       warn('No messages extracted. Nothing to send.');
       await context.close();
       return;
@@ -196,12 +241,12 @@ async function main() {
     if (DRY_RUN) {
       log('DRY RUN — would send this payload:');
       console.log(JSON.stringify({
-        userId: USER_ID,
+        userId: resolvedUserId,
         source: 'claude',
-        messages: allMessages,
+        messages: recentMessages,
       }, null, 2));
     } else {
-      await sendToApi(allMessages);
+      await sendToApi(recentMessages, resolvedUserId);
       
       // Update session tracker
       trackedSessions.claude = { ...trackedSessions.claude, ...scrapedSessionData };
@@ -402,7 +447,7 @@ async function autoScroll(page) {
 }
 
 // ─── Send to NightShift ingest API ───────────────────────────────────
-async function sendToApi(messages) {
+async function sendToApi(messages, resolvedUserId) {
   log(`Sending ${messages.length} messages to ${API_URL}...`);
 
   const BATCH_SIZE = 50;
@@ -411,7 +456,7 @@ async function sendToApi(messages) {
   for (let i = 0; i < messages.length; i += BATCH_SIZE) {
     const batch = messages.slice(i, i + BATCH_SIZE);
     const payload = {
-      userId: USER_ID,
+      userId: resolvedUserId,
       source: 'claude',
       messages: batch,
     };
@@ -436,7 +481,10 @@ async function sendToApi(messages) {
       log('Saving remaining payload to fallback file...');
       const fs = await import('fs');
       const fallbackPath = `./claude-messages-${Date.now()}.json`;
-      fs.writeFileSync(fallbackPath, JSON.stringify({ userId: USER_ID, source: 'claude', messages }, null, 2));
+      fs.writeFileSync(
+        fallbackPath,
+        JSON.stringify({ userId: resolvedUserId, source: 'claude', messages }, null, 2)
+      );
       log(`Saved to ${fallbackPath}`);
       return;
     }
@@ -477,8 +525,8 @@ function getUserDataDir() {
 
   if (args['profile-dir']) return args['profile-dir'];
 
-  // Use a dedicated Playwright profile to avoid conflicts with your main Chrome
-  const playwrightDir = `${home}/.nightshift-browser`;
+  // Source-specific profile avoids cross-account contamination between services.
+  const playwrightDir = `${home}/.nightshift-browser-claude`;
 
   return playwrightDir;
 }

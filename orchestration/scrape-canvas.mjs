@@ -12,6 +12,7 @@
 import dotenv from 'dotenv';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import { resolveInternalUserId } from './user-resolver.mjs';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -61,10 +62,11 @@ async function main() {
     process.exit(1);
   }
 
-  log(`Config: user=${USER_ID}, days-ahead=${DAYS_AHEAD}, days-back=${DAYS_BACK}, dry-run=${DRY_RUN}`);
+  const resolvedUserId = await resolveInternalUserId(USER_ID);
+  log(`Config: user=${resolvedUserId}, days-ahead=${DAYS_AHEAD}, days-back=${DAYS_BACK}, dry-run=${DRY_RUN}`);
 
   // Load Canvas credentials
-  const config = loadCanvasConfig(USER_ID);
+  const config = loadCanvasConfig(resolvedUserId);
   if (!config) {
     console.error('❌ No Canvas credentials found for this user');
     console.error('   Run POST /api/canvas/connect to save credentials first');
@@ -158,13 +160,13 @@ async function main() {
     if (DRY_RUN) {
       log('DRY RUN — would send this payload:');
       console.log(JSON.stringify({
-        userId: USER_ID,
+        userId: resolvedUserId,
         source: 'canvas',
         messages: messages.slice(0, 3), // Show first 3 as sample
       }, null, 2));
       log(`... and ${messages.length - 3} more messages`);
     } else {
-      await sendToApi(messages);
+      await sendToApi(messages, resolvedUserId);
     }
 
     log('Done ✅');
@@ -176,7 +178,7 @@ async function main() {
 
 // ─── Send to NightShift ingest API ───────────────────────────────────────────
 
-async function sendToApi(messages) {
+async function sendToApi(messages, resolvedUserId) {
   const ingestUrl = `${API_URL}/api/chat-history/ingest`;
   log(`Sending ${messages.length} messages to ${ingestUrl}...`);
 
@@ -186,7 +188,7 @@ async function sendToApi(messages) {
   for (let i = 0; i < messages.length; i += BATCH_SIZE) {
     const batch = messages.slice(i, i + BATCH_SIZE);
     const payload = {
-      userId: USER_ID,
+      userId: resolvedUserId,
       source: 'canvas',
       messages: batch,
     };

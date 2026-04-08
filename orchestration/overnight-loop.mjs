@@ -28,6 +28,7 @@ dotenv.config({ path: path.join(__dirname, '..', '.env') });
 
 import { continueWork } from './continue-work.mjs';
 import { draftEmailReply } from './draft-email.mjs';
+import { resolveInternalUserId } from './user-resolver.mjs';
 
 // ─── Config ──────────────────────────────────────────────────────────────────
 
@@ -57,13 +58,14 @@ const SONNET_MODEL = 'claude-sonnet-4-20250514'; // For work continuation only
  */
 export async function runOvernightLoop(config, options = {}) {
   const { userId, projectIds, instructions } = config;
+  const resolvedUserId = await resolveInternalUserId(userId);
   const apiUrl = options.apiUrl || API_BASE_URL;
   const apiKey = options.apiKey || ANTHROPIC_API_KEY;
 
   console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
   console.log('🌙 NightShift Overnight Loop');
   console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-  console.log(`👤 User: ${userId}`);
+  console.log(`👤 User: ${resolvedUserId}`);
   console.log(`📋 Projects: ${projectIds.length} (processing top ${Math.min(projectIds.length, MAX_PROJECTS)})`);
   if (instructions) console.log(`💬 Instructions: ${instructions}`);
   console.log(`⏰ Started: ${new Date().toISOString()}`);
@@ -115,6 +117,39 @@ export async function runOvernightLoop(config, options = {}) {
     },
   };
 
+  // ─── Step 0: Sync external data sources ─────────────────────────────────────
+
+  console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+  console.log('🔄 STEP 0: Syncing Data Sources');
+  console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+  console.log('');
+
+  const syncEndpoints = [
+    { name: 'Gmail (sent+received)', path: '/api/gmail/sync', method: 'POST', body: { direction: 'both', sinceDays: 3 } },
+    { name: 'GitHub Activity', path: '/api/github/sync', method: 'POST' },
+    { name: 'Calendar Events', path: '/api/calendar/sync', method: 'POST' },
+  ];
+
+  for (const endpoint of syncEndpoints) {
+    try {
+      console.log(`   🔄 ${endpoint.name}...`);
+      const syncRes = await fetch(`${apiUrl}${endpoint.path}`, {
+        method: endpoint.method,
+        headers: { 'Content-Type': 'application/json' },
+        body: endpoint.body ? JSON.stringify(endpoint.body) : undefined,
+      });
+      if (syncRes.ok) {
+        const data = await syncRes.json();
+        console.log(`   ✅ ${endpoint.name}: synced`);
+      } else {
+        console.log(`   ⚠️  ${endpoint.name}: skipped (${syncRes.status})`);
+      }
+    } catch (err) {
+      console.log(`   ⚠️  ${endpoint.name}: unavailable (${err.message})`);
+    }
+  }
+  console.log('');
+
   // ─── Step 1: Continue work on each project ──────────────────────────────────
 
   console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
@@ -132,7 +167,7 @@ export async function runOvernightLoop(config, options = {}) {
 
     try {
       // Load project from database
-      const projectResponse = await fetch(`${apiUrl}/api/internal/projects?userId=${userId}`);
+      const projectResponse = await fetch(`${apiUrl}/api/internal/projects?userId=${resolvedUserId}`);
       if (!projectResponse.ok) {
         throw new Error(`Failed to fetch projects: ${projectResponse.status}`);
       }
@@ -197,7 +232,7 @@ export async function runOvernightLoop(config, options = {}) {
 
   try {
     // Fetch incoming emails that don't have drafts yet
-    const emailsResponse = await fetch(`${apiUrl}/api/internal/emails/undrafted?userId=${userId}`);
+    const emailsResponse = await fetch(`${apiUrl}/api/internal/emails/undrafted?userId=${resolvedUserId}`);
     
     if (emailsResponse.ok) {
       const emailsData = await emailsResponse.json();
@@ -225,7 +260,7 @@ export async function runOvernightLoop(config, options = {}) {
                 subject: email.subject,
                 body: email.body,
               },
-              userId,
+              resolvedUserId,
               { apiKey, apiUrl }
             );
 
@@ -314,7 +349,11 @@ export async function runOvernightLoop(config, options = {}) {
   console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
   console.log('');
 
-  const brief = generateMorningBrief(results, { userId, instructions, startTime: new Date(startTime) });
+  const brief = generateMorningBrief(results, {
+    userId: resolvedUserId,
+    instructions,
+    startTime: new Date(startTime),
+  });
   
   // Save brief to file
   const briefPath = saveBriefToFile(brief, startTime);
@@ -331,12 +370,34 @@ export async function runOvernightLoop(config, options = {}) {
   console.log(`🪙 Tokens: ${results.stats.totalTokensUsed.toLocaleString()}`);
   console.log('');
 
+  // Write run status for the handoff status endpoint
+  writeRunStatus('completed', results, briefPath);
+
   return {
     success: true,
     brief,
     briefPath,
     results,
   };
+}
+
+function writeRunStatus(state, results = null, briefPath = null) {
+  const statusPath = process.env.NIGHTSHIFT_RUN_STATUS_PATH;
+  if (!statusPath) return;
+  try {
+    const payload = { state, finishedAt: new Date().toISOString() };
+    if (results) {
+      payload.projectsContinued = results.projectsContinued?.length || 0;
+      payload.emailsDrafted = results.emailsDrafted?.length || 0;
+      payload.totalTokensUsed = results.stats?.totalTokensUsed || 0;
+      payload.duration = results.stats?.duration || 0;
+      payload.outputs = (results.projectsContinued || []).map(p => p.outputPath);
+    }
+    if (briefPath) payload.briefPath = briefPath;
+    fs.writeFileSync(statusPath, JSON.stringify(payload, null, 2));
+  } catch (e) {
+    console.warn('[overnight-loop] Failed to write run status:', e.message);
+  }
 }
 
 // ─── Helper Functions ────────────────────────────────────────────────────────
@@ -558,7 +619,7 @@ async function main() {
     console.log('🧪 SIMULATE MODE: Running with current handoff data');
     console.log('');
 
-    const userId = 'cmndvesaa000011r5gk3avaoo'; // Default user
+    const userId = await resolveInternalUserId(process.env.TEST_USER_ID);
 
     // Fetch in-progress projects
     const projectsResponse = await fetch(`${API_BASE_URL}/api/internal/projects?userId=${userId}`);
@@ -646,6 +707,7 @@ if (process.argv[1]) {
   if (import.meta.url === expectedUrl) {
     main().catch(err => {
       console.error('❌ Fatal error:', err);
+      writeRunStatus('error');
       process.exit(1);
     });
   }

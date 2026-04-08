@@ -21,6 +21,7 @@ import { spawn } from 'child_process';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import dotenv from 'dotenv';
+import { resolveInternalUserId } from './user-resolver.mjs';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -31,7 +32,7 @@ dotenv.config({ path: path.join(__dirname, '..', '.env') });
 
 const args = process.argv.slice(2);
 const WATCH_MODE = args.includes('--watch');
-const USER_ID = args.find(a => a.startsWith('--user-id='))?.split('=')[1] || 'cmndvesaa000011r5gk3avaoo';
+const USER_ID = args.find(a => a.startsWith('--user-id='))?.split('=')[1];
 const WATCH_INTERVAL = 15 * 60 * 1000; // 15 minutes
 
 // ─── Helper Functions ────────────────────────────────────────────────────────
@@ -81,10 +82,11 @@ function extractNumber(text, pattern) {
 // ─── Main Pipeline ───────────────────────────────────────────────────────────
 
 async function runRefreshPipeline() {
+  const resolvedUserId = await resolveInternalUserId(USER_ID);
   console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
   console.log('🔄 NightShift Data Refresh Pipeline');
   console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-  console.log(`👤 User: ${USER_ID}`);
+  console.log(`👤 User: ${resolvedUserId}`);
   console.log(`⏰ Started: ${new Date().toISOString()}`);
   console.log('');
 
@@ -101,7 +103,7 @@ async function runRefreshPipeline() {
     try {
       const canvasResult = await runCommand(
         'node',
-        ['orchestration/scrape-canvas.mjs', `--user-id=${USER_ID}`],
+        ['orchestration/scrape-canvas.mjs', `--user-id=${resolvedUserId}`],
         process.cwd()
       );
       

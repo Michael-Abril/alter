@@ -43,3 +43,73 @@ export async function GET() {
     return apiError('Failed to fetch drafts', 500);
   }
 }
+
+// POST: Create draft (supports authenticated app flow and orchestration flow)
+export async function POST(req: NextRequest) {
+  const { userId: clerkId } = await auth();
+
+  // Optional webhook secret for orchestration scripts (skip if not configured).
+  const webhookSecret = req.headers.get('x-openclaw-secret');
+  const expectedSecret = process.env.OPENCLAW_WEBHOOK_SECRET;
+  if (expectedSecret && webhookSecret !== expectedSecret && !clerkId) {
+    return apiError('Invalid webhook secret', 401);
+  }
+
+  try {
+    const body = await req.json();
+    const {
+      userId,
+      type,
+      title,
+      content,
+      targetApp,
+      confidenceScore,
+      status,
+      context,
+    } = body;
+
+    if (!type || !title || !content || !targetApp) {
+      return apiError('Missing required fields: type, title, content, targetApp', 400);
+    }
+
+    // Resolve user by auth first, then by provided userId (internal id or clerkId).
+    let user = clerkId ? await db.user.findUnique({ where: { clerkId } }) : null;
+    if (!user && userId) {
+      user = await db.user.findFirst({
+        where: {
+          OR: [{ id: userId }, { clerkId: userId }],
+        },
+      });
+    }
+
+    if (!user) return apiError('User not found', 404);
+
+    const draft = await db.draft.create({
+      data: {
+        userId: user.id,
+        type,
+        title,
+        content,
+        targetApp,
+        confidenceScore: typeof confidenceScore === 'number' ? confidenceScore : 0.5,
+        status: status || 'pending',
+        context:
+          typeof context === 'string'
+            ? context
+            : context
+            ? JSON.stringify(context)
+            : null,
+      },
+    });
+
+    return apiSuccess({
+      id: draft.id,
+      draftId: draft.id,
+      status: draft.status,
+      createdAt: draft.createdAt.toISOString(),
+    });
+  } catch (error) {
+    console.error('[drafts] POST error:', error);
+    return apiError('Failed to create draft', 500);
+  }
+}

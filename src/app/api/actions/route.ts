@@ -75,10 +75,19 @@ export async function POST(req: NextRequest) {
       return apiError('Missing required fields: userId, type, title, app', 400);
     }
 
+    // Accept both internal user id and clerkId from callers.
+    const user = await db.user.findFirst({
+      where: {
+        OR: [{ id: userId }, { clerkId: userId }],
+      },
+      select: { id: true },
+    });
+    if (!user) return apiError('User not found', 404);
+
     // Store action in DB
     const action = await db.action.create({
       data: {
-        userId,
+        userId: user.id,
         type,
         title,
         description: description || null,

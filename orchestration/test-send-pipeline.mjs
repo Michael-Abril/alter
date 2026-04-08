@@ -12,6 +12,7 @@
  */
 
 import { draftEmailReply } from './draft-email.mjs';
+import { resolveInternalUserId } from './user-resolver.mjs';
 import dotenv from 'dotenv';
 import path from 'path';
 import { fileURLToPath } from 'url';
@@ -24,11 +25,11 @@ dotenv.config({ path: path.join(__dirname, '..', '.env') });
 // ─── Config ──────────────────────────────────────────────────────────────────
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000';
-const USER_ID = 'cmndvesaa000011r5gk3avaoo'; // Default test user
 
 // ─── Main Test Pipeline ──────────────────────────────────────────────────────
 
 async function testSendPipeline() {
+  const userId = await resolveInternalUserId(process.env.TEST_USER_ID);
   console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
   console.log('🧪 Draft-to-Send Pipeline Test');
   console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
@@ -75,7 +76,7 @@ async function testSendPipeline() {
 
   let draftResult;
   try {
-    draftResult = await draftEmailReply(fakeIncomingEmail, USER_ID, {
+    draftResult = await draftEmailReply(fakeIncomingEmail, userId, {
       apiUrl: API_BASE_URL,
     });
 

@@ -6,6 +6,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@clerk/nextjs/server';
 import { loadGitHubConfig } from '@/lib/github';
+import db from '@/lib/db';
 
 export async function GET(request: NextRequest) {
   try {
@@ -14,7 +15,11 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const config = loadGitHubConfig(clerkId);
+    const user = await db.user.findUnique({
+      where: { clerkId },
+      select: { id: true },
+    });
+    const config = loadGitHubConfig(clerkId) || (user?.id ? loadGitHubConfig(user.id) : null);
 
     if (!config || !config.token) {
       return NextResponse.json({

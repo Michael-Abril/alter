@@ -122,29 +122,46 @@ export default function ActivityPage() {
                     {action.metadata && (() => {
                       try {
                         const meta = typeof action.metadata === 'string' ? JSON.parse(action.metadata) : action.metadata;
-                        if (meta.filePath || meta.outputPath) {
-                          const filePath = meta.filePath || meta.outputPath;
-                          return (
-                            <div className="mt-2 flex items-center gap-2">
-                              <button
-                                onClick={() => {
-                                  navigator.clipboard.writeText(filePath);
-                                  alert('File path copied to clipboard!');
-                                }}
-                                className="text-xs px-2 py-1 rounded bg-nightshift-accent/10 text-nightshift-accent hover:bg-nightshift-accent/20 transition-colors"
+                        return (
+                          <div className="mt-2 space-y-1">
+                            {meta.prUrl && (
+                              <a
+                                href={meta.prUrl}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="inline-flex items-center gap-1 text-xs px-2 py-1 rounded bg-nightshift-success/10 text-nightshift-success hover:bg-nightshift-success/20 transition-colors"
                               >
-                                📁 Copy File Path
-                              </button>
-                              <span className="text-xs text-nightshift-text-muted truncate max-w-md">
-                                {filePath}
-                              </span>
-                            </div>
-                          );
-                        }
+                                🔗 View Pull Request
+                              </a>
+                            )}
+                            {meta.prSkipReason && (
+                              <div className="text-xs text-nightshift-warning">
+                                {meta.prSkipReason === 'missing_token' && '⚠ GitHub not connected — connect GitHub in Settings to auto-create PRs'}
+                                {meta.prSkipReason === 'missing_default_repo' && '⚠ No default repo set — configure a default repo in Settings'}
+                                {meta.prSkipReason?.startsWith('push_failed') && `⚠ GitHub push failed: ${meta.prSkipReason.replace('push_failed: ', '')}`}
+                              </div>
+                            )}
+                            {(meta.filePath || meta.outputPath) && (
+                              <div className="flex items-center gap-2">
+                                <button
+                                  onClick={() => {
+                                    navigator.clipboard.writeText(meta.filePath || meta.outputPath);
+                                    alert('File path copied to clipboard!');
+                                  }}
+                                  className="text-xs px-2 py-1 rounded bg-nightshift-accent/10 text-nightshift-accent hover:bg-nightshift-accent/20 transition-colors"
+                                >
+                                  📁 Copy File Path
+                                </button>
+                                <span className="text-xs text-nightshift-text-muted truncate max-w-md">
+                                  {meta.filePath || meta.outputPath}
+                                </span>
+                              </div>
+                            )}
+                          </div>
+                        );
                       } catch (e) {
                         return null;
                       }
-                      return null;
                     })()}
                     <div className="mt-2 flex items-center gap-3 text-xs text-nightshift-text-muted">
                       <span>{timeAgo(action.createdAt)}</span>

@@ -21,6 +21,7 @@ const __dirname = path.dirname(__filename);
 dotenv.config({ path: path.join(__dirname, '..', '.env') });
 
 import { continueWork } from './continue-work.mjs';
+import { resolveInternalUserId } from './user-resolver.mjs';
 
 // ─── Config ──────────────────────────────────────────────────────────────────
 
@@ -30,18 +31,16 @@ const PROJECT_ID_ARG = args.find(a => a.startsWith('--project-id='))?.split('=')
 const USER_ID_ARG = args.find(a => a.startsWith('--user-id='))?.split('=')[1];
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000';
 
-// Default user ID (from memory: user_3Bge5cdx4LkgxWgYXeYlU6Tm42a → cmndvesaa000011r5gk3avaoo)
-const USER_ID = USER_ID_ARG || 'cmndvesaa000011r5gk3avaoo';
-
 // ─── Main ────────────────────────────────────────────────────────────────────
 
 async function main() {
+  const userId = await resolveInternalUserId(USER_ID_ARG);
   console.log('🧪 NightShift Continuation Agent Test');
   console.log('');
 
   // Step 1: Fetch projects from the API
   console.log('📡 Fetching projects from internal API...');
-  const projectsResponse = await fetch(`${API_URL}/api/internal/projects?userId=${USER_ID}`);
+  const projectsResponse = await fetch(`${API_URL}/api/internal/projects?userId=${userId}`);
   
   if (!projectsResponse.ok) {
     console.error(`❌ Failed to fetch projects: ${projectsResponse.status} ${projectsResponse.statusText}`);

@@ -7,7 +7,7 @@
 
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import Sidebar from '@/components/layout/Sidebar';
 import Header from '@/components/layout/Header';
 import UnfinishedWork from '@/components/handoff/UnfinishedWork';
@@ -37,6 +37,28 @@ export default function HandoffPage() {
   const [activating, setActivating] = useState(false);
   const [activateError, setActivateError] = useState('');
   const [activateResult, setActivateResult] = useState<any>(null);
+  const [runStatus, setRunStatus] = useState<any>(null);
+  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  const pollRunStatus = useCallback(async () => {
+    try {
+      const res = await fetch('/api/handoff/status');
+      const json = await res.json();
+      const s = json.data;
+      setRunStatus(s);
+      if (s?.state === 'completed' || s?.state === 'error') {
+        if (pollRef.current) clearInterval(pollRef.current);
+      }
+    } catch { /* ignore */ }
+  }, []);
+
+  useEffect(() => {
+    if (isActivated && !pollRef.current) {
+      pollRunStatus();
+      pollRef.current = setInterval(pollRunStatus, 5000);
+    }
+    return () => { if (pollRef.current) clearInterval(pollRef.current); };
+  }, [isActivated, pollRunStatus]);
 
   useEffect(() => {
     async function fetchProjects() {
@@ -114,15 +136,28 @@ export default function HandoffPage() {
             </div>
 
             {isActivated ? (
-              <div className="card border-nightshift-success/50 text-center">
-                <div className="text-4xl mb-4">🌙</div>
-                <h2 className="text-xl font-semibold text-nightshift-success">
-                  NightShift Activated
+              <div className={`card text-center ${runStatus?.state === 'error' ? 'border-nightshift-error/50' : 'border-nightshift-success/50'}`}>
+                <div className="text-4xl mb-4">{runStatus?.state === 'completed' ? '✅' : runStatus?.state === 'error' ? '❌' : '🌙'}</div>
+                <h2 className={`text-xl font-semibold ${runStatus?.state === 'error' ? 'text-nightshift-error' : 'text-nightshift-success'}`}>
+                  {runStatus?.state === 'completed' ? 'NightShift Complete' : runStatus?.state === 'error' ? 'NightShift Encountered an Error' : 'NightShift Running...'}
                 </h2>
-                <p className="mt-2 text-nightshift-text-secondary">
-                  {activateResult?.projectsQueued || selectedTasks.length} project{(activateResult?.projectsQueued || selectedTasks.length) !== 1 ? 's' : ''} queued.
-                  {activateResult?.estimatedCompletion ? ` ${activateResult.estimatedCompletion}` : ' Sweet dreams!'}
-                </p>
+                {runStatus?.state === 'running' && (
+                  <p className="mt-2 text-nightshift-text-secondary animate-pulse">
+                    Working on {activateResult?.projectsQueued || selectedTasks.length} project{(activateResult?.projectsQueued || selectedTasks.length) !== 1 ? 's' : ''}...
+                  </p>
+                )}
+                {runStatus?.state === 'completed' && (
+                  <div className="mt-3 text-sm text-nightshift-text-secondary space-y-1">
+                    <p>{runStatus.projectsContinued || 0} project(s) continued, {runStatus.emailsDrafted || 0} email draft(s) created</p>
+                    {runStatus.duration && <p>Duration: {runStatus.duration}s</p>}
+                    <p className="mt-2 font-medium text-nightshift-accent">Check Drafts and Activity for results.</p>
+                  </div>
+                )}
+                {runStatus?.state !== 'running' && runStatus?.state !== 'completed' && runStatus?.state !== 'error' && (
+                  <p className="mt-2 text-nightshift-text-secondary">
+                    {activateResult?.projectsQueued || selectedTasks.length} project{(activateResult?.projectsQueued || selectedTasks.length) !== 1 ? 's' : ''} queued. Sweet dreams!
+                  </p>
+                )}
               </div>
             ) : loading ? (
               <div className="card text-center py-12">

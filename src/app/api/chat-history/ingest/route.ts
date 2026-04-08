@@ -8,6 +8,12 @@
 import { NextRequest } from 'next/server';
 import { apiSuccess, apiError } from '@/lib/utils';
 import db from '@/lib/db';
+import {
+  buildMessageFingerprint,
+  readFingerprints,
+  writeFingerprints,
+  type SyncSource,
+} from '@/lib/onboarding-sync';
 
 interface IngestMessage {
   role: string;
@@ -59,13 +65,49 @@ export async function POST(req: NextRequest) {
       (msg) => msg.role && msg.content && msg.content.trim().length > 0
     );
 
-    if (validMessages.length === 0) {
+    // Dedupe within payload to avoid repeated inserts on retried scrapes.
+    const dedupedMessages: IngestMessage[] = [];
+    const seen = new Set<string>();
+    for (const msg of validMessages) {
+      const ts = msg.timestamp || '';
+      const key = `${msg.role}|${msg.sessionId || ''}|${ts}|${msg.content.slice(0, 120)}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      dedupedMessages.push(msg);
+    }
+
+    if (dedupedMessages.length === 0) {
       return apiError('No valid messages in payload (need role + non-empty content)', 400);
+    }
+
+    const syncSource: SyncSource = source === 'claude' ? 'claude' : 'chatgpt';
+    const storedFingerprints = readFingerprints(userId, syncSource);
+    const netNewMessages = dedupedMessages.filter((msg) => {
+      const fp = buildMessageFingerprint({
+        source,
+        role: msg.role,
+        content: msg.content,
+        sessionId: msg.sessionId,
+        timestamp: msg.timestamp,
+      });
+      if (storedFingerprints.has(fp)) return false;
+      storedFingerprints.add(fp);
+      return true;
+    });
+
+    if (netNewMessages.length === 0) {
+      return apiSuccess({
+        message: 'No new messages to ingest',
+        source,
+        userId: user.id,
+        clerkId: userId,
+        count: 0,
+      });
     }
 
     // Batch insert chat messages
     const result = await db.chatMessage.createMany({
-      data: validMessages.map((msg) => ({
+      data: netNewMessages.map((msg) => ({
         userId: user!.id,
         source,
         role: msg.role,
@@ -74,6 +116,7 @@ export async function POST(req: NextRequest) {
         timestamp: msg.timestamp ? new Date(msg.timestamp) : new Date(),
       })),
     });
+    writeFingerprints(userId, syncSource, storedFingerprints);
 
     console.log(`[chat-history/ingest] Wrote ${result.count} messages to database`);
 

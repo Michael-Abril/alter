@@ -13,17 +13,18 @@ import db from '@/lib/db';
 // GET: View a specific draft
 export async function GET(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  props: { params: Promise<{ id: string }> }
 ) {
   const { userId } = await auth();
   if (!userId) return apiError('Unauthorized', 401);
+  const { id } = await props.params;
 
   try {
     const user = await db.user.findUnique({ where: { clerkId: userId } });
     if (!user) return apiError('User not found', 404);
 
     const draft = await db.draft.findFirst({
-      where: { id: params.id, userId: user.id },
+      where: { id, userId: user.id },
     });
 
     if (!draft) return apiError('Draft not found', 404);
@@ -36,12 +37,12 @@ export async function GET(
       targetApp: draft.targetApp,
       confidenceScore: draft.confidenceScore,
       status: draft.status,
-      context: draft.context,
+      context: draft.context ? JSON.parse(draft.context) : null,
       createdAt: draft.createdAt.toISOString(),
       updatedAt: draft.updatedAt.toISOString(),
     });
   } catch (error) {
-    console.error(`[drafts/${params.id}] Error:`, error);
+    console.error(`[drafts/${id}] Error:`, error);
     return apiError('Failed to fetch draft', 500);
   }
 }
@@ -49,10 +50,11 @@ export async function GET(
 // PATCH: Update draft status (approve/reject)
 export async function PATCH(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  props: { params: Promise<{ id: string }> }
 ) {
   const { userId } = await auth();
   if (!userId) return apiError('Unauthorized', 401);
+  const { id } = await props.params;
 
   try {
     const body = await req.json();
@@ -62,12 +64,11 @@ export async function PATCH(
       return apiError('Invalid status. Must be "approved" or "rejected"', 400);
     }
 
-    // Find user and draft
     const user = await db.user.findUnique({ where: { clerkId: userId } });
     if (!user) return apiError('User not found', 404);
 
     const draft = await db.draft.findFirst({
-      where: { id: params.id, userId: user.id },
+      where: { id, userId: user.id },
     });
 
     if (!draft) return apiError('Draft not found', 404);
@@ -75,7 +76,7 @@ export async function PATCH(
     // Handle rejection
     if (status === 'rejected') {
       await db.draft.update({
-        where: { id: params.id },
+        where: { id },
         data: {
           status: 'rejected',
           context: rejectionReason
@@ -84,28 +85,27 @@ export async function PATCH(
         },
       });
 
-      console.log(`[drafts/${params.id}] Draft rejected${rejectionReason ? `: ${rejectionReason}` : ''}`);
+      console.log(`[drafts/${id}] Draft rejected${rejectionReason ? `: ${rejectionReason}` : ''}`);
 
       return apiSuccess({
-        id: params.id,
+        id,
         status: 'rejected',
         message: 'Draft rejected',
       });
     }
 
-    // Handle approval - trigger send flow
+    // Handle approval
     if (status === 'approved') {
-      // For non-email drafts (doc, code, task), just update status to approved
+      // Non-email drafts: just approve
       if (draft.type !== 'email') {
         await db.draft.update({
-          where: { id: params.id },
+          where: { id },
           data: {
             status: 'approved',
-            content: content || draft.content, // Update content if edited
+            content: content || draft.content,
           },
         });
 
-        // Create Action record
         await db.action.create({
           data: {
             userId: user.id,
@@ -122,17 +122,17 @@ export async function PATCH(
           },
         });
 
-        console.log(`[drafts/${params.id}] Non-email draft approved (type: ${draft.type})`);
+        console.log(`[drafts/${id}] Non-email draft approved (type: ${draft.type})`);
 
         return apiSuccess({
-          id: params.id,
+          id,
           status: 'approved',
           message: `${draft.type} draft approved successfully`,
           type: draft.type,
         });
       }
 
-      // For email drafts, send via Gmail
+      // Email drafts: create native Gmail draft (user can review in Gmail)
       const context = draft.context ? JSON.parse(draft.context) : {};
       const recipientEmail = context.recipientEmail;
       const threadId = context.threadId;
@@ -142,80 +142,97 @@ export async function PATCH(
         return apiError('Draft context missing recipient email address', 400);
       }
 
-      // Call Gmail send endpoint
+      if (!user.gmailConnected || !user.gmailToken) {
+        await db.draft.update({ where: { id }, data: { status: 'approved' } });
+        return apiSuccess({
+          id, status: 'approved',
+          message: 'Draft approved but Gmail draft not created — connect Gmail in Settings.',
+          errorCode: 'GMAIL_NOT_CONNECTED',
+        });
+      }
+
       try {
-        const sendResponse = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000'}/api/gmail/send`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Cookie': req.headers.get('cookie') || '', // Forward auth cookies
-          },
-          body: JSON.stringify({
+        const { createGmailDraft, refreshAccessToken } = await import('@/lib/gmail');
+        let accessToken = user.gmailToken;
+
+        let result;
+        try {
+          result = await createGmailDraft(accessToken, user.gmailRefreshToken, {
             to: recipientEmail,
             subject: draft.title,
             body: content || draft.content,
-            threadId,
-            inReplyTo,
-          }),
-        });
-
-        const sendResult = await sendResponse.json();
-
-        if (!sendResponse.ok) {
-          console.error(`[drafts/${params.id}] Gmail send failed:`, sendResult);
-          return apiError(`Failed to send email: ${sendResult.error || 'Unknown error'}`, 500);
+            threadId, inReplyTo,
+          });
+        } catch (err: any) {
+          if (user.gmailRefreshToken && (err.message?.includes('401') || err.message?.includes('invalid_grant'))) {
+            accessToken = await refreshAccessToken(user.gmailRefreshToken);
+            await db.user.update({ where: { id: user.id }, data: { gmailToken: accessToken } });
+            result = await createGmailDraft(accessToken, user.gmailRefreshToken, {
+              to: recipientEmail, subject: draft.title,
+              body: content || draft.content, threadId, inReplyTo,
+            });
+          } else { throw err; }
         }
 
-        // Update draft status to sent
         await db.draft.update({
-          where: { id: params.id },
+          where: { id },
           data: {
-            status: 'sent',
+            status: 'approved',
             context: JSON.stringify({
               ...context,
-              sentAt: new Date().toISOString(),
-              messageId: sendResult.data?.messageId,
+              gmailDraftId: result.draftId,
+              gmailDraftUrl: result.draftUrl,
+              approvedAt: new Date().toISOString(),
             }),
           },
         });
 
-        // Create Action record
         await db.action.create({
           data: {
             userId: user.id,
             type: 'email_sent',
             title: draft.title,
-            description: `Sent email to ${recipientEmail}`,
+            description: `Created Gmail draft for ${recipientEmail}`,
             app: 'gmail',
             confidence: draft.confidenceScore,
             status: 'completed',
             metadata: JSON.stringify({
               recipientEmail,
               subject: draft.title,
-              messageId: sendResult.data?.messageId,
+              gmailDraftId: result.draftId,
+              gmailDraftUrl: result.draftUrl,
               draftId: draft.id,
             }),
           },
         });
 
-        console.log(`[drafts/${params.id}] Email sent successfully to ${recipientEmail}`);
-
         return apiSuccess({
-          id: params.id,
-          status: 'sent',
-          message: 'Email sent successfully',
-          messageId: sendResult.data?.messageId,
+          id,
+          status: 'approved',
+          message: 'Gmail draft created — open it in Gmail to review and send.',
+          gmailDraftUrl: result.draftUrl,
           recipientEmail,
         });
       } catch (sendError: any) {
-        console.error(`[drafts/${params.id}] Send error:`, sendError);
-        return apiError(`Failed to send email: ${sendError.message}`, 500);
+        console.error(`[drafts/${id}] Gmail draft error:`, sendError);
+
+        const errMsg = sendError.message || '';
+        let errorCode = 'GMAIL_SEND_FAILED';
+        let userMessage = `Draft approved but Gmail draft failed: ${errMsg}`;
+
+        if (errMsg.includes('not been used in project') || errMsg.includes('is disabled')) {
+          errorCode = 'GMAIL_API_NOT_ENABLED';
+          userMessage = 'Draft approved but Gmail draft not created — enable Gmail API in Google Cloud Console.';
+        }
+
+        await db.draft.update({ where: { id }, data: { status: 'approved' } });
+        return apiSuccess({ id, status: 'approved', message: userMessage, errorCode });
       }
     }
 
     return apiError('Invalid status', 400);
   } catch (error) {
-    console.error(`[drafts/${params.id}] Error:`, error);
+    console.error(`[drafts/${id}] Error:`, error);
     return apiError('Failed to update draft', 500);
   }
 }

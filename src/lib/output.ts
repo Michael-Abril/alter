@@ -18,7 +18,7 @@ interface UserConfig {
 /**
  * Get the default output directory based on OS
  */
-function getDefaultOutputDirectory(): string {
+export function getDefaultOutputDirectory(): string {
   const homeDir = os.homedir();
   const username = os.userInfo().username;
   

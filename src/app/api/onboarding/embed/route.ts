@@ -100,16 +100,22 @@ export async function POST(req: NextRequest) {
   if (!userId) return apiError('Unauthorized', 401);
 
   try {
+    const sinceDaysParam = req.nextUrl.searchParams.get('sinceDays');
+    const sinceDays = sinceDaysParam ? Math.max(1, parseInt(sinceDaysParam, 10)) : 3;
+    const cutoffDate = new Date(Date.now() - sinceDays * 24 * 60 * 60 * 1000);
+
     // Find user
     const user = await db.user.findUnique({ where: { clerkId: userId } });
     if (!user) return apiError('User not found', 404);
 
     // Count un-embedded messages
     const totalUnembedded = await db.chatMessage.count({
-      where: { userId: user.id, embedded: false },
+      where: { userId: user.id, embedded: false, timestamp: { gte: cutoffDate } },
     });
 
-    console.log(`[onboarding/embed] Found ${totalUnembedded} un-embedded messages for user ${user.id}`);
+    console.log(
+      `[onboarding/embed] Found ${totalUnembedded} un-embedded recent messages for user ${user.id} (last ${sinceDays} days)`
+    );
 
     if (totalUnembedded === 0) {
       return apiSuccess({
@@ -136,7 +142,7 @@ export async function POST(req: NextRequest) {
 
     while (true) {
       const messages = await db.chatMessage.findMany({
-        where: { userId: user.id, embedded: false },
+        where: { userId: user.id, embedded: false, timestamp: { gte: cutoffDate } },
         orderBy: { timestamp: 'asc' },
         take: BATCH_SIZE,
       });
@@ -194,6 +200,7 @@ export async function POST(req: NextRequest) {
       messagesEmbedded: totalEmbedded,
       status: 'complete',
       backend: hasOpenAIKey() ? 'openai' : 'local-tfidf',
+      sinceDays,
     });
   } catch (error: any) {
     console.error('[onboarding/embed] Error:', error);

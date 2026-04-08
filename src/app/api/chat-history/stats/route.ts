@@ -6,14 +6,21 @@
  */
 
 import { auth } from '@clerk/nextjs/server';
+import { NextRequest } from 'next/server';
 import { apiSuccess, apiError } from '@/lib/utils';
 import db from '@/lib/db';
 
-export async function GET() {
+export async function GET(req: NextRequest) {
   const { userId: clerkId } = await auth();
+  const source = req.nextUrl.searchParams.get('source');
+  const sinceDaysParam = req.nextUrl.searchParams.get('sinceDays');
+  const sinceDays = sinceDaysParam ? Math.max(1, parseInt(sinceDaysParam, 10)) : null;
+  const sinceDate = sinceDays ? new Date(Date.now() - sinceDays * 24 * 60 * 60 * 1000) : null;
 
   // If authenticated, scope to this user. Otherwise show all (local dev).
-  const whereClause = clerkId ? { user: { clerkId } } : {};
+  const whereClause: any = clerkId ? { user: { clerkId } } : {};
+  if (source === 'claude' || source === 'chatgpt') whereClause.source = source;
+  if (sinceDate) whereClause.timestamp = { gte: sinceDate };
 
   try {
     // Total messages
@@ -60,6 +67,8 @@ export async function GET() {
       uniqueSessions: sessions.length,
       latestMessage: latest,
       userId: clerkId || 'all',
+      source: source || 'all',
+      sinceDays: sinceDays || null,
     });
   } catch (error) {
     console.error('[chat-history/stats] Error:', error);

@@ -17,8 +17,11 @@ interface Boundary {
   rule: string;
   category: string;
   action: string;
-  conditions?: any;
+  conditions?: unknown;
 }
+
+type RuleCategory = 'email' | 'docs' | 'code' | 'general';
+type RuleAction = 'auto' | 'draft' | 'flag' | 'never';
 
 const autonomyLabels = [
   { level: 0, name: 'Observe Only', description: 'NightShift watches and learns, but takes no action.' },
@@ -34,11 +37,23 @@ export default function SettingsPage() {
   const [error, setError] = useState('');
   const [autonomyLevel, setAutonomyLevel] = useState(1);
   const [wakeTime, setWakeTime] = useState('07:00');
+  const [outputDirectory, setOutputDirectory] = useState('');
   const [gmailConnected, setGmailConnected] = useState(false);
+  const [githubConnected, setGithubConnected] = useState(false);
+  const [canvasConnected, setCanvasConnected] = useState(false);
   const [boundaries, setBoundaries] = useState<Boundary[]>([]);
+  const [newRuleCategory, setNewRuleCategory] = useState<RuleCategory>('general');
+  const [newRuleAction, setNewRuleAction] = useState<RuleAction>('flag');
+  const [newRuleDescription, setNewRuleDescription] = useState('');
+  const [disconnecting, setDisconnecting] = useState<'gmail' | 'github' | 'canvas' | null>(null);
+  const [needsScopeUpgrade, setNeedsScopeUpgrade] = useState(false);
 
   useEffect(() => {
     fetchSettings();
+    fetch('/api/user/scope-check')
+      .then(r => r.json())
+      .then(j => { if (j.data?.needsUpgrade) setNeedsScopeUpgrade(true); })
+      .catch(() => {});
   }, []);
 
   async function fetchSettings() {
@@ -48,7 +63,10 @@ export default function SettingsPage() {
       if (json.success) {
         setAutonomyLevel(json.data.autonomyLevel);
         setWakeTime(json.data.wakeTime);
+        setOutputDirectory(json.data.outputDirectory || '');
         setGmailConnected(json.data.gmailConnected);
+        setGithubConnected(Boolean(json.data.githubConnected));
+        setCanvasConnected(Boolean(json.data.canvasConnected));
         setBoundaries(json.data.boundaries || []);
       }
     } catch (err) {
@@ -69,6 +87,7 @@ export default function SettingsPage() {
         body: JSON.stringify({
           autonomyLevel,
           wakeTime,
+          outputDirectory,
           boundaries,
         }),
       });
@@ -76,12 +95,75 @@ export default function SettingsPage() {
       if (!res.ok) {
         throw new Error(json.error || 'Failed to save settings');
       }
+
+      // Roundtrip validation: refetch to confirm persistence
+      const verify = await fetch('/api/user/settings');
+      const vJson = await verify.json();
+      if (vJson.success) {
+        const d = vJson.data;
+        const mismatches: string[] = [];
+        if (d.autonomyLevel !== autonomyLevel) mismatches.push('autonomy level');
+        if (d.wakeTime !== wakeTime) mismatches.push('wake time');
+        if ((d.outputDirectory || '') !== outputDirectory) mismatches.push('output directory');
+        if (mismatches.length > 0) {
+          setError(`Settings saved but ${mismatches.join(', ')} did not persist. Try saving again.`);
+          return;
+        }
+        setAutonomyLevel(d.autonomyLevel);
+        setWakeTime(d.wakeTime);
+        setOutputDirectory(d.outputDirectory || '');
+        setBoundaries(d.boundaries || []);
+      }
+
       setSaveSuccess(true);
       setTimeout(() => setSaveSuccess(false), 3000);
     } catch (err: any) {
       setError(err.message || 'Failed to save settings');
     } finally {
       setSaving(false);
+    }
+  }
+
+  function addRule() {
+    const trimmedRule = newRuleDescription.trim();
+    if (!trimmedRule) {
+      setError('Rule description is required');
+      return;
+    }
+
+    setError('');
+    setBoundaries((prev) => [
+      ...prev,
+      {
+        id: `new-${Date.now()}`,
+        rule: trimmedRule,
+        category: newRuleCategory,
+        action: newRuleAction,
+      },
+    ]);
+    setNewRuleDescription('');
+  }
+
+  async function disconnectAccount(provider: 'gmail' | 'github' | 'canvas') {
+    setDisconnecting(provider);
+    setError('');
+    setSaveSuccess(false);
+    try {
+      const res = await fetch(`/api/${provider}/connect`, { method: 'DELETE' });
+      const json = await res.json();
+      if (!res.ok || json.success === false) {
+        throw new Error(json.error || `Failed to disconnect ${provider}`);
+      }
+
+      if (provider === 'gmail') setGmailConnected(false);
+      if (provider === 'github') setGithubConnected(false);
+      if (provider === 'canvas') setCanvasConnected(false);
+      setSaveSuccess(true);
+      setTimeout(() => setSaveSuccess(false), 3000);
+    } catch (err: any) {
+      setError(err.message || `Failed to disconnect ${provider}`);
+    } finally {
+      setDisconnecting(null);
     }
   }
 
@@ -116,26 +198,83 @@ export default function SettingsPage() {
 
             {!loading && (
               <>
-            {/* Gmail Connection */}
+            {/* Connected Accounts */}
             <section className="card">
-              <h2 className="text-lg font-semibold mb-4">Gmail Connection</h2>
-              {gmailConnected ? (
-                <div className="flex items-center gap-3">
-                  <span className="h-3 w-3 rounded-full bg-nightshift-success" />
-                  <span className="text-nightshift-text-primary">Connected</span>
-                  <button className="btn-ghost text-sm ml-auto">Disconnect</button>
+              <h2 className="text-lg font-semibold mb-4">Connected Accounts</h2>
+
+              {needsScopeUpgrade && (
+                <div className="mb-4 rounded-lg border border-nightshift-warning/50 bg-nightshift-warning/10 p-3">
+                  <p className="text-sm text-nightshift-warning font-medium">Permissions upgrade available</p>
+                  <p className="text-xs text-nightshift-text-secondary mt-1">
+                    NightShift now supports Google Drive and Calendar. Reconnect Google to enable these features.
+                  </p>
+                  <button
+                    className="btn-primary text-xs mt-2"
+                    onClick={() => { window.location.href = '/api/gmail/connect'; }}
+                  >
+                    Upgrade Permissions
+                  </button>
                 </div>
-              ) : (
-                <button
-                  className="btn-primary"
-                  onClick={() => {
-                    // TODO: Person 1 — Redirect to /api/gmail/connect
-                    window.location.href = '/api/gmail/connect';
-                  }}
-                >
-                  Connect Gmail
-                </button>
               )}
+
+              <div className="space-y-3">
+                <div className="flex items-center gap-3">
+                  <span className={`h-3 w-3 rounded-full ${gmailConnected ? 'bg-nightshift-success' : 'bg-nightshift-text-muted'}`} />
+                  <span className="text-nightshift-text-primary">Google (Gmail, Drive, Calendar)</span>
+                  <span className="text-sm text-nightshift-text-secondary">{gmailConnected ? 'Connected' : 'Not connected'}</span>
+                  {gmailConnected ? (
+                    <button
+                      className="btn-ghost text-sm ml-auto"
+                      onClick={() => disconnectAccount('gmail')}
+                      disabled={disconnecting === 'gmail'}
+                    >
+                      {disconnecting === 'gmail' ? 'Disconnecting...' : 'Disconnect'}
+                    </button>
+                  ) : (
+                    <button className="btn-primary ml-auto" onClick={() => { window.location.href = '/api/gmail/connect'; }}>
+                      Connect
+                    </button>
+                  )}
+                </div>
+
+                <div className="flex items-center gap-3">
+                  <span className={`h-3 w-3 rounded-full ${githubConnected ? 'bg-nightshift-success' : 'bg-nightshift-text-muted'}`} />
+                  <span className="text-nightshift-text-primary">GitHub</span>
+                  <span className="text-sm text-nightshift-text-secondary">{githubConnected ? 'Connected' : 'Not connected'}</span>
+                  {githubConnected ? (
+                    <button
+                      className="btn-ghost text-sm ml-auto"
+                      onClick={() => disconnectAccount('github')}
+                      disabled={disconnecting === 'github'}
+                    >
+                      {disconnecting === 'github' ? 'Disconnecting...' : 'Disconnect'}
+                    </button>
+                  ) : (
+                    <button className="btn-primary ml-auto" onClick={() => { window.location.href = '/api/github/connect'; }}>
+                      Connect
+                    </button>
+                  )}
+                </div>
+
+                <div className="flex items-center gap-3">
+                  <span className={`h-3 w-3 rounded-full ${canvasConnected ? 'bg-nightshift-success' : 'bg-nightshift-text-muted'}`} />
+                  <span className="text-nightshift-text-primary">Canvas</span>
+                  <span className="text-sm text-nightshift-text-secondary">{canvasConnected ? 'Connected' : 'Not connected'}</span>
+                  {canvasConnected ? (
+                    <button
+                      className="btn-ghost text-sm ml-auto"
+                      onClick={() => disconnectAccount('canvas')}
+                      disabled={disconnecting === 'canvas'}
+                    >
+                      {disconnecting === 'canvas' ? 'Disconnecting...' : 'Disconnect'}
+                    </button>
+                  ) : (
+                    <button className="btn-primary ml-auto" onClick={() => { window.location.href = '/onboarding?step=canvas'; }}>
+                      Connect
+                    </button>
+                  )}
+                </div>
+              </div>
             </section>
 
             {/* Autonomy Level */}
@@ -191,6 +330,21 @@ export default function SettingsPage() {
               />
             </section>
 
+            {/* Output Directory */}
+            <section className="card">
+              <h2 className="text-lg font-semibold mb-2">Output Directory</h2>
+              <p className="text-sm text-nightshift-text-secondary mb-4">
+                NightShift saves generated .docx files in this folder.
+              </p>
+              <input
+                type="text"
+                value={outputDirectory}
+                onChange={(e) => setOutputDirectory(e.target.value)}
+                placeholder="Documents/NightShift"
+                className="input"
+              />
+            </section>
+
             {/* Boundaries */}
             <section className="card">
               <h2 className="text-lg font-semibold mb-4">Boundary Rules</h2>
@@ -220,7 +374,36 @@ export default function SettingsPage() {
                   </div>
                 ))}
               </div>
-              <button className="btn-ghost text-sm mt-4">+ Add Rule</button>
+              <div className="mt-4 grid gap-3">
+                <select
+                  className="input"
+                  value={newRuleCategory}
+                  onChange={(e) => setNewRuleCategory(e.target.value as RuleCategory)}
+                >
+                  <option value="email">email</option>
+                  <option value="docs">docs</option>
+                  <option value="code">code</option>
+                  <option value="general">general</option>
+                </select>
+                <select
+                  className="input"
+                  value={newRuleAction}
+                  onChange={(e) => setNewRuleAction(e.target.value as RuleAction)}
+                >
+                  <option value="auto">auto</option>
+                  <option value="draft">draft</option>
+                  <option value="flag">flag</option>
+                  <option value="never">never</option>
+                </select>
+                <input
+                  type="text"
+                  className="input"
+                  value={newRuleDescription}
+                  onChange={(e) => setNewRuleDescription(e.target.value)}
+                  placeholder="Rule description"
+                />
+                <button className="btn-ghost text-sm" onClick={addRule}>+ Add Rule</button>
+              </div>
             </section>
 
             {/* Save */}

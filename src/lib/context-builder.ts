@@ -56,11 +56,28 @@ export interface ProjectContext {
     timestamp: string;
     relevanceScore: number;
   }>;
+  upcomingCalendarEvents: Array<{
+    id: string;
+    title: string;
+    description: string | null;
+    startTime: Date;
+    isDeadline: boolean;
+  }>;
+  githubActivity: Array<{
+    id: string;
+    type: string;
+    title: string;
+    body: string | null;
+    url: string;
+    authoredAt: Date;
+  }>;
   suggestedNextSteps: string[];
   metadata: {
     totalConversations: number;
     totalEmails: number;
     totalCanvasDeadlines: number;
+    totalCalendarEvents: number;
+    totalGitHubActivities: number;
     contextQuality: 'high' | 'medium' | 'low';
     generatedAt: string;
   };
@@ -101,13 +118,25 @@ export async function buildContext(projectId: string): Promise<ProjectContext> {
   const relatedEmails = await findRelatedEmails(project, context);
   console.log(`[context-builder] ✅ Found ${relatedEmails.length} related emails`);
 
-  // Step 4: Generate suggested next steps
+  // Step 4: Fetch calendar events
+  console.log(`[context-builder] 📅 Fetching calendar events...`);
+  const upcomingCalendarEvents = await queryCalendarEvents(project);
+  console.log(`[context-builder] ✅ Found ${upcomingCalendarEvents.length} upcoming events`);
+
+  // Step 5: Fetch GitHub activity
+  console.log(`[context-builder] 🐙 Fetching GitHub activity...`);
+  const githubActivity = await queryGitHubActivity(project, context);
+  console.log(`[context-builder] ✅ Found ${githubActivity.length} GitHub activities`);
+
+  // Step 6: Generate suggested next steps
   console.log(`[context-builder] 💡 Generating suggested next steps...`);
   const suggestedNextSteps = generateNextSteps(project, context, relevantConversations, relatedEmails);
   console.log(`[context-builder] ✅ Generated ${suggestedNextSteps.length} suggestions`);
 
-  // Step 5: Calculate context quality
+  // Step 7: Calculate context quality
   const contextQuality = calculateContextQuality(relevantConversations, relatedEmails);
+
+  const canvasDeadlines = await queryCanvasDeadlines(project, context);
 
   const contextPackage: ProjectContext = {
     projectSummary: {
@@ -121,19 +150,20 @@ export async function buildContext(projectId: string): Promise<ProjectContext> {
     },
     relevantConversations,
     relatedEmails,
-    canvasDeadlines: await queryCanvasDeadlines(project, context),
+    canvasDeadlines,
+    upcomingCalendarEvents,
+    githubActivity,
     suggestedNextSteps,
     metadata: {
       totalConversations: relevantConversations.length,
       totalEmails: relatedEmails.length,
-      totalCanvasDeadlines: 0, // Will be updated after query
+      totalCanvasDeadlines: canvasDeadlines.length,
+      totalCalendarEvents: upcomingCalendarEvents.length,
+      totalGitHubActivities: githubActivity.length,
       contextQuality,
       generatedAt: new Date().toISOString(),
     },
   };
-
-  // Update canvas deadlines count
-  contextPackage.metadata.totalCanvasDeadlines = contextPackage.canvasDeadlines.length;
 
   console.log(`[context-builder] ✅ Context package built (quality: ${contextQuality})`);
 
@@ -335,6 +365,78 @@ async function queryCanvasDeadlines(
     .slice(0, 10); // Top 10 most relevant
   } catch (err) {
     console.warn(`[context-builder] Canvas deadline search failed: ${err instanceof Error ? err.message : err}`);
+    return [];
+  }
+}
+
+/**
+ * Fetch upcoming calendar events relevant to this project.
+ */
+async function queryCalendarEvents(
+  project: any,
+): Promise<Array<{ id: string; title: string; description: string | null; startTime: Date; isDeadline: boolean }>> {
+  try {
+    const oneWeek = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+    const events = await db.calendarEvent.findMany({
+      where: {
+        userId: project.userId,
+        startTime: { gte: new Date(), lte: oneWeek },
+      },
+      orderBy: { startTime: 'asc' },
+      take: 10,
+    });
+
+    const deadlineKeywords = ['due', 'deadline', 'quiz', 'exam', 'assignment', 'submit'];
+    return events.map(e => ({
+      id: e.id,
+      title: e.title,
+      description: e.description,
+      startTime: e.startTime,
+      isDeadline: deadlineKeywords.some(k => e.title.toLowerCase().includes(k)),
+    }));
+  } catch {
+    return [];
+  }
+}
+
+/**
+ * Fetch recent GitHub activity relevant to this project.
+ */
+async function queryGitHubActivity(
+  project: any,
+  context: any,
+): Promise<Array<{ id: string; type: string; title: string; body: string | null; url: string; authoredAt: Date }>> {
+  try {
+    const threeDaysAgo = new Date(Date.now() - 3 * 24 * 60 * 60 * 1000);
+    const activities = await db.githubActivity.findMany({
+      where: {
+        userId: project.userId,
+        authoredAt: { gte: threeDaysAgo },
+      },
+      orderBy: { authoredAt: 'desc' },
+      take: 15,
+    });
+
+    const projectKeywords = [
+      project.name.toLowerCase(),
+      ...(context?.keyTopics || []).map((t: string) => t.toLowerCase()),
+    ];
+
+    return activities
+      .filter(a => {
+        const text = `${a.title} ${a.body || ''}`.toLowerCase();
+        return projectKeywords.some(k => text.includes(k)) || true;
+      })
+      .slice(0, 10)
+      .map(a => ({
+        id: a.id,
+        type: a.type,
+        title: a.title,
+        body: a.body?.slice(0, 500) || null,
+        url: a.url,
+        authoredAt: a.authoredAt,
+      }));
+  } catch {
     return [];
   }
 }

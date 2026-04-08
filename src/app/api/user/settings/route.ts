@@ -9,6 +9,9 @@ import { NextRequest } from 'next/server';
 import { auth } from '@clerk/nextjs/server';
 import { apiSuccess, apiError } from '@/lib/utils';
 import db from '@/lib/db';
+import { loadGitHubConfig } from '@/lib/github';
+import { loadCanvasConfig } from '@/lib/canvas';
+import { getDefaultOutputDirectory, setOutputDirectory } from '@/lib/output';
 
 // PATCH: Update user settings
 export async function PATCH(req: NextRequest) {
@@ -17,7 +20,7 @@ export async function PATCH(req: NextRequest) {
 
   try {
     const body = await req.json();
-    const { autonomyLevel, wakeTime, boundaries } = body;
+    const { autonomyLevel, wakeTime, boundaries, outputDirectory } = body;
 
     // Find user
     const user = await db.user.findUnique({ where: { clerkId: userId } });
@@ -33,15 +36,24 @@ export async function PATCH(req: NextRequest) {
       return apiError('wakeTime must be in HH:MM format (e.g., "07:00")', 400);
     }
 
+    if (outputDirectory !== undefined && (typeof outputDirectory !== 'string' || !outputDirectory.trim())) {
+      return apiError('outputDirectory must be a non-empty string', 400);
+    }
+
     // Update user settings
     const updateData: any = {};
     if (autonomyLevel !== undefined) updateData.autonomyLevel = autonomyLevel;
     if (wakeTime !== undefined) updateData.wakeTime = wakeTime;
+    if (outputDirectory !== undefined) updateData.outputDirectory = outputDirectory.trim();
 
     const updatedUser = await db.user.update({
       where: { id: user.id },
       data: updateData,
     });
+
+    if (outputDirectory !== undefined) {
+      setOutputDirectory(outputDirectory.trim());
+    }
 
     // Handle boundary rules if provided
     if (boundaries && Array.isArray(boundaries)) {
@@ -68,6 +80,7 @@ export async function PATCH(req: NextRequest) {
       message: 'Settings saved successfully',
       autonomyLevel: updatedUser.autonomyLevel,
       wakeTime: updatedUser.wakeTime,
+      outputDirectory: updatedUser.outputDirectory || getDefaultOutputDirectory(),
       boundariesUpdated: boundaries ? boundaries.length : 0,
     });
   } catch (error: any) {
@@ -89,10 +102,16 @@ export async function GET() {
 
     if (!user) return apiError('User not found', 404);
 
+    const githubConnected = Boolean(loadGitHubConfig(user.clerkId)?.token || loadGitHubConfig(user.id)?.token);
+    const canvasConnected = Boolean(loadCanvasConfig(user.id));
+
     return apiSuccess({
       autonomyLevel: user.autonomyLevel,
       wakeTime: user.wakeTime,
       gmailConnected: user.gmailConnected,
+      githubConnected,
+      canvasConnected,
+      outputDirectory: user.outputDirectory || getDefaultOutputDirectory(),
       boundaries: user.boundaries.map((b) => ({
         id: b.id,
         rule: b.rule,
