@@ -4,11 +4,6 @@
  * Uses Playwright to open claude.ai, read recent conversations,
  * extract message content, and POST it to the NightShift ingest API.
  * 
- * Features:
- * - Incremental scraping: tracks scraped sessions to avoid duplicates
- * - Continuous mode: re-scrapes every 30 minutes for fresh context
- * - Auto-embedding: runs embedding pipeline after each scrape
- * 
  * Uses your existing browser session — no credentials stored in code.
  * 
  * Usage:
@@ -30,11 +25,12 @@ const USER_ID = args.user || 'user_3Bge5cdx4LkgxWgYXeYlU6Tm42a';
 const DRY_RUN = args['dry-run'] !== undefined;
 const HEADLESS = args.headless !== undefined;
 const CONTINUOUS = args.continuous !== undefined;
-const SCRAPE_INTERVAL = 30 * 60 * 1000; // 30 minutes
+const SCRAPE_INTERVAL = 30 * 60 * 1000;
 const SINCE_DAYS = Math.max(1, parseInt(args['since-days'] || '3', 10));
 const RESET_PROFILE = args['reset-profile'] !== undefined;
 
 const SESSION_TRACKER_PATH = path.join(process.cwd(), 'data', 'scraped-sessions.json');
+const SCREENSHOT_DIR = path.join(process.cwd(), 'data', 'debug-screenshots');
 
 function parseArgs(argv) {
   const result = {};
@@ -60,23 +56,30 @@ function isClaudeLoginUrl(url) {
 }
 
 async function waitForClaudeLogin(page) {
-  log('⏳ Waiting for Claude login to complete...');
+  log('Waiting for Claude login to complete...');
   log('   This window will stay open until you finish logging in.');
   while (true) {
     await page.waitForTimeout(3000);
     const currentUrl = page.url();
     if (!isClaudeLoginUrl(currentUrl)) {
-      log('✅ Claude login detected. Continuing scrape...');
+      log('Claude login detected. Continuing scrape...');
       break;
     }
   }
 }
 
+async function saveDebugScreenshot(page, name) {
+  try {
+    if (!fs.existsSync(SCREENSHOT_DIR)) fs.mkdirSync(SCREENSHOT_DIR, { recursive: true });
+    const filepath = path.join(SCREENSHOT_DIR, `claude-${name}-${Date.now()}.png`);
+    await page.screenshot({ path: filepath, fullPage: true });
+    log(`Debug screenshot saved: ${filepath}`);
+  } catch { /* non-fatal */ }
+}
+
 // ─── Session Tracking ────────────────────────────────────────────────
 function loadScrapedSessions() {
-  if (!fs.existsSync(SESSION_TRACKER_PATH)) {
-    return { claude: {}, chatgpt: {} };
-  }
+  if (!fs.existsSync(SESSION_TRACKER_PATH)) return { claude: {}, chatgpt: {} };
   try {
     return JSON.parse(fs.readFileSync(SESSION_TRACKER_PATH, 'utf-8'));
   } catch {
@@ -86,17 +89,8 @@ function loadScrapedSessions() {
 
 function saveScrapedSessions(data) {
   const dir = path.dirname(SESSION_TRACKER_PATH);
-  if (!fs.existsSync(dir)) {
-    fs.mkdirSync(dir, { recursive: true });
-  }
+  if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
   fs.writeFileSync(SESSION_TRACKER_PATH, JSON.stringify(data, null, 2));
-}
-
-function shouldScrapeConversation(sessionId, lastMessageCount, trackedSessions) {
-  const tracked = trackedSessions.claude[sessionId];
-  if (!tracked) return true; // New conversation
-  if (tracked.messageCount < lastMessageCount) return true; // New messages
-  return false;
 }
 
 // ─── Main ────────────────────────────────────────────────────────────
@@ -105,11 +99,9 @@ async function main() {
   log('Starting Claude.ai scraper');
   log(`Config: max=${MAX_CONVERSATIONS}, api=${API_URL}, user=${resolvedUserId}, dry-run=${DRY_RUN}, continuous=${CONTINUOUS}, since-days=${SINCE_DAYS}`);
 
-  // Load session tracker
   const trackedSessions = loadScrapedSessions();
   log(`Loaded session tracker: ${Object.keys(trackedSessions.claude || {}).length} sessions tracked`);
 
-  // Launch browser with persistent context to reuse existing login session
   const userDataDir = getUserDataDir();
   log(`Using browser profile: ${userDataDir}`);
   if (RESET_PROFILE && fs.existsSync(userDataDir)) {
@@ -126,18 +118,17 @@ async function main() {
   const page = context.pages()[0] || await context.newPage();
 
   try {
-    // Navigate to Claude.ai
     log('Navigating to claude.ai...');
     await page.goto('https://claude.ai', { waitUntil: 'domcontentloaded', timeout: 30000 });
     await page.waitForTimeout(3000);
 
-    // Check if we're logged in
     const currentUrl = page.url();
     log(`Current URL: ${currentUrl}`);
 
     if (isClaudeLoginUrl(currentUrl)) {
       if (HEADLESS) {
-        log('❌ AUTH_REQUIRED: Not logged in to claude.ai');
+        log('AUTH_REQUIRED: Not logged in to claude.ai');
+        await saveDebugScreenshot(page, 'auth-required');
         await context.close();
         process.exit(2);
       }
@@ -146,54 +137,45 @@ async function main() {
       await page.waitForTimeout(2500);
     }
 
-    log('✅ Logged in — session active');
+    log('Logged in — session active');
 
-    // Wait for the conversation list to load
-    await page.waitForTimeout(2000);
-
-    // Get conversation links from the sidebar
-    const conversations = await getConversationList(page);
-    let finalConversations = conversations;
-    if (!HEADLESS && finalConversations.length === 0) {
-      log('⏳ Waiting for Claude conversations to appear after login...');
-      while (finalConversations.length === 0) {
-        await page.waitForTimeout(3000);
-        finalConversations = await getConversationList(page);
-      }
+    // Wait for sidebar to populate with smart polling instead of fixed timeout
+    let conversations = [];
+    const maxWaitMs = HEADLESS ? 15000 : 60000;
+    const startWait = Date.now();
+    while (Date.now() - startWait < maxWaitMs) {
+      conversations = await getConversationList(page);
+      if (conversations.length > 0) break;
+      log(`Waiting for conversation list... (${Math.round((Date.now() - startWait) / 1000)}s)`);
+      await page.waitForTimeout(2000);
     }
-    log(`Found ${finalConversations.length} conversations`);
 
-    if (finalConversations.length === 0) {
+    log(`Found ${conversations.length} conversations`);
+
+    if (conversations.length === 0) {
       warn('No conversations found. The page layout may have changed.');
+      await saveDebugScreenshot(page, 'no-conversations');
       await context.close();
       process.exit(1);
     }
 
-    // Filter to only scrape new or updated conversations
+    // Filter conversations to scrape
     const toScrape = [];
-    for (const conv of finalConversations) {
+    for (const conv of conversations) {
       if (toScrape.length >= MAX_CONVERSATIONS) break;
-      
-      // For incremental scraping, check if we need to scrape this conversation
-      // For recent-window onboarding sync, always rescan top recent conversations.
       const incrementalMode = !CONTINUOUS && !args['since-days'];
-      if (incrementalMode && trackedSessions.claude[conv.id]) {
-        // Skip already scraped conversations (unless in continuous mode)
-        continue;
-      }
-      
+      if (incrementalMode && trackedSessions.claude[conv.id]) continue;
       toScrape.push(conv);
     }
 
-    log(`Scraping ${toScrape.length} conversations (${finalConversations.length - toScrape.length} already scraped)`);
+    log(`Scraping ${toScrape.length} conversations (${conversations.length - toScrape.length} already scraped)`);
 
     if (toScrape.length === 0) {
-      log('✅ All conversations already scraped. Nothing new to process.');
+      log('All conversations already scraped. Nothing new to process.');
       await context.close();
       return;
     }
 
-    // Scrape each conversation
     const allMessages = [];
     const scrapedSessionData = {};
     
@@ -204,22 +186,19 @@ async function main() {
       try {
         const messages = await scrapeConversation(page, conv);
         allMessages.push(...messages);
-        log(`  → Extracted ${messages.length} messages`);
+        log(`  -> Extracted ${messages.length} messages`);
         
-        // Track this session
         scrapedSessionData[conv.id] = {
           title: conv.title,
           messageCount: messages.length,
           lastScraped: new Date().toISOString(),
         };
       } catch (err) {
-        warn(`  → Failed to scrape "${conv.title}": ${err.message}`);
+        warn(`  -> Failed to scrape "${conv.title}": ${err.message}`);
+        await saveDebugScreenshot(page, `fail-${conv.id.slice(0, 8)}`);
       }
 
-      // Small delay between conversations
-      if (i < toScrape.length - 1) {
-        await page.waitForTimeout(1500);
-      }
+      if (i < toScrape.length - 1) await page.waitForTimeout(1500);
     }
 
     const cutoffTs = Date.now() - SINCE_DAYS * 24 * 60 * 60 * 1000;
@@ -237,7 +216,6 @@ async function main() {
       return;
     }
 
-    // Send to ingest API
     if (DRY_RUN) {
       log('DRY RUN — would send this payload:');
       console.log(JSON.stringify({
@@ -248,153 +226,230 @@ async function main() {
     } else {
       await sendToApi(recentMessages, resolvedUserId);
       
-      // Update session tracker
       trackedSessions.claude = { ...trackedSessions.claude, ...scrapedSessionData };
       saveScrapedSessions(trackedSessions);
       log(`Updated session tracker: ${Object.keys(trackedSessions.claude).length} total sessions`);
       
-      // Auto-run embedding pipeline
       log('Running embedding pipeline on new messages...');
       await runEmbeddingPipeline();
     }
 
-    log('Done ✅');
+    log('Done');
   } catch (err) {
     console.error('[openclaw:claude] Fatal error:', err);
+    await saveDebugScreenshot(page, 'fatal').catch(() => {});
   } finally {
     await context.close();
   }
   
-  // Continuous mode: wait and re-run
   if (CONTINUOUS) {
     log(`Waiting ${SCRAPE_INTERVAL / 60000} minutes before next scrape...`);
     await new Promise(resolve => setTimeout(resolve, SCRAPE_INTERVAL));
     log('Starting next scrape cycle...');
-    await main(); // Recursive call for continuous mode
+    await main();
   }
 }
 
 // ─── Get conversation list from sidebar ──────────────────────────────
 async function getConversationList(page) {
-  // Claude.ai sidebar contains conversation links
-  // Try multiple selectors since the UI may change
-  const selectors = [
+  // Claude.ai sidebar uses /chat/ links — try multiple selector strategies
+  const selectorGroups = [
+    // High-confidence: nav links with /chat/ href
     'nav a[href*="/chat/"]',
+    'aside a[href*="/chat/"]',
+    // Medium-confidence: any link with /chat/
     'a[href*="/chat/"]',
+    // Lower-confidence: data-testid patterns
     '[data-testid*="conversation"] a',
     '[data-testid*="chat-list"] a',
-    'aside a[href*="/chat/"]',
+    '[data-testid*="history"] a',
   ];
 
-  for (const selector of selectors) {
-    const links = await page.$$(selector);
-    if (links.length > 0) {
-      log(`Found conversations using selector: ${selector}`);
+  for (const selector of selectorGroups) {
+    try {
+      const links = await page.$$(selector);
+      if (links.length === 0) continue;
+
       const conversations = [];
       for (const link of links) {
-        const href = await link.getAttribute('href');
+        const href = await link.getAttribute('href').catch(() => null);
+        if (!href || !href.includes('/chat/')) continue;
         const title = await link.innerText().catch(() => 'Untitled');
-        if (href && href.includes('/chat/')) {
-          conversations.push({
-            title: title.trim().split('\n')[0].slice(0, 100),
-            url: href.startsWith('http') ? href : `https://claude.ai${href}`,
-            id: href.split('/chat/')[1]?.split('?')[0] || 'unknown',
-          });
-        }
+        const id = href.split('/chat/')[1]?.split('?')[0] || 'unknown';
+        if (id === 'unknown') continue;
+        conversations.push({
+          title: title.trim().split('\n')[0].slice(0, 100),
+          url: href.startsWith('http') ? href : `https://claude.ai${href}`,
+          id,
+        });
       }
-      // Dedupe by id
+
       const seen = new Set();
-      return conversations.filter(c => {
+      const deduped = conversations.filter(c => {
         if (seen.has(c.id)) return false;
         seen.add(c.id);
         return true;
       });
-    }
+
+      if (deduped.length > 0) {
+        log(`Found ${deduped.length} conversations using selector: ${selector}`);
+        return deduped;
+      }
+    } catch { /* selector failed, try next */ }
   }
 
-  // Fallback: try to find any links that look like conversations
-  const allLinks = await page.$$('a');
-  const conversations = [];
-  for (const link of allLinks) {
-    const href = await link.getAttribute('href').catch(() => null);
-    if (href && href.includes('/chat/')) {
-      const title = await link.innerText().catch(() => 'Untitled');
-      conversations.push({
-        title: title.trim().split('\n')[0].slice(0, 100),
-        url: href.startsWith('http') ? href : `https://claude.ai${href}`,
-        id: href.split('/chat/')[1]?.split('?')[0] || 'unknown',
-      });
-    }
+  // Last resort: scan ALL links on the page for /chat/ patterns
+  try {
+    const allConvs = await page.$$eval('a', links =>
+      links
+        .filter(l => l.href && l.href.includes('/chat/'))
+        .map(l => ({
+          title: (l.innerText || 'Untitled').trim().split('\n')[0].slice(0, 100),
+          url: l.href,
+          id: l.href.split('/chat/')[1]?.split('?')[0] || 'unknown',
+        }))
+        .filter(c => c.id !== 'unknown')
+    );
+    const seen = new Set();
+    return allConvs.filter(c => {
+      if (seen.has(c.id)) return false;
+      seen.add(c.id);
+      return true;
+    });
+  } catch {
+    return [];
   }
-
-  const seen = new Set();
-  return conversations.filter(c => {
-    if (seen.has(c.id)) return false;
-    seen.add(c.id);
-    return true;
-  });
 }
 
 // ─── Scrape a single conversation ────────────────────────────────────
 async function scrapeConversation(page, conv) {
   await page.goto(conv.url, { waitUntil: 'domcontentloaded', timeout: 20000 });
-  await page.waitForTimeout(2500);
 
-  // Scroll down to load all messages (Claude lazy-loads)
+  // Wait for messages to render — poll for message elements
+  const msgWaitStart = Date.now();
+  let hasMessages = false;
+  while (Date.now() - msgWaitStart < 8000) {
+    hasMessages = await page.evaluate(() => {
+      return !!(
+        document.querySelector('[data-testid="user-message"]') ||
+        document.querySelector('.font-claude-message') ||
+        document.querySelector('[data-message-author-role]') ||
+        document.querySelectorAll('[data-test-render-count]').length >= 2
+      );
+    });
+    if (hasMessages) break;
+    await page.waitForTimeout(500);
+  }
+
   await autoScroll(page);
-
-  // Extract messages — try multiple selector strategies
-  const messages = await extractMessages(page, conv);
-  return messages;
+  return await extractMessages(page, conv);
 }
 
 async function extractMessages(page, conv) {
-  const messages = [];
   const now = new Date();
 
-  // Strategy 1: Look for message containers with role indicators
-  const messageBlocks = await page.$$('[data-testid*="message"], [class*="Message"], [class*="message-content"], .font-claude-message, .font-user-message, [data-is-streaming]');
+  // Strategy 1 (highest confidence): Claude-specific user-message + font-claude-message selectors
+  const s1Messages = await page.evaluate(() => {
+    const results = [];
+    const userMsgs = document.querySelectorAll('[data-testid="user-message"]');
+    const claudeMsgs = document.querySelectorAll('.font-claude-message');
 
-  if (messageBlocks.length > 0) {
-    log(`  Using message block selectors (${messageBlocks.length} blocks)`);
-    for (let i = 0; i < messageBlocks.length; i++) {
-      const block = messageBlocks[i];
-      const text = await block.innerText().catch(() => '');
-      if (!text.trim()) continue;
+    // Build ordered list using document position via data-test-render-count containers
+    const allTurns = [];
 
-      // Try to determine role from classes or attributes
-      const classList = await block.getAttribute('class').catch(() => '');
-      const testId = await block.getAttribute('data-testid').catch(() => '');
-      const isHuman = classList?.includes('human') || classList?.includes('user') || testId?.includes('human') || testId?.includes('user');
-      const role = isHuman ? 'user' : (i % 2 === 0 ? 'user' : 'assistant');
+    userMsgs.forEach(el => {
+      const container = el.closest('[data-test-render-count]');
+      const pos = container
+        ? Array.from(document.querySelectorAll('[data-test-render-count]')).indexOf(container)
+        : -1;
+      const paragraphs = Array.from(el.querySelectorAll('p'))
+        .map(p => p.textContent?.trim())
+        .filter(Boolean)
+        .join('\n\n');
+      const text = paragraphs || el.innerText?.trim() || '';
+      if (text) allTurns.push({ role: 'user', content: text, pos });
+    });
 
-      messages.push({
-        role,
-        content: text.trim(),
-        sessionId: conv.title,
-        timestamp: new Date(now.getTime() - (messageBlocks.length - i) * 60000).toISOString(),
+    claudeMsgs.forEach(el => {
+      const container = el.closest('[data-test-render-count]');
+      const pos = container
+        ? Array.from(document.querySelectorAll('[data-test-render-count]')).indexOf(container)
+        : -1;
+      // Collect paragraphs, code blocks, and lists properly
+      const parts = [];
+      el.querySelectorAll('p, pre, ol, ul').forEach(child => {
+        if (child.tagName === 'PRE') {
+          const code = child.querySelector('code');
+          const lang = code?.className?.match(/language-(\w+)/)?.[1] || '';
+          parts.push('```' + lang + '\n' + (code || child).textContent.trim() + '\n```');
+        } else {
+          const t = child.textContent?.trim();
+          if (t) parts.push(t);
+        }
       });
-    }
-    if (messages.length > 0) return messages;
+      const text = parts.join('\n\n') || el.innerText?.trim() || '';
+      if (text) allTurns.push({ role: 'assistant', content: text, pos });
+    });
+
+    allTurns.sort((a, b) => a.pos - b.pos);
+    return allTurns.map(t => ({ role: t.role, content: t.content }));
+  });
+
+  if (s1Messages.length >= 2) {
+    log(`  Using Claude-specific selectors (${s1Messages.length} messages)`);
+    return s1Messages.map((m, i) => ({
+      ...m,
+      sessionId: conv.title,
+      timestamp: new Date(now.getTime() - (s1Messages.length - i) * 60000).toISOString(),
+    }));
   }
 
-  // Strategy 2: Look for the chat turn pattern (alternating human/assistant)
-  const turnSelectors = [
-    '.min-h-\\[20px\\]',
-    '[class*="ConversationTurn"]',
-    '[class*="prose"]',
-    '[class*="whitespace-pre"]',
-    'article',
-  ];
+  // Strategy 2: Look for data-message-author-role (generic, used by some UI variants)
+  const s2Messages = await page.evaluate(() => {
+    const blocks = document.querySelectorAll('[data-message-author-role]');
+    return Array.from(blocks).map(block => ({
+      role: block.getAttribute('data-message-author-role') || 'unknown',
+      content: block.innerText?.trim() || '',
+    })).filter(m => (m.role === 'user' || m.role === 'assistant') && m.content);
+  });
 
+  if (s2Messages.length >= 2) {
+    log(`  Using data-message-author-role (${s2Messages.length} messages)`);
+    return s2Messages.map((m, i) => ({
+      ...m,
+      sessionId: conv.title,
+      timestamp: new Date(now.getTime() - (s2Messages.length - i) * 60000).toISOString(),
+    }));
+  }
+
+  // Strategy 3: Turn containers with [data-test-render-count], alternating roles
+  const s3Messages = await page.evaluate(() => {
+    const turns = document.querySelectorAll('[data-test-render-count]');
+    return Array.from(turns).map((el, i) => ({
+      role: i % 2 === 0 ? 'user' : 'assistant',
+      content: el.innerText?.trim() || '',
+    })).filter(m => m.content && m.content.length > 3);
+  });
+
+  if (s3Messages.length >= 2) {
+    log(`  Using data-test-render-count turns (${s3Messages.length} messages)`);
+    return s3Messages.map((m, i) => ({
+      ...m,
+      sessionId: conv.title,
+      timestamp: new Date(now.getTime() - (s3Messages.length - i) * 60000).toISOString(),
+    }));
+  }
+
+  // Strategy 4: Alternating turn containers (article, .group, etc.)
+  const turnSelectors = ['article', '[class*="ConversationTurn"]', '.group'];
   for (const selector of turnSelectors) {
     const turns = await page.$$(selector);
     if (turns.length >= 2) {
-      log(`  Using turn selector: ${selector} (${turns.length} turns)`);
+      log(`  Using fallback turn selector: ${selector} (${turns.length} turns)`);
+      const messages = [];
       for (let i = 0; i < turns.length; i++) {
         const text = await turns[i].innerText().catch(() => '');
         if (!text.trim() || text.trim().length < 3) continue;
-
         messages.push({
           role: i % 2 === 0 ? 'user' : 'assistant',
           content: text.trim(),
@@ -403,43 +458,47 @@ async function extractMessages(page, conv) {
         });
       }
       if (messages.length >= 2) return messages;
-      messages.length = 0; // Reset if not enough
     }
   }
 
-  // Strategy 3: Grab everything from the main content area
+  // Strategy 5: Full page fallback
   const mainContent = await page.$('main') || await page.$('[role="main"]') || await page.$('.flex-1');
   if (mainContent) {
     const fullText = await mainContent.innerText().catch(() => '');
     if (fullText.trim().length > 50) {
-      log('  Using full content fallback');
-      messages.push({
-        role: 'user',
-        content: '[Full conversation text — manual parsing needed]',
-        sessionId: conv.title,
-        timestamp: now.toISOString(),
-      });
-      messages.push({
+      log('  Using full content fallback (could not identify individual messages)');
+      await saveDebugScreenshot(page, `fallback-${conv.id.slice(0, 8)}`);
+      return [{
         role: 'assistant',
         content: fullText.trim().slice(0, 10000),
         sessionId: conv.title,
         timestamp: now.toISOString(),
-      });
+      }];
     }
   }
 
-  return messages;
+  warn(`  No messages extracted for "${conv.title}"`);
+  await saveDebugScreenshot(page, `empty-${conv.id.slice(0, 8)}`);
+  return [];
 }
 
 // ─── Auto-scroll to load all messages ────────────────────────────────
 async function autoScroll(page) {
   await page.evaluate(async () => {
-    const main = document.querySelector('main') || document.querySelector('[role="main"]') || document.body;
-    const scrollEl = main.querySelector('[class*="overflow"]') || main;
+    // Claude uses various scroll containers — find the right one
+    const candidates = [
+      document.querySelector('[class*="overflow-y-auto"]'),
+      document.querySelector('[class*="overflow-auto"]'),
+      document.querySelector('main [class*="overflow"]'),
+      document.querySelector('main'),
+      document.querySelector('[role="main"]'),
+    ].filter(Boolean);
+
+    const scrollEl = candidates[0] || document.documentElement;
     let lastHeight = scrollEl.scrollHeight;
-    for (let i = 0; i < 10; i++) {
+    for (let i = 0; i < 15; i++) {
       scrollEl.scrollTop = scrollEl.scrollHeight;
-      await new Promise(r => setTimeout(r, 800));
+      await new Promise(r => setTimeout(r, 600));
       if (scrollEl.scrollHeight === lastHeight) break;
       lastHeight = scrollEl.scrollHeight;
     }
@@ -472,15 +531,16 @@ async function sendToApi(messages, resolvedUserId) {
 
       if (res.ok) {
         totalIngested += batch.length;
-        log(`✅ Batch ${Math.floor(i / BATCH_SIZE) + 1}: ingested ${batch.length} messages (${totalIngested}/${messages.length})`);
+        log(`Batch ${Math.floor(i / BATCH_SIZE) + 1}: ingested ${batch.length} messages (${totalIngested}/${messages.length})`);
       } else {
         warn(`Batch ${Math.floor(i / BATCH_SIZE) + 1} returned ${res.status}: ${JSON.stringify(data)}`);
       }
     } catch (err) {
       warn(`Failed to reach API at ${API_URL}: ${err.message}`);
       log('Saving remaining payload to fallback file...');
-      const fs = await import('fs');
-      const fallbackPath = `./claude-messages-${Date.now()}.json`;
+      const dataDir = path.join(process.cwd(), 'data');
+      if (!fs.existsSync(dataDir)) fs.mkdirSync(dataDir, { recursive: true });
+      const fallbackPath = path.join(dataDir, `claude-messages-${Date.now()}.json`);
       fs.writeFileSync(
         fallbackPath,
         JSON.stringify({ userId: resolvedUserId, source: 'claude', messages }, null, 2)
@@ -490,31 +550,31 @@ async function sendToApi(messages, resolvedUserId) {
     }
   }
 
-  log(`✅ All ${totalIngested} messages sent successfully`);
+  log(`All ${totalIngested} messages sent successfully`);
 }
 
 // ─── Run embedding pipeline ──────────────────────────────────────────
 async function runEmbeddingPipeline() {
-  return new Promise((resolve, reject) => {
+  return new Promise((resolve) => {
     const scriptPath = path.join(process.cwd(), 'scripts', 'embed-chat-history.ts');
+    if (!fs.existsSync(scriptPath)) {
+      log('Embedding script not found, skipping.');
+      return resolve();
+    }
     const child = spawn('npx', ['tsx', scriptPath], {
       cwd: process.cwd(),
       stdio: 'inherit',
     });
 
     child.on('close', (code) => {
-      if (code === 0) {
-        log('✅ Embedding pipeline completed');
-        resolve();
-      } else {
-        warn(`Embedding pipeline exited with code ${code}`);
-        resolve(); // Don't fail the scraper if embedding fails
-      }
+      if (code === 0) log('Embedding pipeline completed');
+      else warn(`Embedding pipeline exited with code ${code}`);
+      resolve();
     });
 
     child.on('error', (err) => {
       warn(`Failed to run embedding pipeline: ${err.message}`);
-      resolve(); // Don't fail the scraper if embedding fails
+      resolve();
     });
   });
 }
@@ -522,13 +582,8 @@ async function runEmbeddingPipeline() {
 // ─── Get browser user data directory ─────────────────────────────────
 function getUserDataDir() {
   const home = process.env.HOME || process.env.USERPROFILE;
-
   if (args['profile-dir']) return args['profile-dir'];
-
-  // Source-specific profile avoids cross-account contamination between services.
-  const playwrightDir = `${home}/.nightshift-browser-claude`;
-
-  return playwrightDir;
+  return `${home}/.nightshift-browser-claude`;
 }
 
 // ─── Run ─────────────────────────────────────────────────────────────

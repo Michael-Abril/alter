@@ -1,17 +1,18 @@
 /**
  * OpenClaw — ChatGPT Chat History Scraper
  * 
- * Uses Playwright to open chat.openai.com, read recent conversations,
+ * Uses Playwright to open chatgpt.com, read recent conversations,
  * extract message content, and POST it to the NightShift ingest API.
  * 
  * Uses your existing browser session — no credentials stored in code.
  * 
  * Usage:
- *   node scrape-chatgpt.mjs [--max=10] [--api=http://localhost:3000/api/chat-history/ingest] [--user=user_test_123] [--dry-run]
+ *   node scrape-chatgpt.mjs [--max=10] [--user=user_test_123] [--dry-run]
  */
 
 import { chromium } from 'playwright';
 import fs from 'fs';
+import path from 'path';
 import { resolveInternalUserId } from './user-resolver.mjs';
 
 // ─── Config ──────────────────────────────────────────────────────────
@@ -23,6 +24,9 @@ const DRY_RUN = args['dry-run'] !== undefined;
 const HEADLESS = args.headless !== undefined;
 const SINCE_DAYS = Math.max(1, parseInt(args['since-days'] || '3', 10));
 const RESET_PROFILE = args['reset-profile'] !== undefined;
+
+const SESSION_TRACKER_PATH = path.join(process.cwd(), 'data', 'scraped-sessions.json');
+const SCREENSHOT_DIR = path.join(process.cwd(), 'data', 'debug-screenshots');
 
 function parseArgs(argv) {
   const result = {};
@@ -43,22 +47,32 @@ function warn(msg) {
   console.warn(`[openclaw:chatgpt] ⚠ ${msg}`);
 }
 
-function isChatGPTLoginUrl(url) {
-  return url.includes('/auth/login') || url.includes('login');
+function isChatGPTAuthUrl(url) {
+  try {
+    const u = new URL(url);
+    return (
+      u.pathname.includes('/auth/login') ||
+      u.hostname.includes('auth0.openai.com') ||
+      u.hostname.includes('login.microsoftonline') ||
+      u.hostname.includes('accounts.google.com')
+    );
+  } catch {
+    return url.includes('/auth/login');
+  }
 }
 
 async function isLikelyAuthStep(page) {
   try {
     return await page.evaluate(() => {
       const url = window.location.href.toLowerCase();
-      if (url.includes('auth') || url.includes('login') || url.includes('signin')) return true;
+      if (url.includes('/auth/') || url.includes('auth0') || url.includes('signin')) return true;
       if (document.querySelector('input[type="password"], input[type="email"]')) return true;
       const text = document.body?.innerText?.toLowerCase() || '';
       return (
         text.includes('continue with google') ||
         text.includes('enter your password') ||
-        text.includes('sign in') ||
-        text.includes('log in')
+        text.includes('welcome back') ||
+        text.includes('sign in')
       );
     });
   } catch {
@@ -67,17 +81,42 @@ async function isLikelyAuthStep(page) {
 }
 
 async function waitForChatGPTLogin(page) {
-  log('⏳ Waiting for ChatGPT login to complete...');
+  log('Waiting for ChatGPT login to complete...');
   log('   This window will stay open until you finish logging in.');
   while (true) {
     await page.waitForTimeout(3000);
     const currentUrl = page.url();
-    const stillAuth = isChatGPTLoginUrl(currentUrl) || (await isLikelyAuthStep(page));
+    const stillAuth = isChatGPTAuthUrl(currentUrl) || (await isLikelyAuthStep(page));
     if (!stillAuth) {
-      log('✅ ChatGPT auth flow completed. Continuing scrape...');
+      log('ChatGPT auth flow completed. Continuing scrape...');
       break;
     }
   }
+}
+
+async function saveDebugScreenshot(page, name) {
+  try {
+    if (!fs.existsSync(SCREENSHOT_DIR)) fs.mkdirSync(SCREENSHOT_DIR, { recursive: true });
+    const filepath = path.join(SCREENSHOT_DIR, `chatgpt-${name}-${Date.now()}.png`);
+    await page.screenshot({ path: filepath, fullPage: true });
+    log(`Debug screenshot saved: ${filepath}`);
+  } catch { /* non-fatal */ }
+}
+
+// ─── Session Tracking ────────────────────────────────────────────────
+function loadScrapedSessions() {
+  if (!fs.existsSync(SESSION_TRACKER_PATH)) return { claude: {}, chatgpt: {} };
+  try {
+    return JSON.parse(fs.readFileSync(SESSION_TRACKER_PATH, 'utf-8'));
+  } catch {
+    return { claude: {}, chatgpt: {} };
+  }
+}
+
+function saveScrapedSessions(data) {
+  const dir = path.dirname(SESSION_TRACKER_PATH);
+  if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+  fs.writeFileSync(SESSION_TRACKER_PATH, JSON.stringify(data, null, 2));
 }
 
 // ─── Main ────────────────────────────────────────────────────────────
@@ -85,6 +124,9 @@ async function main() {
   const resolvedUserId = await resolveInternalUserId(USER_ID);
   log('Starting ChatGPT scraper');
   log(`Config: max=${MAX_CONVERSATIONS}, api=${API_URL}, user=${resolvedUserId}, dry-run=${DRY_RUN}, since-days=${SINCE_DAYS}`);
+
+  const trackedSessions = loadScrapedSessions();
+  log(`Loaded session tracker: ${Object.keys(trackedSessions.chatgpt || {}).length} sessions tracked`);
 
   const userDataDir = getUserDataDir();
   log(`Using browser profile: ${userDataDir}`);
@@ -109,9 +151,10 @@ async function main() {
     const currentUrl = page.url();
     log(`Current URL: ${currentUrl}`);
 
-    if (isChatGPTLoginUrl(currentUrl)) {
+    if (isChatGPTAuthUrl(currentUrl) || (await isLikelyAuthStep(page))) {
       if (HEADLESS) {
         warn('AUTH_REQUIRED: Not logged in to ChatGPT.');
+        await saveDebugScreenshot(page, 'auth-required');
         await context.close();
         process.exit(2);
       }
@@ -120,32 +163,51 @@ async function main() {
       await page.waitForTimeout(2500);
     }
 
-    log('✅ Proceeding with scrape...');
-    log('✅ Logged in — session active');
-    await page.waitForTimeout(2000);
+    log('Logged in — session active');
 
-    // Get conversation links from the sidebar
-    let conversations = await getConversationList(page, !HEADLESS);
-    if (!HEADLESS && conversations.length === 0) {
-      log('⏳ Waiting for ChatGPT conversations to appear after login...');
-      while (conversations.length === 0) {
-        if (await isLikelyAuthStep(page)) {
-          log('⏳ Still in ChatGPT auth flow...');
-        }
-        await page.waitForTimeout(3000);
-        conversations = await getConversationList(page, false);
+    // Wait for sidebar to populate with smart polling
+    let conversations = [];
+    const maxWaitMs = HEADLESS ? 15000 : 60000;
+    const startWait = Date.now();
+    while (Date.now() - startWait < maxWaitMs) {
+      conversations = await getConversationList(page);
+      if (conversations.length > 0) break;
+      if (await isLikelyAuthStep(page)) {
+        log('Still in ChatGPT auth flow...');
       }
+      log(`Waiting for conversation list... (${Math.round((Date.now() - startWait) / 1000)}s)`);
+      await page.waitForTimeout(2000);
     }
-    const toScrape = conversations.slice(0, MAX_CONVERSATIONS);
-    log(`Found ${conversations.length} conversations, scraping ${toScrape.length}`);
 
-    if (toScrape.length === 0) {
+    log(`Found ${conversations.length} conversations`);
+
+    if (conversations.length === 0) {
       warn('No conversations found. The page layout may have changed.');
+      await saveDebugScreenshot(page, 'no-conversations');
       await context.close();
       process.exit(1);
     }
 
+    // Filter: skip already-scraped conversations, cap to MAX
+    const toScrape = [];
+    const incrementalMode = !args['since-days'];
+    for (const conv of conversations) {
+      if (toScrape.length >= MAX_CONVERSATIONS) break;
+      if (incrementalMode && trackedSessions.chatgpt?.[conv.id]) continue;
+      toScrape.push(conv);
+    }
+
+    log(`Scraping ${toScrape.length} conversations (${conversations.length - toScrape.length} skipped)`);
+
+    if (toScrape.length === 0) {
+      log('All conversations already scraped. Nothing new to process.');
+      await context.close();
+      return;
+    }
+
     const allMessages = [];
+    const scrapedSessionData = {};
+
     for (let i = 0; i < toScrape.length; i++) {
       const conv = toScrape[i];
       log(`[${i + 1}/${toScrape.length}] Scraping: "${conv.title}"`);
@@ -153,14 +215,19 @@ async function main() {
       try {
         const messages = await scrapeConversation(page, conv);
         allMessages.push(...messages);
-        log(`  → Extracted ${messages.length} messages`);
+        log(`  -> Extracted ${messages.length} messages`);
+
+        scrapedSessionData[conv.id] = {
+          title: conv.title,
+          messageCount: messages.length,
+          lastScraped: new Date().toISOString(),
+        };
       } catch (err) {
-        warn(`  → Failed to scrape "${conv.title}": ${err.message}`);
+        warn(`  -> Failed to scrape "${conv.title}": ${err.message}`);
+        await saveDebugScreenshot(page, `fail-${conv.id.slice(0, 8)}`);
       }
 
-      if (i < toScrape.length - 1) {
-        await page.waitForTimeout(1500);
-      }
+      if (i < toScrape.length - 1) await page.waitForTimeout(1500);
     }
 
     const cutoffTs = Date.now() - SINCE_DAYS * 24 * 60 * 60 * 1000;
@@ -187,270 +254,290 @@ async function main() {
       }, null, 2));
     } else {
       await sendToApi(recentMessages, resolvedUserId);
+
+      trackedSessions.chatgpt = { ...trackedSessions.chatgpt, ...scrapedSessionData };
+      saveScrapedSessions(trackedSessions);
+      log(`Updated session tracker: ${Object.keys(trackedSessions.chatgpt).length} total sessions`);
     }
 
-    log('Done ✅');
+    log('Done');
   } catch (err) {
     console.error('[openclaw:chatgpt] Fatal error:', err);
+    await saveDebugScreenshot(page, 'fatal').catch(() => {});
   } finally {
     await context.close();
   }
 }
 
 // ─── Get conversation list from sidebar ──────────────────────────────
-async function getConversationList(page, allowNavigationFallback = true) {
-  // ChatGPT UI has changed frequently - try multiple selectors
-  const selectors = [
+async function getConversationList(page) {
+  // ChatGPT sidebar uses /c/ links
+  const selectorGroups = [
     'nav a[href*="/c/"]',
+    'a[href^="/c/"]',
     'a[href*="/c/"]',
     'nav ol li a',
-    'nav li a',
-    '[data-testid="conversation-turn"]',
-    'div[role="listitem"] a',
+    'nav li a[href*="/c/"]',
     'aside a[href*="/c/"]',
-    'div[class*="conversation"] a',
-    'li a[href*="/c/"]',
-    'a[href^="/c/"]',
   ];
 
-  // Wait a bit for dynamic content
-  log('Waiting for dynamic content...');
-  await page.waitForTimeout(5000);
-  
-  // Debug: log page structure
-  const pageContent = await page.content();
-  log(`Page has ${pageContent.length} characters of HTML`);
-  
-  // Check if there are any conversation links at all
-  const totalLinks = await page.$$('a');
-  log(`Found ${totalLinks.length} total links on page`);
-  
-  if (allowNavigationFallback && totalLinks.length === 0) {
-    log('No links found - trying to navigate directly to conversation list');
-    // Try navigating to the conversation list directly
-    // Try alternative ChatGPT URLs
-    const urls = [
-      'https://chat.openai.com/',
-      'https://chatgpt.com/c/',
-      'https://chat.openai.com/c/',
-    ];
-    
-    for (const url of urls) {
-      log(`Trying URL: ${url}`);
-      await page.goto(url, { waitUntil: 'domcontentloaded' });
-      await page.waitForTimeout(3000);
-      
-      const testLinks = await page.$$('a');
-      if (testLinks.length > 0) {
-        log(`✅ Found ${testLinks.length} links at ${url}`);
-        break;
-      }
-    }
-    
-    const retryLinks = await page.$$('a');
-    log(`After retry: Found ${retryLinks.length} total links`);
-  }
-  
-  const conversationLinks = await page.$$eval('a', links =>
-    links.filter(link => link.href && link.href.includes('/c/')).map(link => ({
-      href: link.href,
-      text: link.innerText?.slice(0, 50) || 'No text'
-    }))
-  );
-  log(`Found ${conversationLinks.length} conversation links:`, conversationLinks.slice(0, 3));
+  for (const selector of selectorGroups) {
+    try {
+      const links = await page.$$(selector);
+      if (links.length === 0) continue;
 
-  for (const selector of selectors) {
-    const links = await page.$$(selector);
-    log(`Trying selector "${selector}": found ${links.length} elements`);
-    
-    if (links.length > 0) {
-      log(`✅ Found conversations using selector: ${selector}`);
       const conversations = [];
       for (const link of links) {
-        const href = await link.getAttribute('href');
+        const href = await link.getAttribute('href').catch(() => null);
+        if (!href || !href.includes('/c/')) continue;
         const title = await link.innerText().catch(() => 'Untitled');
-        if (href && href.includes('/c/')) {
-          conversations.push({
-            title: title.trim().split('\n')[0].slice(0, 100),
-            url: href.startsWith('http') ? href : `https://chatgpt.com${href}`,
-            id: href.split('/c/')[1]?.split('?')[0] || 'unknown',
-          });
-        }
+        const id = href.split('/c/')[1]?.split('?')[0] || 'unknown';
+        if (id === 'unknown') continue;
+        conversations.push({
+          title: title.trim().split('\n')[0].slice(0, 100),
+          url: href.startsWith('http') ? href : `https://chatgpt.com${href}`,
+          id,
+        });
       }
+
       const seen = new Set();
-      return conversations.filter(c => {
+      const deduped = conversations.filter(c => {
         if (seen.has(c.id)) return false;
         seen.add(c.id);
         return true;
       });
-    }
+
+      if (deduped.length > 0) {
+        log(`Found ${deduped.length} conversations using selector: ${selector}`);
+        return deduped;
+      }
+    } catch { /* selector failed, try next */ }
   }
 
-  // Fallback
-  const allLinks = await page.$$('a');
-  const conversations = [];
-  for (const link of allLinks) {
-    const href = await link.getAttribute('href').catch(() => null);
-    if (href && href.includes('/c/')) {
-      const title = await link.innerText().catch(() => 'Untitled');
-      conversations.push({
-        title: title.trim().split('\n')[0].slice(0, 100),
-        url: href.startsWith('http') ? href : `https://chatgpt.com${href}`,
-        id: href.split('/c/')[1]?.split('?')[0] || 'unknown',
-      });
-    }
+  // Last resort: scan ALL links
+  try {
+    const allConvs = await page.$$eval('a', links =>
+      links
+        .filter(l => l.href && l.href.includes('/c/'))
+        .map(l => ({
+          title: (l.innerText || 'Untitled').trim().split('\n')[0].slice(0, 100),
+          url: l.href,
+          id: l.href.split('/c/')[1]?.split('?')[0] || 'unknown',
+        }))
+        .filter(c => c.id !== 'unknown')
+    );
+    const seen = new Set();
+    return allConvs.filter(c => {
+      if (seen.has(c.id)) return false;
+      seen.add(c.id);
+      return true;
+    });
+  } catch {
+    return [];
   }
-  const seen = new Set();
-  return conversations.filter(c => {
-    if (seen.has(c.id)) return false;
-    seen.add(c.id);
-    return true;
-  });
 }
 
 // ─── Scrape a single conversation ────────────────────────────────────
 async function scrapeConversation(page, conv) {
   await page.goto(conv.url, { waitUntil: 'domcontentloaded', timeout: 20000 });
-  await page.waitForTimeout(3000);
+
+  // Wait for message elements to appear
+  const msgWaitStart = Date.now();
+  let hasMessages = false;
+  while (Date.now() - msgWaitStart < 8000) {
+    hasMessages = await page.evaluate(() => {
+      return !!(
+        document.querySelector('[data-message-author-role]') ||
+        document.querySelector('[data-testid^="conversation-turn"]') ||
+        document.querySelector('article')
+      );
+    });
+    if (hasMessages) break;
+    await page.waitForTimeout(500);
+  }
 
   await autoScroll(page);
-
-  const messages = await extractMessages(page, conv);
-  return messages;
+  return await extractMessages(page, conv);
 }
 
 async function extractMessages(page, conv) {
-  const messages = [];
   const now = new Date();
 
-  // Strategy 1: ChatGPT uses data-message-author-role attributes
-  const authorBlocks = await page.$$('[data-message-author-role]');
-  if (authorBlocks.length > 0) {
-    log(`  Using data-message-author-role (${authorBlocks.length} blocks)`);
-    for (let i = 0; i < authorBlocks.length; i++) {
-      const block = authorBlocks[i];
-      const role = await block.getAttribute('data-message-author-role');
-      if (role !== 'user' && role !== 'assistant') continue;
+  // Strategy 1 (highest confidence): data-message-author-role with proper content extraction
+  const s1Messages = await page.evaluate(() => {
+    const blocks = document.querySelectorAll('[data-message-author-role]');
+    return Array.from(blocks).map(block => {
+      const role = block.getAttribute('data-message-author-role');
+      if (role !== 'user' && role !== 'assistant') return null;
 
-      const text = await block.innerText().catch(() => '');
-      if (!text.trim()) continue;
+      // Extract content from the right child element rather than the whole block
+      const contentEl =
+        block.querySelector('[data-message-content]') ||
+        block.querySelector('.markdown') ||
+        block.querySelector('.prose') ||
+        block.querySelector('.whitespace-pre-wrap') ||
+        block;
 
+      // Handle code blocks properly
+      const clone = contentEl.cloneNode(true);
+      clone.querySelectorAll('button').forEach(b => b.remove());
+      clone.querySelectorAll('pre').forEach(pre => {
+        const code = pre.querySelector('code');
+        const lang = code?.className?.match(/language-(\w+)/)?.[1] || '';
+        const text = (code || pre).textContent.trim();
+        pre.replaceWith('```' + lang + '\n' + text + '\n```');
+      });
+
+      const text = clone.innerText?.trim() || '';
+      return text ? { role, content: text } : null;
+    }).filter(Boolean);
+  });
+
+  if (s1Messages.length >= 2) {
+    log(`  Using data-message-author-role (${s1Messages.length} messages)`);
+    return s1Messages.map((m, i) => ({
+      ...m,
+      sessionId: conv.title,
+      timestamp: new Date(now.getTime() - (s1Messages.length - i) * 60000).toISOString(),
+    }));
+  }
+
+  // Strategy 2: conversation-turn test IDs
+  const s2Messages = await page.evaluate(() => {
+    const turns = document.querySelectorAll('[data-testid^="conversation-turn"]');
+    return Array.from(turns).map((el, i) => {
+      const roleEl = el.querySelector('[data-message-author-role]');
+      const role = roleEl?.getAttribute('data-message-author-role') || (i % 2 === 0 ? 'user' : 'assistant');
+      const content = el.innerText?.trim() || '';
+      return (role === 'user' || role === 'assistant') && content.length > 3
+        ? { role, content }
+        : null;
+    }).filter(Boolean);
+  });
+
+  if (s2Messages.length >= 2) {
+    log(`  Using conversation-turn testids (${s2Messages.length} messages)`);
+    return s2Messages.map((m, i) => ({
+      ...m,
+      sessionId: conv.title,
+      timestamp: new Date(now.getTime() - (s2Messages.length - i) * 60000).toISOString(),
+    }));
+  }
+
+  // Strategy 3: article elements
+  const articles = await page.$$('article');
+  if (articles.length >= 2) {
+    log(`  Using article elements (${articles.length} articles)`);
+    const messages = [];
+    for (let i = 0; i < articles.length; i++) {
+      const text = await articles[i].innerText().catch(() => '');
+      if (!text.trim() || text.trim().length < 3) continue;
       messages.push({
-        role,
+        role: i % 2 === 0 ? 'user' : 'assistant',
         content: text.trim(),
         sessionId: conv.title,
-        timestamp: new Date(now.getTime() - (authorBlocks.length - i) * 60000).toISOString(),
+        timestamp: new Date(now.getTime() - (articles.length - i) * 60000).toISOString(),
       });
     }
-    if (messages.length > 0) return messages;
+    if (messages.length >= 2) return messages;
   }
 
-  // Strategy 2: Look for alternating message groups
-  const groupSelectors = [
-    '[data-testid*="conversation-turn"]',
-    'article',
-    '[class*="ConversationItem"]',
-    '.group',
-  ];
-
-  for (const selector of groupSelectors) {
-    const groups = await page.$$(selector);
-    if (groups.length >= 2) {
-      log(`  Using group selector: ${selector} (${groups.length} groups)`);
-      for (let i = 0; i < groups.length; i++) {
-        const text = await groups[i].innerText().catch(() => '');
-        if (!text.trim() || text.trim().length < 3) continue;
-
-        messages.push({
-          role: i % 2 === 0 ? 'user' : 'assistant',
-          content: text.trim(),
-          sessionId: conv.title,
-          timestamp: new Date(now.getTime() - (groups.length - i) * 60000).toISOString(),
-        });
-      }
-      if (messages.length >= 2) return messages;
-      messages.length = 0;
-    }
-  }
-
-  // Strategy 3: Full page fallback
+  // Strategy 4: Full page fallback
   const mainContent = await page.$('main') || await page.$('[role="main"]');
   if (mainContent) {
     const fullText = await mainContent.innerText().catch(() => '');
     if (fullText.trim().length > 50) {
-      log('  Using full content fallback');
-      messages.push({
-        role: 'user',
-        content: '[Full conversation text — manual parsing needed]',
-        sessionId: conv.title,
-        timestamp: now.toISOString(),
-      });
-      messages.push({
+      log('  Using full content fallback (could not identify individual messages)');
+      await saveDebugScreenshot(page, `fallback-${conv.id.slice(0, 8)}`);
+      return [{
         role: 'assistant',
         content: fullText.trim().slice(0, 10000),
         sessionId: conv.title,
         timestamp: now.toISOString(),
-      });
+      }];
     }
   }
 
-  return messages;
+  warn(`  No messages extracted for "${conv.title}"`);
+  await saveDebugScreenshot(page, `empty-${conv.id.slice(0, 8)}`);
+  return [];
 }
 
 // ─── Auto-scroll ─────────────────────────────────────────────────────
 async function autoScroll(page) {
   await page.evaluate(async () => {
-    const main = document.querySelector('main') || document.querySelector('[role="main"]') || document.body;
-    const scrollEl = main.querySelector('[class*="overflow"]') || main;
+    const candidates = [
+      document.querySelector('[class*="overflow-y-auto"]'),
+      document.querySelector('[class*="overflow-auto"]'),
+      document.querySelector('main [class*="overflow"]'),
+      document.querySelector('main'),
+      document.querySelector('[role="main"]'),
+    ].filter(Boolean);
+
+    const scrollEl = candidates[0] || document.documentElement;
     let lastHeight = scrollEl.scrollHeight;
-    for (let i = 0; i < 10; i++) {
+    for (let i = 0; i < 15; i++) {
       scrollEl.scrollTop = scrollEl.scrollHeight;
-      await new Promise(r => setTimeout(r, 800));
+      await new Promise(r => setTimeout(r, 600));
       if (scrollEl.scrollHeight === lastHeight) break;
       lastHeight = scrollEl.scrollHeight;
     }
   });
 }
 
-// ─── Send to NightShift ingest API ───────────────────────────────────
+// ─── Send to NightShift ingest API (batched) ─────────────────────────
 async function sendToApi(messages, resolvedUserId) {
-  const payload = {
-    userId: resolvedUserId,
-    source: 'chatgpt',
-    messages,
-  };
-
   log(`Sending ${messages.length} messages to ${API_URL}...`);
 
-  try {
-    const res = await fetch(API_URL, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload),
-    });
+  const BATCH_SIZE = 50;
+  let totalIngested = 0;
 
-    const data = await res.json();
+  for (let i = 0; i < messages.length; i += BATCH_SIZE) {
+    const batch = messages.slice(i, i + BATCH_SIZE);
+    const payload = {
+      userId: resolvedUserId,
+      source: 'chatgpt',
+      messages: batch,
+    };
 
-    if (res.ok) {
-      log(`✅ API response: ${JSON.stringify(data)}`);
-    } else {
-      warn(`API returned ${res.status}: ${JSON.stringify(data)}`);
+    try {
+      const res = await fetch(API_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+
+      const data = await res.json();
+
+      if (res.ok) {
+        totalIngested += batch.length;
+        log(`Batch ${Math.floor(i / BATCH_SIZE) + 1}: ingested ${batch.length} messages (${totalIngested}/${messages.length})`);
+      } else {
+        warn(`Batch ${Math.floor(i / BATCH_SIZE) + 1} returned ${res.status}: ${JSON.stringify(data)}`);
+      }
+    } catch (err) {
+      warn(`Failed to reach API at ${API_URL}: ${err.message}`);
+      log('Saving remaining payload to fallback file...');
+      const dataDir = path.join(process.cwd(), 'data');
+      if (!fs.existsSync(dataDir)) fs.mkdirSync(dataDir, { recursive: true });
+      const fallbackPath = path.join(dataDir, `chatgpt-messages-${Date.now()}.json`);
+      fs.writeFileSync(fallbackPath, JSON.stringify({
+        userId: resolvedUserId,
+        source: 'chatgpt',
+        messages,
+      }, null, 2));
+      log(`Saved to ${fallbackPath}`);
+      return;
     }
-  } catch (err) {
-    warn(`Failed to reach API at ${API_URL}: ${err.message}`);
-    log('Saving payload to fallback file...');
-    const fs = await import('fs');
-    const fallbackPath = `./chatgpt-messages-${Date.now()}.json`;
-    fs.writeFileSync(fallbackPath, JSON.stringify(payload, null, 2));
-    log(`Saved to ${fallbackPath}`);
   }
+
+  log(`All ${totalIngested} messages sent successfully`);
 }
 
 // ─── Get browser user data directory ─────────────────────────────────
 function getUserDataDir() {
   const home = process.env.HOME || process.env.USERPROFILE;
   if (args['profile-dir']) return args['profile-dir'];
-  // Source-specific profile avoids wrong-account carryover.
   return `${home}/.nightshift-browser-chatgpt`;
 }
 

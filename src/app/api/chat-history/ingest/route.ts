@@ -45,8 +45,10 @@ export async function POST(req: NextRequest) {
 
     console.log(`[chat-history/ingest] Received ${messages.length} messages from ${source} for user ${userId}`);
 
-    // Find user by clerkId, or create a placeholder user for local dev
-    let user = await db.user.findUnique({ where: { clerkId: userId } });
+    // Find user by clerkId OR internal id (scrapers may send either)
+    let user = await db.user.findFirst({
+      where: { OR: [{ clerkId: userId }, { id: userId }] },
+    });
 
     if (!user) {
       console.log(`[chat-history/ingest] User ${userId} not found, creating placeholder...`);

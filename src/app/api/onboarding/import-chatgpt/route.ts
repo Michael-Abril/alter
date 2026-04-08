@@ -128,7 +128,7 @@ export async function POST(req: NextRequest) {
               ? 'No ChatGPT conversations found for the current signed-in account. Retry with profile reset.'
               : `Imported ${importedMessages} recent ChatGPT messages.`,
           });
-          if (!needsAuth) {
+          if (!needsAuth && !noConversations) {
             writeLastSyncedAt(userId, 'chatgpt', new Date().toISOString());
           }
         })
