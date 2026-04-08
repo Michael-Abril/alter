@@ -212,15 +212,16 @@ export default function OnboardingPage() {
       if (data.success) {
         setGmailConnected(true);
         setGmailLoading(false);
+        // Advance to the next step automatically
+        setStep('github');
       } else {
-        // Fall back to OAuth redirect if Clerk token not available
+        // Fall back to full OAuth redirect — handles Drive + Calendar scopes too
         window.location.href = '/api/gmail/connect?onboarding=true';
       }
     } catch (err) {
       console.error('Failed to connect Gmail:', err);
       setGmailLoading(false);
-      // Show error but allow continuing
-      alert('Gmail OAuth not configured. You can skip this step and configure it later in Settings.');
+      window.location.href = '/api/gmail/connect?onboarding=true';
     }
   }
   
@@ -576,25 +577,24 @@ export default function OnboardingPage() {
         {/* Step 2: Connect Gmail */}
         {step === 'gmail' && (
           <div className="card">
-            <h2 className="text-2xl font-bold mb-3">Connect Gmail</h2>
+            <h2 className="text-2xl font-bold mb-3">Connect Google</h2>
             <p className="text-nightshift-text-secondary mb-6">
-              NightShift learns your writing style from your sent emails to draft replies that sound like you.
+              Enables Gmail drafts, saving documents to Google Drive, and pulling Calendar deadlines into your context.
             </p>
             
             {gmailConnected ? (
               <div className="flex items-center gap-3 p-4 rounded-lg bg-green-500/10 border border-green-500/30 mb-4">
                 <CheckCircle2 className="w-6 h-6 text-green-500" />
-                <span className="text-green-500 font-medium">Gmail Connected</span>
+                <div>
+                  <span className="text-green-500 font-medium">Google Connected</span>
+                  <p className="text-xs text-nightshift-text-muted mt-0.5">Gmail, Drive, and Calendar access granted</p>
+                </div>
               </div>
             ) : (
               <>
-                <div className="flex items-center gap-3 p-4 rounded-lg bg-yellow-500/10 border border-yellow-500/30 mb-4">
-                  <AlertCircle className="w-6 h-6 text-yellow-500" />
-                  <div className="text-sm text-yellow-500">
-                    <p className="font-medium">Gmail OAuth Not Configured</p>
-                    <p className="text-xs mt-1">
-                      Gmail setup requires Google Cloud credentials. You can skip this step and connect later from Settings.
-                    </p>
+                <div className="flex items-center gap-3 p-4 rounded-lg bg-nightshift-bg-light border border-nightshift-border mb-4">
+                  <div className="text-sm text-nightshift-text-secondary">
+                    <p>Connect your Google account to enable Gmail drafts, Google Drive document saving, and Calendar deadline detection.</p>
                   </div>
                 </div>
                 <button
@@ -608,7 +608,7 @@ export default function OnboardingPage() {
                       Connecting...
                     </>
                   ) : (
-                    'Try to Connect Gmail'
+                    'Connect Google'
                   )}
                 </button>
               </>
