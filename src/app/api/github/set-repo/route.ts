@@ -15,16 +15,6 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // Get internal user ID
-    const user = await db.user.findUnique({
-      where: { clerkId },
-      select: { id: true },
-    });
-
-    if (!user) {
-      return NextResponse.json({ error: 'User not found' }, { status: 404 });
-    }
-
     const body = await request.json();
     const { owner, repo, defaultBranch } = body;
 
@@ -35,7 +25,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const config = loadGitHubConfig(user.id);
+    const config = loadGitHubConfig(clerkId);
 
     if (!config || !config.token) {
       return NextResponse.json(
@@ -45,7 +35,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Update config with selected repo
-    saveGitHubConfig(user.id, {
+    saveGitHubConfig(clerkId, {
       ...config,
       defaultOwner: owner,
       defaultRepo: repo,

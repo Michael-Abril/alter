@@ -44,6 +44,9 @@ export default async function DashboardPage() {
     ? await db.chatMessage.count({ where: { userId: user.id } })
     : 0;
 
+  // New users with no data → send to onboarding
+  if (projects.length === 0 && chatCount === 0) redirect('/onboarding');
+
   const embeddedCount = user
     ? await db.chatMessage.count({ where: { userId: user.id, embedded: true } })
     : 0;

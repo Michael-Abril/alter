@@ -152,14 +152,16 @@ export default function OnboardingPage() {
   async function connectGmail() {
     setGmailLoading(true);
     try {
-      const res = await fetch('/api/gmail/connect');
+      const res = await fetch('/api/gmail/connect', { method: 'POST' });
       const data = await res.json();
-      if (data.success && data.data?.authUrl) {
-        // Redirect to Google OAuth
-        window.location.href = data.data.authUrl;
+      if (data.success) {
+        setGmailConnected(true);
+      } else {
+        console.error('Failed to connect Gmail:', data.error);
       }
     } catch (err) {
       console.error('Failed to connect Gmail:', err);
+    } finally {
       setGmailLoading(false);
     }
   }

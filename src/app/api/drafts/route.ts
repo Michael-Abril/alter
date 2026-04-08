@@ -24,39 +24,20 @@ export async function GET() {
       orderBy: { createdAt: 'desc' },
     });
 
-    if (drafts.length > 0) {
-      return apiSuccess(
-        drafts.map((d) => ({
-          id: d.id,
-          type: d.type,
-          title: d.title,
-          content: d.content,
-          targetApp: d.targetApp,
-          confidenceScore: d.confidenceScore,
-          status: d.status,
-          context: d.context ? JSON.parse(d.context) : null,
-          createdAt: d.createdAt.toISOString(),
-          updatedAt: d.updatedAt.toISOString(),
-        }))
-      );
-    }
-
-    // Fallback: show mock data when DB has zero drafts
-    return apiSuccess([
-      {
-        id: 'mock_draft_1',
-        type: 'email',
-        title: 'Re: Follow-up on Q2 Timeline',
-        content: 'Hey Sarah,\n\nJust following up on our conversation about the Q2 timeline.\n\nBest,\nUser',
-        targetApp: 'gmail',
-        confidenceScore: 0.87,
-        status: 'pending',
-        context: null,
-        createdAt: new Date(Date.now() - 3600000 * 2).toISOString(),
-        updatedAt: new Date(Date.now() - 3600000 * 2).toISOString(),
-        _mock: true,
-      },
-    ]);
+    return apiSuccess(
+      drafts.map((d) => ({
+        id: d.id,
+        type: d.type,
+        title: d.title,
+        content: d.content,
+        targetApp: d.targetApp,
+        confidenceScore: d.confidenceScore,
+        status: d.status,
+        context: d.context ? JSON.parse(d.context) : null,
+        createdAt: d.createdAt.toISOString(),
+        updatedAt: d.updatedAt.toISOString(),
+      }))
+    );
   } catch (error) {
     console.error('[drafts] Error:', error);
     return apiError('Failed to fetch drafts', 500);

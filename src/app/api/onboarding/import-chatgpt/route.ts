@@ -26,7 +26,7 @@ export async function POST(req: NextRequest) {
       console.log('[onboarding/import-chatgpt] Starting ChatGPT scraper...');
 
       // Run the ChatGPT scraper in the background
-      execAsync('node orchestration/scrape-chatgpt.mjs').catch(err => {
+      execAsync(`node orchestration/scrape-chatgpt.mjs --user=${userId}`).catch(err => {
         console.error('[onboarding/import-chatgpt] Scraper error:', err);
       });
 

@@ -23,7 +23,6 @@ interface Draft {
   context: any;
   createdAt: string;
   updatedAt: string;
-  _mock?: boolean;
 }
 
 export default function DraftsPage() {
@@ -158,12 +157,12 @@ export default function DraftsPage() {
 
             {drafts.length === 0 ? (
               <div className="card text-center py-12">
-                <div className="text-4xl mb-4">✨</div>
+                <div className="text-4xl mb-4">🌙</div>
                 <h2 className="text-lg font-semibold text-nightshift-text-primary">
-                  All Clear
+                  No drafts yet
                 </h2>
                 <p className="mt-2 text-nightshift-text-secondary">
-                  No drafts pending review. NightShift will create drafts when you hand off projects overnight.
+                  Activate NightShift from the Handoff page and check back in the morning.
                 </p>
               </div>
             ) : (
@@ -213,7 +212,7 @@ export default function DraftsPage() {
                       )}
 
                       {/* Context Info */}
-                      {draft.context && !draft._mock && (
+                      {draft.context && (
                         <div className="text-xs text-nightshift-text-muted mb-4 flex items-center gap-3">
                           {draft.context.retrievedSources > 0 && (
                             <span>📚 {draft.context.retrievedSources} sources</span>

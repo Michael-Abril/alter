@@ -11,62 +11,31 @@ import { apiSuccess, apiError } from '@/lib/utils';
 
 // GET: Return unfinished tasks detected for the user
 export async function GET() {
-  const { userId } = await auth();
-  if (!userId) return apiError('Unauthorized', 401);
+  const { userId: clerkId } = await auth();
+  if (!clerkId) return apiError('Unauthorized', 401);
 
-  // TODO: Person 3 (Royce) — Implement real unfinished work detection:
-  // 1. Check for draft emails in Gmail
-  // 2. Check for incomplete docs (via metadata from OpenClaw)
-  // 3. Check for open PRs on GitHub
-  // 4. Check for stalled projects from /api/projects
-  // 5. Score estimated confidence for each task
+  const user = await db.user.findUnique({ where: { clerkId } });
+  if (!user) return apiSuccess([]);
 
-  const mockTasks = [
-    {
-      id: 'task_1',
-      projectId: 'proj_1',
-      title: 'Finish Fanzley proposal — sections 3-5',
-      description: 'Proposal is 60% done. Sections 3 (Pricing), 4 (Timeline), and 5 (Terms) need completion.',
-      app: 'gdocs',
-      estimatedConfidence: 0.87,
-      selected: false,
-    },
-    {
-      id: 'task_2',
-      title: 'Reply to Sarah Chen — Q2 marketing timeline',
-      description: 'Sarah asked about the Q2 timeline. Draft a response confirming the Tuesday meeting.',
-      app: 'gmail',
-      estimatedConfidence: 0.92,
-      selected: false,
-    },
-    {
-      id: 'task_3',
-      title: 'Send follow-up to Mike about API specs',
-      description: 'Mike requested the technical specification summary yesterday.',
-      app: 'gmail',
-      estimatedConfidence: 0.89,
-      selected: false,
-    },
-    {
-      id: 'task_4',
-      title: 'Update project timeline in Notion',
-      description: 'The launch date moved from March 15 to March 22. Update milestones.',
-      app: 'notion',
-      estimatedConfidence: 0.85,
-      selected: false,
-    },
-    {
-      id: 'task_5',
-      projectId: 'proj_2',
-      title: 'Review and merge PR #47 — Auth refactor',
-      description: 'PR has been open for 2 days. Run tests, review changes, and merge if OK.',
-      app: 'github',
-      estimatedConfidence: 0.65,
-      selected: false,
-    },
-  ];
+  const projects = await db.project.findMany({
+    where: { userId: user.id, status: 'in_progress' },
+    orderBy: { lastActive: 'desc' },
+  });
 
-  return apiSuccess(mockTasks);
+  const tasks = projects.map((p) => {
+    const ctx = p.context ? JSON.parse(p.context) : {};
+    return {
+      id: p.id,
+      projectId: p.id,
+      title: p.name,
+      description: ctx.nextStep || p.description || `${p.progress}% complete — continue this work`,
+      app: 'claude',
+      estimatedConfidence: p.progress / 100,
+      selected: false,
+    };
+  });
+
+  return apiSuccess(tasks);
 }
 
 // POST: Submit handoff selections — activate NightShift for tonight
@@ -110,6 +79,7 @@ export async function POST(req: NextRequest) {
       scriptPath,
       `--user-id=${user.id}`,
       `--project-ids=${projectIds.join(',')}`,
+      '--skip-confirmation',
     ];
     
     if (instructions) {

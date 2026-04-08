@@ -1,5 +1,5 @@
 {
   "clientId": "Ov23liC88zpBh8ml5ysj",
-  "clientSecret": "61ba1d0e16b99c025b82579afd8a2d19c3cc6924",
+  "clientSecret": "87b86ccace5780204b65564058dd942d994be354",
   "redirectUri": "http://localhost:3000/api/github/callback"
 }

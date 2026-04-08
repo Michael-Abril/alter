@@ -22,7 +22,7 @@ export async function POST(req: NextRequest) {
 
     // Run the Claude scraper in the background
     // Note: In production, this should be a background job
-    execAsync('node orchestration/scrape-claude.mjs').catch(err => {
+    execAsync(`node orchestration/scrape-claude.mjs --user=${userId}`).catch(err => {
       console.error('[onboarding/import-claude] Scraper error:', err);
     });
 
