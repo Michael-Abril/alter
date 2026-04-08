@@ -168,19 +168,28 @@ export default function OnboardingPage() {
     try {
       const res = await fetch('/api/github/repos');
       const data = await res.json();
+      
+      console.log('[onboarding] GitHub repos response:', data);
+      
       if (data.success && data.data) {
         setGithubRepos(data.data);
-        const nightshiftRepo = data.data.find((r: any) => 
-          r.name.toLowerCase().includes('nightshift')
-        );
-        const defaultRepo = nightshiftRepo || data.data[0];
-        if (defaultRepo) {
-          setSelectedRepo(defaultRepo.fullName);
+        if (data.data.length === 0) {
+          setGithubError('No repositories found. Create a repository on GitHub first, then refresh this page.');
+        } else {
+          const nightshiftRepo = data.data.find((r: any) => 
+            r.name.toLowerCase().includes('nightshift')
+          );
+          const defaultRepo = nightshiftRepo || data.data[0];
+          if (defaultRepo) {
+            setSelectedRepo(defaultRepo.fullName);
+          }
         }
+      } else {
+        setGithubError(data.error || 'Failed to load repositories');
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error('Failed to fetch GitHub repos:', err);
-      setGithubError('Failed to load repositories');
+      setGithubError(`Failed to load repositories: ${err.message}`);
     }
   }
   
@@ -504,13 +513,21 @@ export default function OnboardingPage() {
                     </p>
                   </div>
                 ) : (
-                  <div className="flex items-center gap-3 p-4 rounded-lg bg-yellow-500/10 border border-yellow-500/30 mb-4">
-                    <AlertCircle className="w-6 h-6 text-yellow-500" />
-                    <div className="text-sm text-yellow-500">
-                      <p className="font-medium">No repositories found</p>
-                      <p className="text-xs mt-1">Create a repository on GitHub first, then refresh this page</p>
+                  <>
+                    <div className="flex items-center gap-3 p-4 rounded-lg bg-yellow-500/10 border border-yellow-500/30 mb-4">
+                      <AlertCircle className="w-6 h-6 text-yellow-500" />
+                      <div className="flex-1 text-sm text-yellow-500">
+                        <p className="font-medium">No repositories found</p>
+                        <p className="text-xs mt-1">Create a repository on GitHub first</p>
+                      </div>
                     </div>
-                  </div>
+                    <button
+                      className="btn-ghost w-full mb-4"
+                      onClick={fetchGitHubRepos}
+                    >
+                      Refresh Repositories
+                    </button>
+                  </>
                 )}
                 
                 {githubError && (
