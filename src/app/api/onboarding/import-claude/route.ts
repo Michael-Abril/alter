@@ -52,7 +52,11 @@ export async function POST(req: NextRequest) {
     const headless = body?.headless !== undefined ? Boolean(body.headless) : true;
     const existing = readSyncStatus(userId, 'claude');
     if (existing.state === 'running') {
-      return apiSuccess({ ...existing, alreadyRunning: true });
+      const staleMs = existing.startedAt ? Date.now() - new Date(existing.startedAt).getTime() : Infinity;
+      if (staleMs < 3 * 60 * 1000) {
+        return apiSuccess({ ...existing, alreadyRunning: true });
+      }
+      console.log('[onboarding/import-claude] Stale running state detected, allowing re-trigger');
     }
     const lastSyncedAt = readLastSyncedAt(userId, 'claude');
     if (lastSyncedAt && Date.now() - new Date(lastSyncedAt).getTime() < 5 * 60 * 1000) {
@@ -110,16 +114,19 @@ export async function POST(req: NextRequest) {
         const importedMessages = Math.max(0, afterCount - beforeCount);
         const output = `${stdout || ''}\n${stderr || ''}`;
         const needsAuth = output.includes('AUTH_REQUIRED');
+        const cloudflareBlocked = output.includes('CLOUDFLARE_BLOCKED');
         const noConversations = output.includes('No conversations found');
 
         writeSyncStatus(userId, 'claude', {
           source: 'claude',
-          state: needsAuth ? 'auth_required' : noConversations ? 'failed' : 'completed',
+          state: needsAuth || cloudflareBlocked ? 'auth_required' : noConversations ? 'failed' : 'completed',
           startedAt: runningStatus.startedAt,
           finishedAt: new Date().toISOString(),
           lookbackDays,
           importedMessages,
-          message: needsAuth
+          message: cloudflareBlocked
+            ? 'Cloudflare blocked headless browser. Try again — a browser window will open for you to verify.'
+            : needsAuth
             ? 'Claude needs sign-in. Open Claude once to authenticate, then retry import.'
             : noConversations
             ? 'No Claude conversations found for current account. Retry with profile reset.'

@@ -61,6 +61,33 @@ function isChatGPTAuthUrl(url) {
   }
 }
 
+async function isCloudflareChallenge(page) {
+  try {
+    return await page.evaluate(() => {
+      const text = document.body?.innerText?.toLowerCase() || '';
+      return (
+        text.includes('verify you are human') ||
+        text.includes('performing security verification') ||
+        text.includes('just a moment') ||
+        text.includes('checking your browser') ||
+        !!document.querySelector('iframe[src*="challenges.cloudflare.com"]') ||
+        !!document.querySelector('#challenge-running') ||
+        !!document.querySelector('.cf-turnstile')
+      );
+    });
+  } catch { return false; }
+}
+
+async function waitForCloudflareToPass(page, timeoutMs = 60000) {
+  const start = Date.now();
+  while (Date.now() - start < timeoutMs) {
+    if (!(await isCloudflareChallenge(page))) return true;
+    log('Cloudflare challenge detected — waiting for user to complete verification...');
+    await page.waitForTimeout(3000);
+  }
+  return false;
+}
+
 async function isLikelyAuthStep(page) {
   try {
     return await page.evaluate(() => {
@@ -138,7 +165,13 @@ async function main() {
   const context = await chromium.launchPersistentContext(userDataDir, {
     headless: HEADLESS,
     viewport: { width: 1280, height: 900 },
-    args: ['--disable-blink-features=AutomationControlled'],
+    args: [
+      '--disable-blink-features=AutomationControlled',
+      '--disable-features=IsolateOrigins,site-per-process',
+      '--no-sandbox',
+    ],
+    bypassCSP: true,
+    ignoreHTTPSErrors: true,
   });
 
   const page = context.pages()[0] || await context.newPage();
@@ -147,6 +180,25 @@ async function main() {
     log('Navigating to chatgpt.com...');
     await page.goto('https://chatgpt.com', { waitUntil: 'domcontentloaded', timeout: 30000 });
     await page.waitForTimeout(2000);
+
+    // Handle Cloudflare challenge
+    if (await isCloudflareChallenge(page)) {
+      if (HEADLESS) {
+        log('CLOUDFLARE_BLOCKED: Headless browser blocked by Cloudflare challenge');
+        await saveDebugScreenshot(page, 'cloudflare-blocked');
+        await context.close();
+        process.exit(3);
+      }
+      log('Cloudflare challenge detected — please click "Verify you are human" in the browser window');
+      const passed = await waitForCloudflareToPass(page, 120000);
+      if (!passed) {
+        warn('Cloudflare challenge timed out');
+        await saveDebugScreenshot(page, 'cloudflare-timeout');
+        await context.close();
+        process.exit(3);
+      }
+      await page.waitForTimeout(2000);
+    }
 
     const currentUrl = page.url();
     log(`Current URL: ${currentUrl}`);
@@ -161,6 +213,12 @@ async function main() {
       await waitForChatGPTLogin(page);
       await page.goto('https://chatgpt.com', { waitUntil: 'domcontentloaded', timeout: 30000 });
       await page.waitForTimeout(2500);
+
+      if (await isCloudflareChallenge(page)) {
+        log('Post-login Cloudflare challenge — please verify again');
+        await waitForCloudflareToPass(page, 60000);
+        await page.waitForTimeout(2000);
+      }
     }
 
     log('Logged in — session active');
