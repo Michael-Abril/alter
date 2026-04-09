@@ -13,7 +13,7 @@
 import { chromium } from 'playwright';
 import fs from 'fs';
 import path from 'path';
-import { resolveInternalUserId } from './user-resolver.mjs';
+// Scrapers send the Clerk userId directly — the ingest API handles the lookup
 
 // ─── Config ──────────────────────────────────────────────────────────
 const args = parseArgs(process.argv.slice(2));
@@ -99,7 +99,12 @@ async function isLikelyAuthStep(page) {
         text.includes('continue with google') ||
         text.includes('enter your password') ||
         text.includes('welcome back') ||
-        text.includes('sign in')
+        text.includes('sign in') ||
+        text.includes('verify your identity') ||
+        text.includes('verification code') ||
+        text.includes('check your email') ||
+        text.includes('confirm your email') ||
+        text.includes('enter the code')
       );
     });
   } catch {
@@ -148,7 +153,7 @@ function saveScrapedSessions(data) {
 
 // ─── Main ────────────────────────────────────────────────────────────
 async function main() {
-  const resolvedUserId = await resolveInternalUserId(USER_ID);
+  const resolvedUserId = USER_ID;
   log('Starting ChatGPT scraper');
   log(`Config: max=${MAX_CONVERSATIONS}, api=${API_URL}, user=${resolvedUserId}, dry-run=${DRY_RUN}, since-days=${SINCE_DAYS}`);
 
@@ -224,16 +229,19 @@ async function main() {
     log('Logged in — session active');
 
     // Wait for sidebar to populate with smart polling
+    // Non-headless: wait up to 5 minutes so user can complete 2FA/verification
     let conversations = [];
-    const maxWaitMs = HEADLESS ? 15000 : 60000;
+    const maxWaitMs = HEADLESS ? 15000 : 5 * 60 * 1000;
     const startWait = Date.now();
     while (Date.now() - startWait < maxWaitMs) {
       conversations = await getConversationList(page);
       if (conversations.length > 0) break;
-      if (await isLikelyAuthStep(page)) {
-        log('Still in ChatGPT auth flow...');
+      const inAuth = await isLikelyAuthStep(page);
+      if (inAuth) {
+        log('Auth/verification step detected — waiting for you to complete it in the browser...');
+      } else {
+        log(`Waiting for conversation list... (${Math.round((Date.now() - startWait) / 1000)}s)`);
       }
-      log(`Waiting for conversation list... (${Math.round((Date.now() - startWait) / 1000)}s)`);
       await page.waitForTimeout(2000);
     }
 

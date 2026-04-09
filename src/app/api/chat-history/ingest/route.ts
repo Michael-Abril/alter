@@ -51,15 +51,8 @@ export async function POST(req: NextRequest) {
     });
 
     if (!user) {
-      console.log(`[chat-history/ingest] User ${userId} not found, creating placeholder...`);
-      user = await db.user.create({
-        data: {
-          clerkId: userId,
-          email: `${userId}@nightshift.local`,
-          name: userId,
-        },
-      });
-      console.log(`[chat-history/ingest] Created placeholder user: ${user.id}`);
+      console.error(`[chat-history/ingest] No user found for identifier "${userId}" — rejecting`);
+      return apiError(`User not found: ${userId}`, 404);
     }
 
     // Validate messages

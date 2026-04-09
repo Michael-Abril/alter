@@ -15,21 +15,20 @@ export async function GET(req: NextRequest) {
 
   const status = readSyncStatus(userId, sourceParam as SyncSource);
 
-  // While running, query the live DB count so the UI shows real-time progress
-  if (status.state === 'running' || status.importedMessages === 0) {
-    try {
-      const cutoff = new Date();
-      cutoff.setDate(cutoff.getDate() - (status.lookbackDays || 3));
-      const liveCount = await db.chatMessage.count({
-        where: {
-          user: { clerkId: userId },
-          source: sourceParam,
-          timestamp: { gte: cutoff },
-        },
-      });
+  // Always augment with the live DB count — ensures the display is accurate
+  // even after deduplication (delta = 0) or after a test reset wipes the status file
+  try {
+    const liveCount = await db.chatMessage.count({
+      where: {
+        user: { clerkId: userId },
+        source: sourceParam,
+      },
+    });
+    // Use whichever is higher: the status file delta or the actual DB total
+    if (liveCount > (status.importedMessages ?? 0)) {
       status.importedMessages = liveCount;
-    } catch { /* non-fatal */ }
-  }
+    }
+  } catch { /* non-fatal */ }
 
   return apiSuccess(status);
 }

@@ -109,10 +109,6 @@ export default function OnboardingPage() {
   
   // Check if user already has Gmail and GitHub connected
   useEffect(() => {
-    checkGmailStatus();
-    checkGitHubStatus();
-    
-    // Check for OAuth callback query params
     const params = new URLSearchParams(window.location.search);
     const stepParam = params.get('step');
     const gmailParam = params.get('gmail');
@@ -125,6 +121,10 @@ export default function OnboardingPage() {
       void resetOnboardingTestState(true);
       return;
     }
+
+    checkGmailStatus();
+    checkGitHubStatus();
+    checkMessageCounts();
     
     // Gmail OAuth callback
     if (gmailParam === 'connected') {
@@ -237,7 +237,36 @@ export default function OnboardingPage() {
       console.error('Failed to check GitHub status:', err);
     }
   }
-  
+
+  async function checkMessageCounts() {
+    try {
+      const [claudeRes, chatgptRes] = await Promise.all([
+        fetch('/api/onboarding/import-status?source=claude'),
+        fetch('/api/onboarding/import-status?source=chatgpt'),
+      ]);
+      const [claudeData, chatgptData] = await Promise.all([
+        claudeRes.json(),
+        chatgptRes.json(),
+      ]);
+      if (claudeData.success) {
+        const count = claudeData.data?.importedMessages || 0;
+        if (count > 0) {
+          setClaudeMessages(count);
+          setClaudeStatus(`${count} Claude messages ready`);
+        }
+      }
+      if (chatgptData.success) {
+        const count = chatgptData.data?.importedMessages || 0;
+        if (count > 0) {
+          setChatgptMessages(count);
+          setChatgptStatus(`${count} ChatGPT messages ready`);
+        }
+      }
+    } catch (err) {
+      console.error('Failed to check message counts:', err);
+    }
+  }
+
   async function connectGitHub() {
     setGithubLoading(true);
     setGithubError('');

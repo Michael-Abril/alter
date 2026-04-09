@@ -15,7 +15,7 @@ import { chromium } from 'playwright';
 import fs from 'fs';
 import path from 'path';
 import { spawn } from 'child_process';
-import { resolveInternalUserId } from './user-resolver.mjs';
+// Scrapers send the Clerk userId directly — the ingest API handles the lookup
 
 // ─── Config ──────────────────────────────────────────────────────────
 const args = parseArgs(process.argv.slice(2));
@@ -122,7 +122,7 @@ function saveScrapedSessions(data) {
 
 // ─── Main ────────────────────────────────────────────────────────────
 async function main() {
-  const resolvedUserId = await resolveInternalUserId(USER_ID);
+  const resolvedUserId = USER_ID;
   log('Starting Claude.ai scraper');
   log(`Config: max=${MAX_CONVERSATIONS}, api=${API_URL}, user=${resolvedUserId}, dry-run=${DRY_RUN}, continuous=${CONTINUOUS}, since-days=${SINCE_DAYS}`);
 
@@ -199,9 +199,9 @@ async function main() {
 
     log('Logged in — session active');
 
-    // Wait for sidebar to populate with smart polling instead of fixed timeout
+    // Wait for sidebar to populate — non-headless gets 5 min so user can handle 2FA
     let conversations = [];
-    const maxWaitMs = HEADLESS ? 15000 : 60000;
+    const maxWaitMs = HEADLESS ? 15000 : 5 * 60 * 1000;
     const startWait = Date.now();
     while (Date.now() - startWait < maxWaitMs) {
       conversations = await getConversationList(page);
