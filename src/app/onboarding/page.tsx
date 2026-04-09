@@ -337,7 +337,7 @@ export default function OnboardingPage() {
   async function startImport(
     method: ImportSource,
     silent = false,
-    options?: { resetProfile?: boolean }
+    options?: { resetProfile?: boolean; chainChatGPT?: boolean }
   ) {
     const setImporting = method === 'claude' ? setClaudeImporting : setChatgptImporting;
     const setStatus = method === 'claude' ? setClaudeStatus : setChatgptStatus;
@@ -349,7 +349,6 @@ export default function OnboardingPage() {
     setMessages(0);
     
     try {
-      // Start the scraper
       const endpoint = method === 'claude' ? '/api/onboarding/import-claude' : '/api/onboarding/import-chatgpt';
       const res = await fetch(endpoint, {
         method: 'POST',
@@ -357,7 +356,6 @@ export default function OnboardingPage() {
         body: JSON.stringify({
           days: contextWindowDays,
           resetProfile: Boolean(options?.resetProfile),
-          // Keep silent prewarm invisible; manual imports open browser like old behavior.
           headless: silent,
         }),
       });
@@ -365,7 +363,7 @@ export default function OnboardingPage() {
       
       if (data.success) {
         setStatus(`Syncing your last ${contextWindowDays} days in the background...`);
-        startPollingMessageCount(method);
+        startPollingMessageCount(method, options?.chainChatGPT);
       } else {
         setStatus('Failed to start scraper');
         setImporting(false);
@@ -377,10 +375,20 @@ export default function OnboardingPage() {
     }
   }
   
-  function startPollingMessageCount(method: ImportSource) {
+  function startPollingMessageCount(method: ImportSource, chainChatGPT = false) {
     const setMessages = method === 'claude' ? setClaudeMessages : setChatgptMessages;
     const setStatus = method === 'claude' ? setClaudeStatus : setChatgptStatus;
     const setImporting = method === 'claude' ? setClaudeImporting : setChatgptImporting;
+
+    // If chaining ChatGPT after Claude, delay its start so both browser windows
+    // don't open simultaneously and conflict on Windows.
+    if (chainChatGPT && method === 'claude') {
+      setTimeout(() => {
+        void startImport('chatgpt');
+      }, 40000); // 40s — Claude browser is past login and actively scraping
+      setChatgptStatus('Queued — starts after Claude browser is open...');
+      setChatgptImporting(true);
+    }
 
     pollingIntervalRef.current[method] = setInterval(async () => {
       try {
@@ -394,10 +402,12 @@ export default function OnboardingPage() {
           setMessages(imported);
 
           if (syncState === 'running') {
-            setStatus(message || `Background sync running (${contextWindowDays}d window)...`);
+            setStatus(imported > 0
+              ? `Importing... ${imported} messages so far`
+              : (message || `Background sync running (${contextWindowDays}d window)...`));
           } else if (syncState === 'completed') {
             stopPolling(method);
-            setStatus(message || `✓ Imported ${imported} recent messages`);
+            setStatus(message || `✓ Imported ${imported} messages`);
             setImporting(false);
           } else if (syncState === 'auth_required') {
             stopPolling(method);
@@ -405,7 +415,7 @@ export default function OnboardingPage() {
             setImporting(false);
           } else if (syncState === 'failed') {
             stopPolling(method);
-            setStatus(data.data?.message || 'Import failed');
+            setStatus(data.data?.message || 'Import failed. Please retry.');
             setImporting(false);
           }
         }
@@ -891,6 +901,16 @@ export default function OnboardingPage() {
               </p>
             </div>
             
+            {/* Import Both button — chains scrapers so browser windows don't conflict */}
+            {!claudeImporting && !chatgptImporting && (
+              <button
+                className="btn-primary w-full mb-4 py-3"
+                onClick={() => void startImport('claude', false, { chainChatGPT: true })}
+              >
+                Import Both (Claude + ChatGPT)
+              </button>
+            )}
+
             <div className="space-y-3 mb-4">
               {/* Claude Import */}
               <div className={`p-4 rounded-lg border transition-colors ${
@@ -913,13 +933,13 @@ export default function OnboardingPage() {
                     <div className="flex gap-2">
                       <button
                         className="btn-ghost px-4 py-2"
-                        onClick={() => startImport('claude')}
+                        onClick={() => void startImport('claude')}
                       >
                         {claudeMessages > 0 ? 'Re-import' : 'Import'}
                       </button>
                       <button
                         className="btn-ghost px-3 py-2 text-xs"
-                        onClick={() => startImport('claude', false, { resetProfile: true })}
+                        onClick={() => void startImport('claude', false, { resetProfile: true })}
                         title="Clear saved browser session and import fresh"
                       >
                         Reset Session
@@ -968,13 +988,13 @@ export default function OnboardingPage() {
                     <div className="flex gap-2">
                       <button
                         className="btn-ghost px-4 py-2"
-                        onClick={() => startImport('chatgpt')}
+                        onClick={() => void startImport('chatgpt')}
                       >
                         {chatgptMessages > 0 ? 'Re-import' : 'Import'}
                       </button>
                       <button
                         className="btn-ghost px-3 py-2 text-xs"
-                        onClick={() => startImport('chatgpt', false, { resetProfile: true })}
+                        onClick={() => void startImport('chatgpt', false, { resetProfile: true })}
                         title="Clear saved browser session and import fresh"
                       >
                         Reset Session
