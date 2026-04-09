@@ -6,7 +6,7 @@ type Job = {
 
 const queue: Job[] = [];
 let running = 0;
-const MAX_CONCURRENT = 1;
+const MAX_CONCURRENT = 3;
 const retryDelaysMs = [1500, 4000];
 
 function scheduleNext() {

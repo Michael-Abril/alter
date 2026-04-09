@@ -258,7 +258,7 @@ async function main() {
         await saveDebugScreenshot(page, `fail-${conv.id.slice(0, 8)}`);
       }
 
-      if (i < toScrape.length - 1) await page.waitForTimeout(1500);
+      if (i < toScrape.length - 1) await page.waitForTimeout(500);
     }
 
     const cutoffTs = Date.now() - SINCE_DAYS * 24 * 60 * 60 * 1000;
@@ -385,21 +385,13 @@ async function getConversationList(page) {
 async function scrapeConversation(page, conv) {
   await page.goto(conv.url, { waitUntil: 'domcontentloaded', timeout: 20000 });
 
-  // Wait for messages to render — poll for message elements
-  const msgWaitStart = Date.now();
-  let hasMessages = false;
-  while (Date.now() - msgWaitStart < 8000) {
-    hasMessages = await page.evaluate(() => {
-      return !!(
-        document.querySelector('[data-testid="user-message"]') ||
-        document.querySelector('.font-claude-message') ||
-        document.querySelector('[data-message-author-role]') ||
-        document.querySelectorAll('[data-test-render-count]').length >= 2
-      );
-    });
-    if (hasMessages) break;
-    await page.waitForTimeout(500);
-  }
+  // Wait for messages to render — poll instead of fixed sleep
+  try {
+    await page.waitForSelector(
+      '[data-testid="user-message"], .font-claude-message, [data-test-render-count]',
+      { timeout: 6000 }
+    );
+  } catch { /* proceed with what we have */ }
 
   await autoScroll(page);
   return await extractMessages(page, conv);
