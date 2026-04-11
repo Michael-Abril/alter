@@ -274,6 +274,16 @@ export async function runOvernightLoop(config, options = {}) {
       console.log(`[${i + 1}/${queue.length}] Processing project: ${project.id}`);
       console.log('');
 
+      // Update status: Starting this project
+      writeRunStatus('running', null, null, {
+        currentProject: project.name,
+        currentAction: 'Starting continuation...',
+        projectsCompleted: i,
+        projectsTotal: queue.length,
+        tokensUsedSoFar: results.stats.totalTokensUsed,
+        spentSoFar: results.stats.spentUsd,
+      });
+
       try {
         const ctx = parseProjectContextJson(project);
         const classification = ctx.classification || classifyProject(project);
@@ -340,6 +350,19 @@ export async function runOvernightLoop(config, options = {}) {
           console.log(
             `   🔁 Iteration ${iterations}/${MAX_CONTINUATION_ITERATIONS} — ${lastChunk.length} chars, +$${sliceCost.toFixed(5)} (run total $${results.stats.spentUsd.toFixed(4)})`
           );
+
+          // Update status: Iteration progress
+          writeRunStatus('running', null, null, {
+            currentProject: project.name,
+            currentAction: `Iteration ${iterations}/${MAX_CONTINUATION_ITERATIONS}...`,
+            projectsCompleted: i,
+            projectsTotal: queue.length,
+            currentIteration: iterations,
+            maxIterations: MAX_CONTINUATION_ITERATIONS,
+            tokensUsedSoFar: results.stats.totalTokensUsed,
+            spentSoFar: results.stats.spentUsd,
+          });
+
           if (!incomplete) {
             console.log('   ✅ Output looks complete — stopping iterations for this project.');
             break;
@@ -388,6 +411,16 @@ export async function runOvernightLoop(config, options = {}) {
         console.log(`   ✅ Saved (${iterations} iteration(s)): ${persisted.outputPath}`);
         console.log(`   📈 Progress estimate: ${project.progress}% → ${newProgress}%`);
         console.log('');
+
+        // Update status: Project completed
+        writeRunStatus('running', null, null, {
+          currentProject: project.name,
+          currentAction: 'Completed!',
+          projectsCompleted: i + 1,
+          projectsTotal: queue.length,
+          tokensUsedSoFar: results.stats.totalTokensUsed,
+          spentSoFar: results.stats.spentUsd,
+        });
       } catch (err) {
         console.error(`   ❌ Error: ${err.message}`);
         console.log('');
@@ -589,11 +622,27 @@ export async function runOvernightLoop(config, options = {}) {
   };
 }
 
-function writeRunStatus(state, results = null, briefPath = null) {
+function writeRunStatus(state, results = null, briefPath = null, progress = null) {
   const statusPath = process.env.NIGHTSHIFT_RUN_STATUS_PATH;
   if (!statusPath) return;
   try {
-    const payload = { state, finishedAt: new Date().toISOString() };
+    const payload = { state, updatedAt: new Date().toISOString() };
+
+    // Add live progress info for 'running' state
+    if (progress) {
+      payload.currentProject = progress.currentProject || null;
+      payload.currentAction = progress.currentAction || 'Working...';
+      payload.projectsCompleted = progress.projectsCompleted || 0;
+      payload.projectsTotal = progress.projectsTotal || 0;
+      payload.currentIteration = progress.currentIteration || 0;
+      payload.maxIterations = progress.maxIterations || MAX_CONTINUATION_ITERATIONS;
+      payload.tokensUsedSoFar = progress.tokensUsedSoFar || 0;
+      payload.spentSoFar = progress.spentSoFar || 0;
+    }
+
+    if (state === 'completed') {
+      payload.finishedAt = new Date().toISOString();
+    }
     if (results) {
       payload.projectsContinued = results.projectsContinued?.length || 0;
       payload.emailsDrafted = results.emailsDrafted?.length || 0;

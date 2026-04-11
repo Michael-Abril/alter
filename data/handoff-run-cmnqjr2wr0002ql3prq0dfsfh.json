@@ -1,0 +1,18 @@
+{
+  "state": "completed",
+  "updatedAt": "2026-04-11T19:48:17.739Z",
+  "finishedAt": "2026-04-11T19:48:17.739Z",
+  "projectsContinued": 1,
+  "emailsDrafted": 0,
+  "totalTokensUsed": 5907,
+  "inputTokens": 1993,
+  "outputTokens": 3914,
+  "spentUsd": 0.064689,
+  "budgetUsd": 0.05,
+  "filesGenerated": 1,
+  "duration": 54,
+  "outputs": [
+    "C:\\Users\\mabril1\\Documents\\NightShift\\varity-demo-script-for-vc-presentation-2026-04-11T19-48-17.js"
+  ],
+  "briefPath": "C:\\Users\\mabril1\\nightshift-ai\\data\\briefs\\2026-04-11-2026-04-11T19-47-23.md"
+}

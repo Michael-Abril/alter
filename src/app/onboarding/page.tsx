@@ -74,7 +74,7 @@ export default function OnboardingPage() {
   
   // Canvas connection state
   const [canvasToken, setCanvasToken] = useState('');
-  const [canvasDomain, setCanvasDomain] = useState('babson.instructure.com');
+  const [canvasDomain, setCanvasDomain] = useState('');
   const [canvasValidating, setCanvasValidating] = useState(false);
   const [canvasConnected, setCanvasConnected] = useState(false);
   const [canvasError, setCanvasError] = useState('');
@@ -977,31 +977,18 @@ export default function OnboardingPage() {
                 
                 <div className="space-y-3 mb-4">
                   <div>
-                    <label className="block text-sm font-medium mb-2">School Domain</label>
-                    <select
+                    <label className="block text-sm font-medium mb-2">Canvas Domain</label>
+                    <input
+                      type="text"
                       value={canvasDomain}
                       onChange={(e) => setCanvasDomain(e.target.value)}
+                      placeholder="yourschool.instructure.com"
                       className="w-full px-3 py-2 bg-nightshift-surface border border-nightshift-border rounded-lg focus:outline-none focus:ring-2 focus:ring-nightshift-accent"
-                    >
-                      <option value="babson.instructure.com">Babson College</option>
-                      <option value="canvas.harvard.edu">Harvard University</option>
-                      <option value="canvas.mit.edu">MIT</option>
-                      <option value="canvas.stanford.edu">Stanford University</option>
-                      <option value="instructure.com">Other (enter below)</option>
-                    </select>
+                    />
+                    <p className="text-xs text-nightshift-text-muted mt-1">
+                      Enter your school's Canvas domain (e.g., canvas.harvard.edu)
+                    </p>
                   </div>
-                  
-                  {canvasDomain === 'instructure.com' && (
-                    <div>
-                      <label className="block text-sm font-medium mb-2">Custom Domain</label>
-                      <input
-                        type="text"
-                        placeholder="yourschool.instructure.com"
-                        onChange={(e) => setCanvasDomain(e.target.value)}
-                        className="w-full px-3 py-2 bg-nightshift-surface border border-nightshift-border rounded-lg focus:outline-none focus:ring-2 focus:ring-nightshift-accent"
-                      />
-                    </div>
-                  )}
                   
                   <div>
                     <label className="block text-sm font-medium mb-2">Access Token</label>

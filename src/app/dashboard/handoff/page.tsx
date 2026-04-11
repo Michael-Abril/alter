@@ -62,7 +62,7 @@ export default function HandoffPage() {
   useEffect(() => {
     if (isActivated && !pollRef.current) {
       pollRunStatus();
-      pollRef.current = setInterval(pollRunStatus, 5000);
+      pollRef.current = setInterval(pollRunStatus, 2000);  // Poll every 2 seconds for live progress
     }
     return () => { if (pollRef.current) clearInterval(pollRef.current); };
   }, [isActivated, pollRunStatus, router]);
@@ -157,9 +157,33 @@ export default function HandoffPage() {
                   {runStatus?.state === 'completed' ? 'NightShift Complete' : runStatus?.state === 'error' ? 'NightShift Encountered an Error' : 'NightShift Running...'}
                 </h2>
                 {runStatus?.state === 'running' && (
-                  <p className="mt-2 text-nightshift-text-secondary animate-pulse">
-                    Working on {activateResult?.projectsQueued || selectedTasks.length} project{(activateResult?.projectsQueued || selectedTasks.length) !== 1 ? 's' : ''}...
-                  </p>
+                  <div className="mt-3 space-y-2">
+                    {runStatus.currentProject ? (
+                      <>
+                        <p className="text-nightshift-text-primary font-medium animate-pulse">
+                          Working on: {runStatus.currentProject}
+                        </p>
+                        <p className="text-sm text-nightshift-text-secondary">
+                          {runStatus.currentAction || 'Processing...'}
+                        </p>
+                        <div className="flex items-center justify-center gap-4 text-xs text-nightshift-text-muted">
+                          <span>Progress: {runStatus.projectsCompleted || 0} / {runStatus.projectsTotal || '?'} projects</span>
+                          {runStatus.currentIteration > 0 && (
+                            <span>Iteration: {runStatus.currentIteration} / {runStatus.maxIterations || 3}</span>
+                          )}
+                        </div>
+                        {runStatus.tokensUsedSoFar > 0 && (
+                          <p className="text-xs text-nightshift-text-muted">
+                            Tokens: {runStatus.tokensUsedSoFar.toLocaleString()} | Cost: ${(runStatus.spentSoFar || 0).toFixed(4)}
+                          </p>
+                        )}
+                      </>
+                    ) : (
+                      <p className="text-nightshift-text-secondary animate-pulse">
+                        Starting NightShift...
+                      </p>
+                    )}
+                  </div>
                 )}
                 {runStatus?.state === 'completed' && (
                   <div className="mt-3 text-sm text-nightshift-text-secondary space-y-1">
@@ -181,13 +205,14 @@ export default function HandoffPage() {
               </div>
             ) : tasks.length === 0 ? (
               <div className="card text-center py-12">
-                <div className="text-2xl mb-2">📋</div>
+                <div className="text-2xl mb-2">🌙</div>
                 <p className="text-nightshift-text-secondary">
-                  No in-progress projects found. Run the project detector first:
+                  No in-progress projects detected yet.
                 </p>
-                <code className="mt-2 inline-block text-xs bg-nightshift-bg-light px-3 py-1 rounded text-nightshift-accent">
-                  npx tsx scripts/detect-projects.ts
-                </code>
+                <p className="mt-2 text-sm text-nightshift-text-muted">
+                  NightShift will automatically detect projects from your Claude and ChatGPT conversations.
+                  Start a conversation about a project, and it will appear here for handoff.
+                </p>
               </div>
             ) : (
               <>

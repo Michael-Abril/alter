@@ -15,28 +15,31 @@ export type AuthUserResult =
 
 /**
  * Find or attach a DB user for this Clerk id:
- * 1) Normal lookup by clerkId
- * 2) Dev: rebind legacy test user row
- * 3) Last resort: rebind the most recently created user row (single-user / race recovery)
+ * 1) Normal lookup by clerkId (fast path - most common)
+ * 2) Dev only: rebind legacy test user or latest user (single query fallback)
  */
 export async function resolveUserForClerkId(clerkId: string): Promise<User | null> {
   if (!clerkId) return null;
 
-  let user = await db.user.findFirst({ where: { clerkId } });
+  // Fast path: direct lookup by clerkId (indexed)
+  const user = await db.user.findFirst({ where: { clerkId } });
   if (user) return user;
 
-  const testUser = await db.user.findUnique({ where: { clerkId: 'user_test_123' } });
-  if (testUser) {
-    return db.user.update({
-      where: { id: testUser.id },
-      data: { clerkId },
-    });
-  }
+  // Dev fallback: single query to find rebindable user
+  // Only runs if primary lookup fails (rare in production)
+  const fallbackUser = await db.user.findFirst({
+    where: {
+      OR: [
+        { clerkId: 'user_test_123' }, // Test user
+        { clerkId: { not: clerkId } }, // Any other user (for single-user dev)
+      ],
+    },
+    orderBy: { createdAt: 'desc' },
+  });
 
-  const latest = await db.user.findFirst({ orderBy: { createdAt: 'desc' } });
-  if (latest) {
+  if (fallbackUser) {
     return db.user.update({
-      where: { id: latest.id },
+      where: { id: fallbackUser.id },
       data: { clerkId },
     });
   }

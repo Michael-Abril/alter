@@ -24,18 +24,28 @@ export async function GET() {
     });
 
     return apiSuccess(
-      drafts.map((d) => ({
-        id: d.id,
-        type: d.type,
-        title: d.title,
-        content: d.content,
-        targetApp: d.targetApp,
-        confidenceScore: d.confidenceScore,
-        status: d.status,
-        context: d.context ? JSON.parse(d.context) : null,
-        createdAt: d.createdAt.toISOString(),
-        updatedAt: d.updatedAt.toISOString(),
-      }))
+      drafts.map((d) => {
+        let context = null;
+        if (d.context) {
+          try {
+            context = JSON.parse(d.context);
+          } catch {
+            context = { raw: d.context };
+          }
+        }
+        return {
+          id: d.id,
+          type: d.type,
+          title: d.title,
+          content: d.content,
+          targetApp: d.targetApp,
+          confidenceScore: d.confidenceScore,
+          status: d.status,
+          context,
+          createdAt: d.createdAt.toISOString(),
+          updatedAt: d.updatedAt.toISOString(),
+        };
+      })
     );
   } catch (error) {
     console.error('[drafts] Error:', error);

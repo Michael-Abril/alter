@@ -32,11 +32,19 @@ export async function GET() {
       },
     });
 
-    // Parse context JSON for each project
-    const enriched = projects.map((p) => ({
-      ...p,
-      context: p.context ? JSON.parse(p.context) : null,
-    }));
+    // Parse context JSON for each project (with error handling)
+    const enriched = projects.map((p) => {
+      let context = null;
+      if (p.context) {
+        try {
+          context = JSON.parse(p.context);
+        } catch {
+          // Invalid JSON in context field - skip parsing
+          context = { raw: p.context };
+        }
+      }
+      return { ...p, context };
+    });
 
     return apiSuccess({
       projects: enriched,

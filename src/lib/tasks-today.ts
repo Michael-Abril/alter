@@ -185,7 +185,8 @@ export async function buildTodayTasks(userId: string): Promise<TodayTask[]> {
   const canvasMessages = await db.chatMessage.findMany({
     where: { userId, source: 'canvas', content: { contains: 'due' } },
     orderBy: { timestamp: 'desc' },
-    take: 150,
+    take: 30, // Reduced from 150 for faster page loads
+    select: { id: true, content: true }, // Only fetch needed fields
   });
 
   for (const msg of canvasMessages) {
@@ -276,10 +277,12 @@ export async function buildTodayTasks(userId: string): Promise<TodayTask[]> {
     db.email.findMany({
       where: { userId, direction: 'received', ingestChannel: 'important_inbox' },
       orderBy: { receivedAt: 'desc' },
-      take: 100,
+      take: 20, // Reduced from 100 for faster page loads
+      select: { id: true, subject: true, from: true, body: true, gmailId: true, threadId: true, receivedAt: true },
     }),
     db.draft.findMany({
       where: { userId, type: 'email' },
+      take: 50, // Limit drafts too
       select: { title: true, context: true },
     }),
   ]);

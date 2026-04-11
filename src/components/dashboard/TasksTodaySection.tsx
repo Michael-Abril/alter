@@ -106,8 +106,10 @@ export default function TasksTodaySection({ tasks }: { tasks: TodayTask[] }) {
                         Due{' '}
                         {new Date(task.dueDate).toLocaleString(undefined, {
                           weekday: 'short',
-                          dateStyle: 'medium',
-                          timeStyle: 'short',
+                          month: 'short',
+                          day: 'numeric',
+                          hour: 'numeric',
+                          minute: '2-digit',
                         })}
                       </p>
                     )}

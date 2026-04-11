@@ -8,37 +8,35 @@ datasource db {
 }
 
 model User {
-  id                  String   @id @default(cuid())
-  clerkId             String   @unique
-  email               String   @unique
-  name                String?
-  gmailConnected      Boolean  @default(false)
-  gmailToken          String?
-  gmailRefreshToken   String?
-  googleScopesVersion Int      @default(0)
-  autonomyLevel       Int      @default(0)
-  wakeTime            String   @default("07:00")
-  outputDirectory     String?
+  id                    String           @id @default(cuid())
+  clerkId               String           @unique
+  email                 String           @unique
+  name                  String?
+  gmailConnected        Boolean          @default(false)
+  gmailToken            String?
+  gmailRefreshToken     String?
+  googleScopesVersion   Int              @default(0)
+  autonomyLevel         Int              @default(0)
+  wakeTime              String           @default("07:00")
+  outputDirectory       String?
+  createdAt             DateTime         @default(now())
+  updatedAt             DateTime         @updatedAt
   onboardingCompletedAt DateTime?
-  createdAt           DateTime @default(now())
-  updatedAt           DateTime @updatedAt
-
-  emails          Email[]
-  chatMessages    ChatMessage[]
-  drafts          Draft[]
-  actions         Action[]
-  projects        Project[]
-  boundaries      Boundary[]
-  voiceProfile    VoiceProfile?
-  calendarEvents  CalendarEvent[]
-  driveDocuments  DriveDocument[]
-  githubActivity  GitHubActivity[]
+  actions               Action[]
+  boundaries            Boundary[]
+  calendarEvents        CalendarEvent[]
+  chatMessages          ChatMessage[]
+  drafts                Draft[]
+  driveDocuments        DriveDocument[]
+  emails                Email[]
+  githubActivity        GitHubActivity[]
+  projects              Project[]
+  voiceProfile          VoiceProfile?
 }
 
 model Email {
   id            String   @id @default(cuid())
   userId        String
-  user          User     @relation(fields: [userId], references: [id])
   gmailId       String   @unique
   threadId      String?
   from          String
@@ -46,12 +44,12 @@ model Email {
   subject       String
   body          String
   direction     String
-  // sent | important_inbox | inbox
   ingestChannel String   @default("inbox")
   isRead        Boolean  @default(false)
   receivedAt    DateTime
   createdAt     DateTime @default(now())
   embedded      Boolean  @default(false)
+  user          User     @relation(fields: [userId], references: [id])
 
   @@index([userId, direction])
   @@index([userId, ingestChannel])
@@ -61,7 +59,6 @@ model Email {
 model ChatMessage {
   id        String   @id @default(cuid())
   userId    String
-  user      User     @relation(fields: [userId], references: [id])
   source    String
   role      String
   content   String
@@ -69,6 +66,7 @@ model ChatMessage {
   timestamp DateTime
   createdAt DateTime @default(now())
   embedded  Boolean  @default(false)
+  user      User     @relation(fields: [userId], references: [id])
 
   @@index([userId, source])
   @@index([userId, embedded])
@@ -77,7 +75,6 @@ model ChatMessage {
 model Project {
   id          String   @id @default(cuid())
   userId      String
-  user        User     @relation(fields: [userId], references: [id])
   name        String
   description String?
   status      String   @default("in_progress")
@@ -86,6 +83,7 @@ model Project {
   progress    Int      @default(0)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
+  user        User     @relation(fields: [userId], references: [id])
 
   @@index([userId, status])
 }
@@ -93,7 +91,6 @@ model Project {
 model Draft {
   id              String   @id @default(cuid())
   userId          String
-  user            User     @relation(fields: [userId], references: [id])
   type            String
   title           String
   content         String
@@ -103,6 +100,7 @@ model Draft {
   context         String?
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
+  user            User     @relation(fields: [userId], references: [id])
 
   @@index([userId, status])
 }
@@ -110,7 +108,6 @@ model Draft {
 model Action {
   id          String   @id @default(cuid())
   userId      String
-  user        User     @relation(fields: [userId], references: [id])
   type        String
   title       String
   description String?
@@ -119,6 +116,7 @@ model Action {
   status      String   @default("completed")
   metadata    String?
   createdAt   DateTime @default(now())
+  user        User     @relation(fields: [userId], references: [id])
 
   @@index([userId, createdAt])
 }
@@ -126,12 +124,12 @@ model Action {
 model Boundary {
   id         String   @id @default(cuid())
   userId     String
-  user       User     @relation(fields: [userId], references: [id])
   rule       String
   category   String
   action     String
   conditions String?
   createdAt  DateTime @default(now())
+  user       User     @relation(fields: [userId], references: [id])
 
   @@index([userId])
 }
@@ -139,7 +137,6 @@ model Boundary {
 model VoiceProfile {
   id             String   @id @default(cuid())
   userId         String   @unique
-  user           User     @relation(fields: [userId], references: [id])
   avgSentenceLen Float?
   formalityScore Float?
   emojiFrequency Float?
@@ -149,12 +146,12 @@ model VoiceProfile {
   sampleOutputs  String?
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
+  user           User     @relation(fields: [userId], references: [id])
 }
 
 model CalendarEvent {
   id          String   @id @default(cuid())
   userId      String
-  user        User     @relation(fields: [userId], references: [id])
   googleId    String   @unique
   calendarId  String   @default("primary")
   title       String
@@ -164,6 +161,7 @@ model CalendarEvent {
   location    String?
   isAllDay    Boolean  @default(false)
   syncedAt    DateTime @default(now())
+  user        User     @relation(fields: [userId], references: [id])
 
   @@index([userId, startTime])
 }
@@ -171,7 +169,6 @@ model CalendarEvent {
 model DriveDocument {
   id        String   @id @default(cuid())
   userId    String
-  user      User     @relation(fields: [userId], references: [id])
   driveId   String   @unique
   title     String
   url       String
@@ -179,22 +176,23 @@ model DriveDocument {
   folderId  String?
   projectId String?
   createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id])
 
   @@index([userId, createdAt])
 }
 
 model GitHubActivity {
-  id        String   @id @default(cuid())
-  userId    String
-  user      User     @relation(fields: [userId], references: [id])
-  repoName  String
-  type      String
-  title     String
-  body      String?
-  url       String
-  githubId  String   @unique
+  id         String   @id @default(cuid())
+  userId     String
+  repoName   String
+  type       String
+  title      String
+  body       String?
+  url        String
+  githubId   String   @unique
   authoredAt DateTime
-  syncedAt  DateTime @default(now())
+  syncedAt   DateTime @default(now())
+  user       User     @relation(fields: [userId], references: [id])
 
   @@index([userId, type])
   @@index([userId, authoredAt])
