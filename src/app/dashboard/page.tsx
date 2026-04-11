@@ -137,13 +137,69 @@ export default async function DashboardPage() {
     /* leave zeros */
   }
 
-  // First-time users with no data → onboarding (unless they already finished onboarding once)
-  if (
+  // First-time users with no data → show empty dashboard with onboarding CTA
+  const isNewUser =
     !user.onboardingCompletedAt &&
     projects.length === 0 &&
-    chatCount === 0
-  ) {
-    redirect('/onboarding');
+    chatCount === 0;
+
+  if (isNewUser) {
+    return (
+      <div className="flex h-screen bg-nightshift-bg">
+        <Sidebar />
+        <div className="flex flex-1 flex-col overflow-hidden">
+          <Header />
+          <main className="flex flex-1 items-center justify-center p-6">
+            <div className="max-w-lg text-center space-y-6">
+              <div className="text-6xl">🌙</div>
+              <div>
+                <h1 className="text-3xl font-bold text-nightshift-text-primary mb-3">
+                  Welcome to NightShift
+                </h1>
+                <p className="text-nightshift-text-secondary text-lg leading-relaxed">
+                  Before NightShift can work for you, it needs to learn who you are — your voice, your projects, and how you think.
+                </p>
+              </div>
+              <div className="card border-nightshift-accent/30 bg-nightshift-bg-card p-6 space-y-4">
+                <h2 className="text-xl font-semibold text-nightshift-text-primary">
+                  Start your personality upload
+                </h2>
+                <p className="text-sm text-nightshift-text-secondary">
+                  Connect your tools and import your chat history. Takes about 2 minutes. NightShift will build your voice profile and detect your active projects.
+                </p>
+                <div className="flex items-center gap-4 text-sm text-nightshift-text-muted pt-1">
+                  <span className="flex items-center gap-1.5">
+                    <span className="inline-block h-1.5 w-1.5 rounded-full bg-nightshift-accent" />
+                    Gmail
+                  </span>
+                  <span className="flex items-center gap-1.5">
+                    <span className="inline-block h-1.5 w-1.5 rounded-full bg-nightshift-accent" />
+                    GitHub
+                  </span>
+                  <span className="flex items-center gap-1.5">
+                    <span className="inline-block h-1.5 w-1.5 rounded-full bg-nightshift-accent" />
+                    Chat history
+                  </span>
+                  <span className="flex items-center gap-1.5">
+                    <span className="inline-block h-1.5 w-1.5 rounded-full bg-nightshift-accent" />
+                    Voice profile
+                  </span>
+                </div>
+                <a
+                  href="/onboarding"
+                  className="btn-primary block w-full py-3 text-center text-base font-semibold mt-2"
+                >
+                  Begin Setup →
+                </a>
+              </div>
+              <p className="text-xs text-nightshift-text-muted">
+                You can skip any step — connect only what you want.
+              </p>
+            </div>
+          </main>
+        </div>
+      </div>
+    );
   }
 
   const inProgress = projects.filter((p) => p?.status === 'in_progress');

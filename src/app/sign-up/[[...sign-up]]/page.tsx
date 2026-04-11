@@ -5,19 +5,23 @@
  * STATUS: Ready to use
  */
 
+import { Suspense } from 'react';
 import { SignUp } from '@clerk/nextjs';
+import { ClerkAuthFallback } from '@/components/auth/ClerkAuthFallback';
 
 export default function SignUpPage() {
   return (
-    <div className="flex min-h-screen items-center justify-center">
-      <SignUp
-        appearance={{
-          elements: {
-            rootBox: 'mx-auto',
-            card: 'bg-nightshift-bg-card border border-nightshift-border',
-          },
-        }}
-      />
-    </div>
+    <Suspense fallback={<ClerkAuthFallback />}>
+      <div className="flex min-h-screen items-center justify-center bg-nightshift-bg">
+        <SignUp
+          appearance={{
+            elements: {
+              rootBox: 'mx-auto',
+              card: 'bg-nightshift-bg-card border border-nightshift-border',
+            },
+          }}
+        />
+      </div>
+    </Suspense>
   );
 }
