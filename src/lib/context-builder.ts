@@ -410,7 +410,7 @@ async function queryGitHubActivity(
 ): Promise<Array<{ id: string; type: string; title: string; body: string | null; url: string; authoredAt: Date }>> {
   try {
     const threeDaysAgo = new Date(Date.now() - 3 * 24 * 60 * 60 * 1000);
-    const activities = await db.githubActivity.findMany({
+    const activities = await db.gitHubActivity.findMany({
       where: {
         userId: project.userId,
         authoredAt: { gte: threeDaysAgo },

@@ -8,7 +8,7 @@
  * and asks Claude to draft a reply that matches the user's style.
  */
 
-import Anthropic from '@anthropic-ai/sdk';
+// OpenClaw replaces direct Anthropic SDK - AI Digital Twin integration
 import dotenv from 'dotenv';
 import path from 'path';
 import { fileURLToPath } from 'url';
@@ -78,25 +78,33 @@ export async function draftEmailReply(incomingEmail, userId, options = {}) {
   console.log('   ✅ Prompt built');
   console.log('');
 
-  // Step 3: Call Claude API
-  console.log('🤖 Step 3: Calling Claude API to generate draft...');
-  const anthropic = new Anthropic({ apiKey });
-  
-  const response = await anthropic.messages.create({
-    model: MODEL,
-    max_tokens: MAX_TOKENS,
-    system: prompt.system,
-    messages: [{ role: 'user', content: prompt.user }],
-  });
+  // Step 3: Call OpenClaw API (AI Digital Twin)
+  console.log('🤖 Step 3: Calling OpenClaw to generate draft...');
 
-  const draft = response.content
-    .filter(block => block.type === 'text')
-    .map(block => block.text)
-    .join('\n\n');
+  const openclawUrl = process.env.OPENCLAW_API_URL;
+  const openclawPassword = process.env.OPENCLAW_GATEWAY_PASSWORD;
+
+  const response = await fetch(`${openclawUrl}/v1/chat/completions`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${openclawPassword}`,
+    },
+    body: JSON.stringify({
+      model: 'openclaw',
+      messages: [
+        { role: 'system', content: prompt.system },
+        { role: 'user', content: prompt.user },
+      ],
+      max_tokens: MAX_TOKENS,
+    }),
+  }).then(r => r.json());
+
+  const draft = response.choices?.[0]?.message?.content || '';
 
   const usage = {
-    input_tokens: response.usage?.input_tokens ?? 0,
-    output_tokens: response.usage?.output_tokens ?? 0,
+    input_tokens: response.usage?.prompt_tokens ?? 0,
+    output_tokens: response.usage?.completion_tokens ?? 0,
   };
   const tokensUsed = usage.input_tokens + usage.output_tokens;
   console.log(`   ✅ Generated draft (${draft.length} chars, ${tokensUsed} tokens)`);

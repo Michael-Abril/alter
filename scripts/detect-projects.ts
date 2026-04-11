@@ -29,6 +29,7 @@ interface DetectedProject {
   lastActive: Date;
   sessionId: string;
   messageCount: number;
+  classification?: string;
   context: {
     keyTopics: string[];
     sampleMessages: string[];

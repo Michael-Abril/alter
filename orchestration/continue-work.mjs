@@ -9,7 +9,7 @@
  * the user left off. The output is saved as a continuation file.
  */
 
-import Anthropic from '@anthropic-ai/sdk';
+// OpenClaw replaces direct Anthropic SDK - AI Digital Twin integration
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
@@ -189,25 +189,33 @@ export async function continueWork(project, options = {}) {
     console.log('');
   }
 
-  // Step 3: Call Claude API
-  if (!options.quietLog) console.log('🤖 Step 3: Calling Claude API to continue work...');
-  const anthropic = new Anthropic({ apiKey });
-  
-  const response = await anthropic.messages.create({
-    model: model,
-    max_tokens: maxTokens,
-    system: prompt.system,
-    messages: [{ role: 'user', content: prompt.user }],
-  });
+  // Step 3: Call OpenClaw API (AI Digital Twin)
+  if (!options.quietLog) console.log('🤖 Step 3: Calling OpenClaw to continue work...');
 
-  const content = response.content
-    .filter(block => block.type === 'text')
-    .map(block => block.text)
-    .join('\n\n');
+  const openclawUrl = process.env.OPENCLAW_API_URL;
+  const openclawPassword = process.env.OPENCLAW_GATEWAY_PASSWORD;
+
+  const response = await fetch(`${openclawUrl}/v1/chat/completions`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${openclawPassword}`,
+    },
+    body: JSON.stringify({
+      model: 'openclaw',
+      messages: [
+        { role: 'system', content: prompt.system },
+        { role: 'user', content: prompt.user },
+      ],
+      max_tokens: maxTokens,
+    }),
+  }).then(r => r.json());
+
+  const content = response.choices?.[0]?.message?.content || '';
 
   const usage = {
-    input_tokens: response.usage?.input_tokens ?? 0,
-    output_tokens: response.usage?.output_tokens ?? 0,
+    input_tokens: response.usage?.prompt_tokens ?? 0,
+    output_tokens: response.usage?.completion_tokens ?? 0,
   };
   const tokensUsed = usage.input_tokens + usage.output_tokens;
   if (!options.quietLog) {

@@ -1,14 +1,14 @@
 /**
  * OWNER: Person 3 (Royce/OpenClaw)
  * PURPOSE: GET: generate/return morning brief — genuinely useful daily summary
- * DEPENDENCIES: Prisma, @clerk/nextjs, Anthropic
+ * DEPENDENCIES: Prisma, @clerk/nextjs, OpenClaw (AI Digital Twin)
  * STATUS: LIVE — work completed, deadlines, emails, today's focus
  */
 
 import { apiSuccess, apiError } from '@/lib/utils';
 import db from '@/lib/db';
 import { tryAuthUser } from '@/lib/clerk-user';
-import Anthropic from '@anthropic-ai/sdk';
+// OpenClaw client imported dynamically where needed
 import fs from 'fs';
 import path from 'path';
 
@@ -203,9 +203,7 @@ export async function GET() {
         });
       });
 
-    // ─── Generate Natural Language Summary with Haiku ───────────────────────
-    const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
-    
+    // ─── Generate Natural Language Summary via OpenClaw (AI Digital Twin) ───
     const overnightLines =
       overnightEconomics != null
         ? [
@@ -242,16 +240,14 @@ export async function GET() {
       'Write a friendly, concise 2-sentence summary. Start with "Good morning."',
     ].join('\n');
 
-    const summaryResponse = await anthropic.messages.create({
-      model: 'claude-haiku-4-5-20251001',
-      max_tokens: 200,
-      messages: [{ role: 'user', content: summaryPrompt }],
+    const { callOpenClaw } = await import('@/lib/openclaw-client');
+    const summaryResponse = await callOpenClaw({
+      system: 'You are Alter, the user\'s AI digital twin. Generate friendly morning greetings.',
+      user: summaryPrompt,
+      maxTokens: 200,
     });
 
-    const naturalLanguageSummary = summaryResponse.content
-      .filter(block => block.type === 'text')
-      .map(block => block.text)
-      .join(' ');
+    const naturalLanguageSummary = summaryResponse.content;
 
     // ─── Build Brief Object ─────────────────────────────────────────────────
     const brief = {

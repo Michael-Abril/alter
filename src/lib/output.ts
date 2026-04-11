@@ -19,15 +19,17 @@ interface UserConfig {
  * Get the default output directory based on OS
  */
 export function getDefaultOutputDirectory(): string {
-  const homeDir = os.homedir();
-  const username = os.userInfo().username;
-  
-  if (process.platform === 'win32') {
-    return path.join('C:', 'Users', username, 'Documents', 'Alter');
-  } else if (process.platform === 'darwin') {
-    return path.join(homeDir, 'Documents', 'Alter');
-  } else {
-    return path.join(homeDir, 'Documents', 'Alter');
+  try {
+    const homeDir = os.homedir();
+    // Use homedir instead of userInfo to avoid permission issues
+    if (process.platform === 'win32') {
+      return path.join(homeDir, 'Documents', 'Alter');
+    } else {
+      return path.join(homeDir, 'Documents', 'Alter');
+    }
+  } catch {
+    // Fallback for build-time or restricted environments
+    return path.join(process.cwd(), 'data', 'output');
   }
 }
 
@@ -68,18 +70,21 @@ function saveConfig(config: UserConfig): void {
 export function getOutputDirectory(): string {
   const config = loadConfig();
   const outputDir = config.outputDirectory;
-  
-  // Create directory if it doesn't exist
-  if (!fs.existsSync(outputDir)) {
+
+  // Create directory if it doesn't exist (skip during build/SSR)
+  if (typeof window === 'undefined' && process.env.NODE_ENV !== 'production') {
     try {
-      fs.mkdirSync(outputDir, { recursive: true });
-      console.log(`[output] Created output directory: ${outputDir}`);
+      if (!fs.existsSync(outputDir)) {
+        fs.mkdirSync(outputDir, { recursive: true });
+        console.log(`[output] Created output directory: ${outputDir}`);
+      }
     } catch (err) {
-      console.error(`[output] Failed to create output directory: ${outputDir}`, err);
-      throw err;
+      console.warn(`[output] Could not create output directory: ${outputDir}`, err);
+      // Return fallback directory
+      return path.join(process.cwd(), 'data', 'output');
     }
   }
-  
+
   return outputDir;
 }
 

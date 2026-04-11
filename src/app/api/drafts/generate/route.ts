@@ -1,15 +1,15 @@
 /**
  * OWNER: Person 4 (Voice/UI)
  * PURPOSE: POST: generate a draft (email, doc, code) in the user's voice
- * DEPENDENCIES: Claude API, vectra, Prisma, @clerk/nextjs, persona, confidence
- * STATUS: LIVE — real vectra context retrieval + Claude generation + DB storage
+ * DEPENDENCIES: OpenClaw (AI Digital Twin), vectra, Prisma, @clerk/nextjs, persona, confidence
+ * STATUS: LIVE — real vectra context retrieval + OpenClaw generation + DB storage
  */
 
 import { NextRequest } from 'next/server';
 import { auth } from '@clerk/nextjs/server';
 import { apiSuccess, apiError } from '@/lib/utils';
 import db from '@/lib/db';
-import Anthropic from '@anthropic-ai/sdk';
+// OpenClaw client imported dynamically in handler
 import { generateEmbedding } from '@/lib/embeddings';
 import { queryVectors, getNamespaceStats } from '@/lib/pinecone';
 import { buildSystemPrompt, buildContextPrompt } from '@/lib/persona';
@@ -90,19 +90,15 @@ export async function POST(req: NextRequest) {
       type: type as 'email' | 'doc' | 'code' | 'task',
     });
 
-    // 6. Call Claude API
-    const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
-    const response = await anthropic.messages.create({
-      model: 'claude-sonnet-4-20250514',
-      max_tokens: 4096,
+    // 6. Call OpenClaw (AI Digital Twin)
+    const { callOpenClaw } = await import('@/lib/openclaw-client');
+    const response = await callOpenClaw({
       system: prompt.system,
-      messages: [{ role: 'user', content: prompt.user }],
+      user: prompt.user,
+      maxTokens: 4096,
     });
 
-    const content = response.content
-      .filter((block) => block.type === 'text')
-      .map((block) => block.text)
-      .join('\n\n');
+    const content = response.content;
 
     // 7. Score confidence
     const assessment = assessConfidence({

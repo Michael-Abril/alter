@@ -69,7 +69,7 @@ export async function prioritize(userId: string): Promise<PriorityItem[]> {
       orderBy: { receivedAt: 'desc' },
       take: 10,
     }),
-    db.githubActivity.findMany({
+    db.gitHubActivity.findMany({
       where: {
         userId,
         authoredAt: { gte: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000) },

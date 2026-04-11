@@ -6,6 +6,7 @@
 import db from '@/lib/db';
 import CompletedActions from '@/components/brief/CompletedActions';
 import FlaggedItems from '@/components/brief/FlaggedItems';
+import { deliverableKindFromProjectContext } from '@/lib/project-deliverable';
 
 type Props = {
   userId: string;
@@ -56,15 +57,10 @@ export default async function CompletedAndFlagged({ userId }: Props) {
     const nextStep = typeof ctx.nextStep === 'string' ? ctx.nextStep : null;
     return {
       id: p.id,
-      userId: p.userId,
-      type: 'task_completed' as const,
       title: p.name,
       description: p.description || nextStep || 'Project completed',
-      app: 'claude',
-      confidence: p.progress / 100,
-      status: 'completed' as const,
-      metadata: null,
       createdAt: p.updatedAt.toISOString(),
+      kind: deliverableKindFromProjectContext(p.context),
     };
   });
 

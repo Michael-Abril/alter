@@ -10,6 +10,7 @@ import { loadGitHubConfig, type GitHubConfig } from '@/lib/github';
 const GITHUB_API = 'https://api.github.com';
 
 interface GitHubHeaders {
+  [key: string]: string;
   Authorization: string;
   Accept: string;
   'User-Agent': string;

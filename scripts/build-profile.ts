@@ -33,7 +33,7 @@ async function main() {
   console.log(`Sign-offs: ${result.profile.signOffPhrases.join(', ') || '(none)'}`);
   console.log(`Tone keywords: ${result.profile.toneKeywords.join(', ')}`);
   console.log('Example sentences:');
-  result.profile.exampleSentences.forEach((s, i) => {
+  result.profile.exampleSentences.forEach((s: string, i: number) => {
     console.log(`  ${i + 1}. ${s}`);
   });
 }

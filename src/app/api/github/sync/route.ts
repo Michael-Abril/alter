@@ -36,7 +36,7 @@ export async function POST() {
     let issues = 0;
 
     for (const item of activities) {
-      await db.githubActivity.upsert({
+      await db.gitHubActivity.upsert({
         where: { githubId: item.githubId },
         create: {
           userId: user.id,
