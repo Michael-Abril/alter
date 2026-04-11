@@ -1,6 +1,6 @@
 /**
  * Prioritization engine — ranks tasks and items by urgency, recency,
- * and actionability to determine what NightShift should work on next.
+ * and actionability to determine what Alter should work on next.
  */
 
 import db from '@/lib/db';

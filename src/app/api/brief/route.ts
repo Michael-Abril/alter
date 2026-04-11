@@ -284,7 +284,7 @@ export async function GET() {
     const briefPath = path.join(briefsDir, `${date}.md`);
 
     const briefMarkdown = [
-      '# NightShift Morning Brief',
+      '# Alter — morning brief',
       '',
       `**Date:** ${new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}`,
       `**Generated:** ${new Date().toISOString()}`,

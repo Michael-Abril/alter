@@ -5,17 +5,28 @@
  * STATUS: LIVE — fetches real data from DB
  */
 
-import { auth } from '@clerk/nextjs/server';
+import { auth, currentUser } from '@clerk/nextjs/server';
 import { redirect } from 'next/navigation';
+import { Bug, Calendar, FileEdit, GitBranch, Package, Zap } from 'lucide-react';
 import Sidebar from '@/components/layout/Sidebar';
 import Header from '@/components/layout/Header';
 import CompletedActions from '@/components/brief/CompletedActions';
 import FlaggedItems from '@/components/brief/FlaggedItems';
-import MorningBriefLead from '@/components/dashboard/MorningBriefLead';
-import TasksTodaySection from '@/components/dashboard/TasksTodaySection';
+import TodaysFocus from '@/components/dashboard/TodaysFocus';
+import SuggestedAutomations from '@/components/dashboard/SuggestedAutomations';
+import OtherActiveWork from '@/components/dashboard/OtherActiveWork';
+import MorningBriefCard from '@/components/dashboard/MorningBriefCard';
+import DashboardCompletionBanner from '@/components/dashboard/DashboardCompletionBanner';
 import db from '@/lib/db';
 import { getCachedDashboardUser } from '@/lib/clerk-user';
-import { buildMorningBriefLead, firstNameFromUser } from '@/lib/dashboard-morning-line';
+import { displayFirstName } from '@/lib/display-name';
+import { generateMorningBriefNarrative } from '@/lib/morning-brief-haiku';
+import {
+  isDeliverableCompletedProject,
+  deliverableKindFromProjectContext,
+  isHandoffEligible,
+} from '@/lib/project-deliverable';
+import { buildMorningBriefWelcomeLine, buildFocusDashboard } from '@/lib/tasks-focus';
 import { buildTodayTasks, type TodayTask } from '@/lib/tasks-today';
 
 type ProjectWithContext = {
@@ -44,128 +55,33 @@ export default async function DashboardPage() {
   if (typeof userId !== 'string' || userId.length === 0) redirect('/sign-in');
 
   const user = await getCachedDashboardUser(userId);
-  if (!user) redirect('/onboarding');
+  if (!user) redirect('/sign-in?redirect_url=/dashboard');
 
-  let projects: ProjectWithContext[] = [];
-  let chatCount = 0;
-  let embeddedCount = 0;
-  let sessions: Array<{ sessionId: string | null }> = [];
-  let upcomingEvents: unknown[] = [];
-  let recentGithub: unknown[] = [];
-  let pendingDrafts = 0;
-  let recentActions: Awaited<ReturnType<typeof db.action.findMany>> = [];
-  let todayTasks: TodayTask[] = [];
-  let overnightWorkCount = 0;
-  let overnightEmailDraftCount = 0;
-
-  try {
-    todayTasks = await buildTodayTasks(user.id);
-  } catch {
-    /* brief empty task list */
-  }
-
-  try {
-    const results = await Promise.all([
-      db.project.findMany({
-        where: { userId: user.id },
-        orderBy: { lastActive: 'desc' },
-        select: {
-          id: true,
-          userId: true,
-          name: true,
-          description: true,
-          context: true,
-          status: true,
-          progress: true,
-          lastActive: true,
-          updatedAt: true,
-        },
-      }),
-      db.chatMessage.count({ where: { userId: user.id } }),
-      db.chatMessage.count({ where: { userId: user.id, embedded: true } }),
-      db.chatMessage.groupBy({
-        by: ['sessionId'],
-        where: { userId: user.id },
-      }),
-      (
-        (db as { calendarEvent?: { findMany: (a: object) => Promise<unknown[]> } }).calendarEvent?.findMany({
-          where: { userId: user.id, startTime: { gte: new Date() } },
-          orderBy: { startTime: 'asc' },
-          take: 5,
-        }) ?? Promise.resolve([])
-      ).catch(() => []),
-      (
-        (db as { githubActivity?: { findMany: (a: object) => Promise<unknown[]> } }).githubActivity?.findMany({
-          where: { userId: user.id },
-          orderBy: { authoredAt: 'desc' },
-          take: 5,
-        }) ?? Promise.resolve([])
-      ).catch(() => []),
-      db.draft.count({ where: { userId: user.id, status: 'pending' } }),
-      db.action.findMany({
-        where: { userId: user.id },
-        orderBy: { createdAt: 'desc' },
-        take: 5,
-      }),
-    ]);
-    projects = Array.isArray(results[0]) ? (results[0] as ProjectWithContext[]) : [];
-    chatCount = typeof results[1] === 'number' ? results[1] : 0;
-    embeddedCount = typeof results[2] === 'number' ? results[2] : 0;
-    sessions = Array.isArray(results[3]) ? (results[3] as Array<{ sessionId: string | null }>) : [];
-    upcomingEvents = Array.isArray(results[4]) ? results[4] : [];
-    recentGithub = Array.isArray(results[5]) ? results[5] : [];
-    pendingDrafts = typeof results[6] === 'number' ? results[6] : 0;
-    recentActions = Array.isArray(results[7]) ? results[7] : [];
-  } catch {
-    /* keep defaults */
-  }
-
-  const since24h = new Date();
-  since24h.setDate(since24h.getDate() - 1);
-  try {
-    const [w, d] = await Promise.all([
-      db.action.count({
-        where: { userId: user.id, type: 'work_continued', createdAt: { gte: since24h } },
-      }),
-      db.draft.count({
-        where: { userId: user.id, type: 'email', createdAt: { gte: since24h } },
-      }),
-    ]);
-    overnightWorkCount = w;
-    overnightEmailDraftCount = d;
-  } catch {
-    /* leave zeros */
-  }
-
-  // First-time users with no data → show empty dashboard with onboarding CTA
-  const isNewUser =
-    !user.onboardingCompletedAt &&
-    projects.length === 0 &&
-    chatCount === 0;
-
-  if (isNewUser) {
+  if (!user.onboardingCompletedAt) {
     return (
       <div className="flex h-screen bg-nightshift-bg">
         <Sidebar />
         <div className="flex flex-1 flex-col overflow-hidden">
           <Header />
           <main className="flex flex-1 items-center justify-center p-6">
-            <div className="max-w-lg text-center space-y-6">
-              <div className="text-6xl">🌙</div>
+            <div className="max-w-lg space-y-6 text-center">
+              <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-nightshift-accent/25 to-nightshift-navy/30 ring-1 ring-white/10">
+                <span className="font-display text-2xl font-bold text-nightshift-text-primary">A</span>
+              </div>
               <div>
-                <h1 className="text-3xl font-bold text-nightshift-text-primary mb-3">
-                  Welcome to NightShift
+                <h1 className="mb-3 font-display text-3xl font-bold text-nightshift-text-primary">
+                  Welcome to Alter
                 </h1>
-                <p className="text-nightshift-text-secondary text-lg leading-relaxed">
-                  Before NightShift can work for you, it needs to learn who you are — your voice, your projects, and how you think.
+                <p className="text-lg leading-relaxed text-nightshift-text-secondary">
+                  Before Alter can work for you, it needs to learn who you are — your voice, your projects, and how you think.
                 </p>
               </div>
-              <div className="card border-nightshift-accent/30 bg-nightshift-bg-card p-6 space-y-4">
+              <div className="card space-y-4 border-nightshift-accent/25 bg-nightshift-bg-card p-6">
                 <h2 className="text-xl font-semibold text-nightshift-text-primary">
-                  Start your personality upload
+                  Build your identity profile
                 </h2>
                 <p className="text-sm text-nightshift-text-secondary">
-                  Connect your tools and import your chat history. Takes about 2 minutes. NightShift will build your voice profile and detect your active projects.
+                  Connect your tools and import your chat history. Takes about two minutes. Alter builds your voice profile and detects active projects — locally first.
                 </p>
                 <div className="flex items-center gap-4 text-sm text-nightshift-text-muted pt-1">
                   <span className="flex items-center gap-1.5">
@@ -202,43 +118,128 @@ export default async function DashboardPage() {
     );
   }
 
-  const inProgress = projects.filter((p) => p?.status === 'in_progress');
+  let projects: ProjectWithContext[] = [];
+  let upcomingEvents: unknown[] = [];
+  let recentGithub: unknown[] = [];
+  let pendingDrafts = 0;
+  let todayTasks: TodayTask[] = [];
+
+  try {
+    todayTasks = await buildTodayTasks(user.id);
+  } catch {
+    /* brief empty task list */
+  }
+
+  try {
+    const results = await Promise.all([
+      db.project.findMany({
+        where: { userId: user.id },
+        orderBy: { lastActive: 'desc' },
+        select: {
+          id: true,
+          userId: true,
+          name: true,
+          description: true,
+          context: true,
+          status: true,
+          progress: true,
+          lastActive: true,
+          updatedAt: true,
+        },
+      }),
+      (
+        (db as { calendarEvent?: { findMany: (a: object) => Promise<unknown[]> } }).calendarEvent?.findMany({
+          where: { userId: user.id, startTime: { gte: new Date() } },
+          orderBy: { startTime: 'asc' },
+          take: 5,
+        }) ?? Promise.resolve([])
+      ).catch(() => []),
+      (
+        (db as { githubActivity?: { findMany: (a: object) => Promise<unknown[]> } }).githubActivity?.findMany({
+          where: { userId: user.id },
+          orderBy: { authoredAt: 'desc' },
+          take: 5,
+        }) ?? Promise.resolve([])
+      ).catch(() => []),
+      db.draft.count({ where: { userId: user.id, status: 'pending' } }),
+    ]);
+    projects = Array.isArray(results[0]) ? (results[0] as ProjectWithContext[]) : [];
+    upcomingEvents = Array.isArray(results[1]) ? results[1] : [];
+    recentGithub = Array.isArray(results[2]) ? results[2] : [];
+    pendingDrafts = typeof results[3] === 'number' ? results[3] : 0;
+  } catch {
+    /* keep defaults */
+  }
+
   const completed = projects.filter((p) => p?.status === 'completed');
   const stalled = projects.filter((p) => p?.status === 'stalled');
 
-  const topCanvasTask = todayTasks.find((t) => t.source === 'canvas');
-  const hasDocOrAcademicInProgress = inProgress.some((p) => {
-    const c = parseProjectContext(p.context);
-    return c.classification === 'document_build' || c.classification === 'academic_deliverable';
-  });
+  const focusDashboard = buildFocusDashboard(
+    todayTasks,
+    projects.map((p) => ({
+      id: p.id,
+      name: p.name,
+      context: p.context,
+      lastActive: p.lastActive,
+      progress: p.progress,
+    }))
+  );
 
-  const morningLead = buildMorningBriefLead({
-    firstName: firstNameFromUser(user.name, user.email),
-    projectsContinued: overnightWorkCount,
-    emailDraftsOvernight: overnightEmailDraftCount,
-    topCanvas: topCanvasTask
-      ? { title: topCanvasTask.title, dueDate: topCanvasTask.dueDate }
-      : null,
-    hasDocOrAcademicInProgress,
+  const clerkUser = await currentUser();
+  const welcomeFirst = displayFirstName({
+    dbName: user.name,
+    email: user.email,
+    clerkFirstName: clerkUser?.firstName ?? null,
   });
+  const welcomeLine = buildMorningBriefWelcomeLine(welcomeFirst);
 
-  // Build completed actions from completed projects
-  const completedActions = completed.map((p) => {
+  const rawForBrief = todayTasks.slice(0, 14).map((t) => ({
+    title: t.title,
+    dueDate: t.dueDate,
+    source: t.source,
+  }));
+  const narrative = await generateMorningBriefNarrative(rawForBrief);
+
+  const sevenDaysAgo = new Date();
+  sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+  const completedDeliverables = completed.filter((p) =>
+    isDeliverableCompletedProject(p.name, p.context)
+  );
+  const recentlyFinishedDeliverables = completedDeliverables.filter(
+    (p) => p.updatedAt >= sevenDaysAgo
+  );
+
+  const completedActions = completedDeliverables.map((p) => {
     const ctx = parseProjectContext(p.context);
     const nextStep = typeof ctx.nextStep === 'string' ? ctx.nextStep : null;
     return {
       id: p.id,
-      userId: p.userId,
-      type: 'task_completed' as const,
       title: p.name,
-      description: p.description || nextStep || 'Project completed',
-      app: 'claude',
-      confidence: p.progress / 100,
-      status: 'completed' as const,
-      metadata: null,
+      description: p.description || nextStep || 'Completed',
       createdAt: p.updatedAt.toISOString(),
+      kind: deliverableKindFromProjectContext(p.context),
     };
   });
+
+  let inboxApprox = 0;
+  try {
+    inboxApprox = await db.email.count({ where: { userId: user.id } });
+  } catch {
+    inboxApprox = 0;
+  }
+
+  const activeDeliverableCount = projects.filter(
+    (p) => p.status !== 'completed' && isHandoffEligible(p.context)
+  ).length;
+
+  const upcomingDeadlineCount = todayTasks.filter((t) => {
+    if (!t.dueDate) return false;
+    const h = (new Date(t.dueDate).getTime() - Date.now()) / (1000 * 60 * 60);
+    return h > 0 && h <= 168;
+  }).length;
+
+  const bannerCount = recentlyFinishedDeliverables.length;
+  const bannerId = `done-${user.id}-${bannerCount}-${sevenDaysAgo.toISOString().slice(0, 10)}`;
 
   // Build flagged items from stalled projects
   const flaggedItems = stalled.map((p) => {
@@ -259,109 +260,56 @@ export default async function DashboardPage() {
     };
   });
 
-  // Build suggested focus from in-progress projects
-  const suggestedFocus = inProgress
-    .sort((a: ProjectWithContext, b: ProjectWithContext) => b.progress - a.progress)
-    .slice(0, 4)
-    .map((p) => {
-      const ctx = parseProjectContext(p.context);
-      const nextStep = typeof ctx.nextStep === 'string' ? ctx.nextStep : null;
-      return {
-        title: p.name,
-        reason: nextStep || `${p.progress}% complete — continue this work`,
-        priority: (p.progress >= 70 ? 'high' : p.progress >= 40 ? 'medium' : 'low') as
-          | 'high'
-          | 'medium'
-          | 'low',
-      };
-    });
-
   return (
     <div className="flex h-screen bg-nightshift-bg">
       <Sidebar />
       <div className="flex flex-1 flex-col overflow-hidden">
         <Header />
-        <main className="flex-1 overflow-y-auto p-6">
-          <div className="mx-auto max-w-5xl space-y-8">
-            <MorningBriefLead lead={morningLead} />
-
-            <TasksTodaySection tasks={todayTasks} />
-
-            {/* At a glance */}
-            <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-              <div className="card text-center">
-                <div className="text-2xl font-bold text-nightshift-accent">{projects.length}</div>
-                <div className="text-xs text-nightshift-text-secondary">Projects</div>
-              </div>
-              <div className="card text-center">
-                <div className="text-2xl font-bold text-nightshift-accent">{chatCount}</div>
-                <div className="text-xs text-nightshift-text-secondary">Messages</div>
-              </div>
-              <div className="card text-center">
-                <div className="text-2xl font-bold text-nightshift-accent">{embeddedCount}</div>
-                <div className="text-xs text-nightshift-text-secondary">Embedded</div>
-              </div>
-              <div className="card text-center">
-                <div className="text-2xl font-bold text-nightshift-accent">{sessions.length}</div>
-                <div className="text-xs text-nightshift-text-secondary">Conversations</div>
-              </div>
-            </div>
-
-            {/* Suggested Focus — from in-progress projects */}
-            {suggestedFocus.length > 0 && (
-              <div className="card">
-                <h2 className="mb-4 text-sm font-medium uppercase tracking-wider text-nightshift-text-secondary">
-                  Suggested Focus
-                </h2>
-                <div className="space-y-3">
-                  {suggestedFocus.map((item, i) => (
-                    <div
-                      key={i}
-                      className="flex items-start gap-3 rounded-lg bg-nightshift-bg-light p-3"
-                    >
-                      <span
-                        className={`mt-0.5 inline-block h-2 w-2 rounded-full flex-shrink-0 ${
-                          item.priority === 'high'
-                            ? 'bg-nightshift-warning'
-                            : item.priority === 'medium'
-                            ? 'bg-nightshift-accent'
-                            : 'bg-nightshift-text-muted'
-                        }`}
-                      />
-                      <div>
-                        <span className="text-sm font-medium text-nightshift-text-primary">
-                          {item.title}
-                        </span>
-                        <p className="mt-0.5 text-xs text-nightshift-text-muted">
-                          {item.reason}
-                        </p>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
+        <main className="flex-1 overflow-y-auto bg-[radial-gradient(ellipse_120%_80%_at_50%_-20%,rgba(124,58,237,0.07),transparent_50%),radial-gradient(ellipse_80%_50%_at_100%_20%,rgba(6,182,212,0.05),transparent_45%)] px-5 py-10 sm:px-8 md:px-12">
+          <div className="mx-auto w-full max-w-[800px] space-y-10">
+            {bannerCount > 0 && (
+              <DashboardCompletionBanner
+                bannerId={bannerId}
+                message={`Alter continued ${bannerCount} deliverable${bannerCount !== 1 ? 's' : ''} while you were away.`}
+              />
             )}
 
-            {/* Quick Actions Bar */}
+            <MorningBriefCard welcomeLine={welcomeLine} narrative={narrative} />
+
+            <TodaysFocus items={focusDashboard.focusItems} />
+
+            <SuggestedAutomations items={focusDashboard.suggestedAutomations} />
+
+            <OtherActiveWork grouped={focusDashboard.grouped} />
+
+            <section className="rounded-xl border border-nightshift-border/60 bg-nightshift-bg-card/30 px-5 py-5 md:px-6">
+              <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-nightshift-text-muted">Alter knows</p>
+              <h2 className="mt-1 font-display text-xl font-bold text-nightshift-text-primary md:text-2xl">Your landscape</h2>
+              <p className="mt-2 text-sm leading-relaxed text-nightshift-text-secondary">
+                {activeDeliverableCount} active deliverable{activeDeliverableCount !== 1 ? 's' : ''} · {upcomingDeadlineCount}{' '}
+                upcoming deadline{upcomingDeadlineCount !== 1 ? 's' : ''} this week · {inboxApprox} inbox thread
+                {inboxApprox !== 1 ? 's' : ''} indexed
+              </p>
+            </section>
+
             {pendingDrafts > 0 && (
-              <a href="/dashboard/drafts" className="card border-nightshift-warning/30 hover:border-nightshift-warning/60 transition-colors block">
+              <a href="/dashboard/drafts" className="card block border-nightshift-warning/30 transition-colors hover:border-nightshift-warning/60">
                 <div className="flex items-center gap-3">
-                  <span className="text-xl">📝</span>
+                  <span className="flex h-10 w-10 items-center justify-center rounded-xl border border-nightshift-border bg-nightshift-bg-light text-nightshift-highlight">
+                    <FileEdit className="h-5 w-5" strokeWidth={1.75} aria-hidden />
+                  </span>
                   <div>
                     <span className="font-medium text-nightshift-text-primary">{pendingDrafts} draft{pendingDrafts > 1 ? 's' : ''} awaiting review</span>
-                    <p className="text-xs text-nightshift-text-muted">NightShift created drafts overnight — review and approve them</p>
+                    <p className="text-xs text-nightshift-text-muted">Alter drafted these — review and approve</p>
                   </div>
                 </div>
               </a>
             )}
 
-            {/* Calendar & GitHub row */}
             <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-              {/* Upcoming Events */}
               <div className="card">
-                <h2 className="mb-4 text-sm font-medium uppercase tracking-wider text-nightshift-text-secondary">
-                  Upcoming Events
-                </h2>
+                <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-nightshift-text-muted">Calendar</p>
+                <h2 className="mt-1 mb-4 font-display text-lg font-bold text-nightshift-text-primary">Upcoming events</h2>
                 {upcomingEvents.length > 0 ? (
                   <div className="space-y-2">
                     {upcomingEvents.map((event: any, idx: number) => {
@@ -376,10 +324,12 @@ export default async function DashboardPage() {
                           className={`rounded-lg p-3 ${isDeadline ? 'bg-nightshift-warning/10 border border-nightshift-warning/30' : 'bg-nightshift-bg-light'}`}
                         >
                           <div className="flex items-center gap-2">
-                            <span className="text-sm">{isDeadline ? '⚡' : '📅'}</span>
+                            <span className="text-nightshift-highlight">
+                              {isDeadline ? <Zap className="h-4 w-4" aria-hidden /> : <Calendar className="h-4 w-4" aria-hidden />}
+                            </span>
                             <span className="text-sm font-medium text-nightshift-text-primary">{title}</span>
                           </div>
-                          <p className="text-xs text-nightshift-text-muted mt-1 ml-6">
+                          <p className="mt-1 text-xs text-nightshift-text-muted ml-7">
                             {start.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}
                           </p>
                         </div>
@@ -391,17 +341,23 @@ export default async function DashboardPage() {
                 )}
               </div>
 
-              {/* Recent GitHub Activity */}
               <div className="card">
-                <h2 className="mb-4 text-sm font-medium uppercase tracking-wider text-nightshift-text-secondary">
-                  GitHub Activity
-                </h2>
+                <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-nightshift-text-muted">GitHub</p>
+                <h2 className="mt-1 mb-4 font-display text-lg font-bold text-nightshift-text-primary">Recent activity</h2>
                 {recentGithub.length > 0 ? (
                   <div className="space-y-2">
                     {recentGithub.map((gh: any, idx: number) => (
                       <div key={gh?.id ?? `gh-${idx}`} className="rounded-lg bg-nightshift-bg-light p-3">
                         <div className="flex items-center gap-2">
-                          <span className="text-sm">{gh?.type === 'commit' ? '📦' : gh?.type === 'pr' ? '🔀' : '🐛'}</span>
+                          <span className="text-nightshift-highlight">
+                            {gh?.type === 'commit' ? (
+                              <Package className="h-4 w-4" aria-hidden />
+                            ) : gh?.type === 'pr' ? (
+                              <GitBranch className="h-4 w-4" aria-hidden />
+                            ) : (
+                              <Bug className="h-4 w-4" aria-hidden />
+                            )}
+                          </span>
                           <a
                             href={typeof gh?.url === 'string' ? gh.url : '#'}
                             target="_blank"
@@ -411,7 +367,7 @@ export default async function DashboardPage() {
                             {typeof gh?.title === 'string' ? gh.title : 'Activity'}
                           </a>
                         </div>
-                        <p className="text-xs text-nightshift-text-muted mt-1 ml-6">
+                        <p className="mt-1 text-xs text-nightshift-text-muted ml-7">
                           {String(gh?.type ?? 'item')} &middot;{' '}
                           {gh?.authoredAt ? new Date(gh.authoredAt).toLocaleDateString() : '—'}
                         </p>
@@ -429,12 +385,13 @@ export default async function DashboardPage() {
               {completedActions.length > 0 ? (
                 <CompletedActions actions={completedActions} />
               ) : (
-                <div className="card">
-                  <h2 className="mb-4 text-sm font-medium uppercase tracking-wider text-nightshift-text-secondary">
-                    Completed Overnight
-                  </h2>
-                  <p className="text-sm text-nightshift-text-muted">
-                    No completed projects yet. Projects will appear here once NightShift detects completed work.
+                <div className="card rounded-xl p-5 md:p-6">
+                  <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-nightshift-text-muted">
+                    Recently completed
+                  </p>
+                  <h2 className="mt-1 font-display text-xl font-bold text-nightshift-text-primary">Deliverables</h2>
+                  <p className="mt-2 text-sm text-nightshift-text-muted">
+                    No completed deliverables yet — finished academic, code, or doc work shows here.
                   </p>
                 </div>
               )}

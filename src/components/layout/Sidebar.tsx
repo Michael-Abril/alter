@@ -1,67 +1,68 @@
 /**
- * OWNER: Person 4 (Voice/UI)
- * PURPOSE: Dashboard sidebar navigation
- * DEPENDENCIES: next/link, next/navigation
- * STATUS: LIVE
+ * Dashboard sidebar — Alter product navigation (icons only, no emoji).
  */
 
 'use client';
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import { Forward, LayoutDashboard, FileEdit, ScrollText, Settings } from 'lucide-react';
+import { AlterWordmark } from '@/components/brand/AlterLogo';
 
 const navItems = [
-  { href: '/dashboard', label: 'Morning Brief', icon: '☀️' },
-  { href: '/dashboard/drafts', label: 'Draft Review', icon: '✍️' },
-  { href: '/dashboard/handoff', label: "Tonight's Handoff", icon: '🌙' },
-  { href: '/dashboard/activity', label: 'Activity Log', icon: '📋' },
-  { href: '/dashboard/settings', label: 'Settings', icon: '⚙️' },
-];
+  { href: '/dashboard', label: 'Morning brief', icon: LayoutDashboard },
+  { href: '/dashboard/drafts', label: 'Draft review', icon: FileEdit },
+  { href: '/dashboard/handoff', label: 'Handoff', icon: Forward },
+  { href: '/dashboard/activity', label: 'Activity', icon: ScrollText },
+  { href: '/dashboard/settings', label: 'Settings', icon: Settings },
+] as const;
 
 export default function Sidebar() {
   const pathname = usePathname();
 
   return (
-    <aside className="flex h-full w-64 flex-col border-r border-nightshift-border bg-nightshift-bg-light">
-      {/* Logo */}
-      <div className="flex items-center gap-2 px-6 py-5 border-b border-nightshift-border">
-        <span className="text-xl font-bold">
-          <span className="text-nightshift-text-primary">Night</span>
-          <span className="text-nightshift-accent">Shift</span>
-        </span>
-        <span className="text-xs text-nightshift-text-muted ml-1">AI</span>
+    <aside className="flex h-full w-[17rem] flex-col border-r border-nightshift-border bg-gradient-to-b from-nightshift-bg to-nightshift-bg-light shadow-[inset_-1px_0_0_rgba(124,58,237,0.06)]">
+      <div className="border-b border-nightshift-border px-4 py-5">
+        <AlterWordmark tone="app" />
       </div>
 
-      {/* Navigation */}
-      <nav className="flex-1 px-3 py-4 space-y-1">
+      <nav className="flex-1 space-y-0.5 px-3 py-4" aria-label="Primary">
         {navItems.map((item) => {
           const isActive =
             item.href === '/dashboard'
               ? pathname === '/dashboard'
               : pathname.startsWith(item.href);
+          const Icon = item.icon;
 
           return (
             <Link
               key={item.href}
               href={item.href}
-              className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-colors ${
+              className={`group relative flex items-center gap-3 rounded-r-xl border-l-[3px] py-2.5 pl-3 pr-3 text-sm transition-all duration-200 ${
                 isActive
-                  ? 'bg-nightshift-accent/10 text-nightshift-accent font-medium'
-                  : 'text-nightshift-text-secondary hover:text-nightshift-text-primary hover:bg-nightshift-bg-card'
+                  ? 'border-l-teal-400 bg-[#1A1A2E] font-medium text-white shadow-[inset_0_1px_0_0_rgba(255,255,255,0.04)]'
+                  : 'border-l-transparent text-nightshift-text-muted/75 hover:bg-nightshift-bg-card/50 hover:text-nightshift-text-secondary'
               }`}
             >
-              <span className="text-lg">{item.icon}</span>
-              <span>{item.label}</span>
+              <Icon
+                className={`h-[18px] w-[18px] shrink-0 stroke-[1.5] transition-colors duration-200 ${
+                  isActive ? 'text-teal-300' : 'text-nightshift-text-muted group-hover:text-nightshift-text-secondary'
+                }`}
+                aria-hidden
+              />
+              <span className="leading-snug">{item.label}</span>
             </Link>
           );
         })}
       </nav>
 
-      {/* Footer */}
       <div className="border-t border-nightshift-border px-4 py-4">
         <div className="flex items-center gap-2 text-xs text-nightshift-text-muted">
-          <span className="inline-block h-2 w-2 rounded-full bg-nightshift-success animate-pulse" />
-          <span>NightShift Active</span>
+          <span
+            className="inline-block h-2 w-2 shrink-0 rounded-full bg-nightshift-success shadow-[0_0_8px_rgba(16,185,129,0.45)]"
+            aria-hidden
+          />
+          <span>Session active</span>
         </div>
       </div>
     </aside>

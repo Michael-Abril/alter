@@ -1,12 +1,12 @@
 /**
  * OWNER: Shared across all team members
- * PURPOSE: Central TypeScript type definitions for the entire NightShift AI app
+ * PURPOSE: Central TypeScript type definitions for the Alter app
  * STATUS: Scaffold — add new types as needed
  */
 
 // ─── User Types ──────────────────────────────────────────────────────────────
 
-export interface NightShiftUser {
+export interface AlterUser {
   id: string;
   clerkId: string;
   email: string;
@@ -204,6 +204,8 @@ export interface HandoffTask {
   app: string;
   estimatedConfidence: number;
   selected: boolean;
+  /** Top picks for this run vs collapsed “other” — UI only */
+  tier?: 'recommended' | 'other';
 }
 
 export interface HandoffSubmission {

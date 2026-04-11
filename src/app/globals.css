@@ -8,15 +8,15 @@
   }
 
   :root {
-    --nightshift-navy: #0F3460;
-    --nightshift-accent: #E94560;
-    --nightshift-bg: #0A0A12;
-    --nightshift-bg-light: #12122A;
-    --nightshift-bg-card: #1A1A3E;
-    --nightshift-text-primary: #E8E8F0;
-    --nightshift-text-secondary: #9999BB;
-    --nightshift-text-muted: #666688;
-    --nightshift-border: #2A2A4E;
+    --nightshift-navy: #7c3aed;
+    --nightshift-accent: #2563eb;
+    --nightshift-bg: #080d18;
+    --nightshift-bg-light: #0f172a;
+    --nightshift-bg-card: #111827;
+    --nightshift-text-primary: #f3f4f6;
+    --nightshift-text-secondary: #94a3b8;
+    --nightshift-text-muted: #64748b;
+    --nightshift-border: rgba(148, 163, 184, 0.14);
   }
 
   body {
@@ -27,22 +27,76 @@
 
 @layer components {
   .card {
-    @apply bg-nightshift-bg-card border border-nightshift-border rounded-xl p-6;
+    @apply rounded-xl border border-nightshift-border bg-nightshift-bg-card p-6 shadow-[0_1px_0_0_rgba(255,255,255,0.04)_inset,0_8px_28px_-12px_rgba(0,0,0,0.55)] transition-[transform,box-shadow,border-color] duration-200 hover:-translate-y-px hover:border-nightshift-border hover:shadow-[0_12px_36px_-16px_rgba(0,0,0,0.65)];
+  }
+
+  .app-surface-hero {
+    @apply border-nightshift-border bg-nightshift-bg-card;
   }
 
   .btn-primary {
-    @apply bg-nightshift-accent hover:bg-nightshift-accent/90 text-white font-medium px-4 py-2 rounded-lg transition-colors;
+    @apply rounded-lg bg-nightshift-accent px-4 py-2 font-medium text-white shadow-lg shadow-nightshift-accent/20 transition-colors hover:bg-nightshift-accent/90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-nightshift-highlight/60;
   }
 
   .btn-secondary {
-    @apply bg-nightshift-navy hover:bg-nightshift-navy/80 text-white font-medium px-4 py-2 rounded-lg transition-colors;
+    @apply rounded-lg bg-nightshift-navy px-4 py-2 font-medium text-white shadow-md shadow-nightshift-navy/20 transition-colors hover:bg-nightshift-navy/90;
   }
 
   .btn-ghost {
-    @apply hover:bg-nightshift-bg-light text-nightshift-text-secondary hover:text-nightshift-text-primary px-4 py-2 rounded-lg transition-colors;
+    @apply rounded-lg px-4 py-2 text-nightshift-text-secondary transition-colors hover:bg-nightshift-bg-light hover:text-nightshift-text-primary;
   }
 
   .input {
-    @apply bg-nightshift-bg-light border border-nightshift-border rounded-lg px-4 py-2 text-nightshift-text-primary placeholder:text-nightshift-text-muted focus:outline-none focus:ring-2 focus:ring-nightshift-accent/50 focus:border-nightshift-accent transition-colors;
+    @apply rounded-lg border border-nightshift-border bg-nightshift-surface px-4 py-2 text-nightshift-text-primary placeholder:text-nightshift-text-muted transition-colors focus:border-nightshift-accent focus:outline-none focus:ring-2 focus:ring-nightshift-accent/35;
+  }
+
+  /* Alter marketing surface — local-first identity platform */
+  .alter-container {
+    @apply mx-auto w-full max-w-6xl px-4 sm:px-6 lg:px-8;
+  }
+
+  .alter-section {
+    @apply py-20 md:py-28;
+  }
+
+  .alter-eyebrow {
+    @apply font-mono text-[11px] font-medium uppercase tracking-[0.2em] text-alter-cyan;
+  }
+
+  .alter-card {
+    @apply rounded-2xl border border-alter-border bg-alter-surface/80 shadow-alter-card backdrop-blur-sm transition-colors duration-300;
+  }
+
+  .alter-card-hover {
+    @apply rounded-2xl border border-alter-border bg-alter-surface/80 shadow-alter-card backdrop-blur-sm transition-colors duration-300 hover:border-alter-border-strong hover:shadow-alter-glow;
+  }
+
+  .alter-btn-primary {
+    @apply inline-flex items-center justify-center rounded-xl bg-alter-primary px-6 py-3 text-sm font-semibold text-white shadow-lg shadow-alter-primary/25 transition hover:bg-alter-primary/90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-alter-cyan;
+  }
+
+  .alter-btn-secondary {
+    @apply inline-flex items-center justify-center rounded-xl border border-alter-border-strong bg-alter-surface px-6 py-3 text-sm font-semibold text-alter-text transition hover:border-alter-muted hover:bg-alter-surface-elevated/50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-alter-primary/50;
+  }
+
+  .alter-text-gradient {
+    @apply bg-gradient-to-r from-alter-text via-white to-alter-cyan bg-clip-text text-transparent;
+  }
+
+  .alter-animate-in {
+    animation: alter-fade-up 0.65s ease-out forwards;
+    opacity: 0;
+  }
+}
+
+@layer utilities {
+  .delay-100 {
+    animation-delay: 100ms;
+  }
+  .delay-200 {
+    animation-delay: 200ms;
+  }
+  .delay-300 {
+    animation-delay: 300ms;
   }
 }

@@ -1,6 +1,6 @@
 /**
  * OWNER: Person 3 (Royce/OpenClaw)
- * PURPOSE: GitHub API integration for NightShift
+ * PURPOSE: GitHub API integration for Alter
  * DEPENDENCIES: None (uses fetch)
  * STATUS: LIVE — enables code push to GitHub via PRs
  * 
@@ -97,7 +97,7 @@ async function githubApi(token: string, endpoint: string, options: GitHubApiOpti
   const headers: Record<string, string> = {
     'Authorization': `Bearer ${token}`,
     'Accept': 'application/vnd.github.v3+json',
-    'User-Agent': 'NightShift-AI',
+    'User-Agent': 'Alter-AI',
   };
   
   if (options.body) {

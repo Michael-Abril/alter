@@ -4,7 +4,7 @@
  */
 
 import { cache } from 'react';
-import { auth } from '@clerk/nextjs/server';
+import { auth, currentUser } from '@clerk/nextjs/server';
 import type { User } from '@prisma/client';
 import db from '@/lib/db';
 import { apiError } from '@/lib/utils';
@@ -46,6 +46,44 @@ export async function resolveUserForClerkId(clerkId: string): Promise<User | nul
 
 /** Dedupe per request when layout + page both need the user. */
 export const getCachedDashboardUser = cache(async (clerkId: string) => resolveUserForClerkId(clerkId));
+
+/**
+ * Guarantee a Prisma User row for this Clerk session (webhook may be slow or unset in dev).
+ * Used by the dashboard layout so first-time sign-in can show the empty-state CTA instead of
+ * redirecting straight to /onboarding.
+ */
+export async function ensureDashboardUser(clerkId: string): Promise<User | null> {
+  if (!clerkId) return null;
+
+  const existing = await db.user.findFirst({ where: { clerkId } });
+  if (existing) return existing;
+
+  const cu = await currentUser();
+  if (!cu) return null;
+
+  const email =
+    cu.primaryEmailAddress?.emailAddress ??
+    cu.emailAddresses?.[0]?.emailAddress ??
+    `user_${clerkId.replace(/[^a-z0-9]/gi, '').slice(-24) || 'new'}@clerk.placeholder`;
+
+  const name =
+    [cu.firstName, cu.lastName].filter(Boolean).join(' ').trim() || cu.username || null;
+
+  try {
+    return await db.user.create({
+      data: {
+        clerkId,
+        email,
+        name,
+      },
+    });
+  } catch (e) {
+    console.error('[ensureDashboardUser] create failed', e);
+    const retry = await db.user.findFirst({ where: { clerkId } });
+    if (retry) return retry;
+    return null;
+  }
+}
 
 export async function requireUserFromAuth(clerkId: string | null | undefined): Promise<AuthUserResult> {
   if (typeof clerkId !== 'string' || clerkId.length === 0) {

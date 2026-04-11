@@ -5,7 +5,7 @@
  * STATUS: LIVE — Claude connects to Gmail MCP server directly via MCP connector beta
  *
  * Uses Anthropic's MCP connector (anthropic-beta: mcp-client-2025-11-20) so Claude
- * gets direct tool access to Gmail. NightShift's backend calls Claude, Claude calls
+ * gets direct tool access to Gmail. Alter's backend calls Claude, Claude calls
  * Gmail tools, and we get structured results back — no custom Gmail OAuth needed
  * in production for AI-initiated email operations.
  *
@@ -224,7 +224,7 @@ export async function readEmails(query: string, gmailToken: string): Promise<Rea
 
   const { text, totalTokens } = await agenticLoop({
     system: [
-      'You are NightShift AI, an email assistant with direct Gmail access via MCP tools.',
+      'You are Alter, an email assistant with direct Gmail access via MCP tools.',
       'Use the Gmail MCP tools to read the user\'s emails as requested.',
       'After reading, return a JSON array with fields: from, to, subject, body (first 300 chars), date, threadId.',
       'Wrap the JSON in ```json code fences.',
@@ -283,7 +283,7 @@ export async function draftReply(
 
   const { text: draft, totalTokens } = await agenticLoop({
     system: [
-      'You are NightShift AI, drafting email replies on behalf of the user.',
+      'You are Alter, drafting email replies on behalf of the user.',
       voiceInstructions,
       'You have Gmail access via MCP — use it to look up the email thread for context if a threadId is provided.',
       'Output ONLY the reply body text. No subject line, no "Here\'s a draft:", no metadata.',
@@ -345,7 +345,7 @@ export async function sendEmail(
 
   const { text: raw, totalTokens } = await agenticLoop({
     system: [
-      'You are NightShift AI with direct Gmail access via MCP tools.',
+      'You are Alter with direct Gmail access via MCP tools.',
       'Use the Gmail MCP tools to send this email exactly as specified.',
       'Do not modify the content. Send it as-is.',
       threadInstruction,

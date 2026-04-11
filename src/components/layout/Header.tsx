@@ -1,36 +1,35 @@
 /**
  * OWNER: Person 4 (Voice/UI)
- * PURPOSE: Top bar with user info and NightShift daemon status
+ * PURPOSE: Dashboard top bar — session status and account
  * DEPENDENCIES: @clerk/nextjs
- * STATUS: LIVE
  */
 
 'use client';
 
 import { UserButton } from '@clerk/nextjs';
-import DaemonStatus from '@/components/layout/DaemonStatus';
+import AlterHeaderStatus from '@/components/layout/AlterHeaderStatus';
 
 export default function Header() {
   return (
-    <header className="flex items-center justify-between border-b border-nightshift-border bg-nightshift-bg-light px-6 py-3">
-      <div className="flex items-center gap-4">
-        <span className="text-xs font-semibold uppercase tracking-wider text-nightshift-text-muted">
-          NightShift status
-        </span>
-        <DaemonStatus />
+    <header className="flex items-center justify-between border-b border-nightshift-border bg-nightshift-bg/90 px-5 py-3 backdrop-blur-md md:px-6">
+      <div className="flex min-w-0 flex-1 items-center gap-4">
+        <AlterHeaderStatus />
       </div>
-      <div className="flex items-center gap-4">
-        <span className="text-sm text-nightshift-text-secondary">
+      <div className="flex items-center gap-4 pl-2">
+        <time
+          className="hidden text-sm text-nightshift-text-secondary sm:block"
+          dateTime={new Date().toISOString()}
+        >
           {new Date().toLocaleDateString('en-US', {
-            weekday: 'long',
-            month: 'long',
+            weekday: 'short',
+            month: 'short',
             day: 'numeric',
           })}
-        </span>
+        </time>
         <UserButton
           appearance={{
             elements: {
-              avatarBox: 'h-8 w-8',
+              avatarBox: 'h-9 w-9 ring-2 ring-nightshift-border shadow-md',
             },
           }}
         />

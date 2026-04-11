@@ -1,6 +1,6 @@
 /**
  * OWNER: Person 4 (Voice/UI)
- * PURPOSE: Items that NightShift flagged for user review (low confidence or sensitive)
+ * PURPOSE: Items that Alter flagged for user review (low confidence or sensitive)
  * DEPENDENCIES: @/types, @/components/shared/*
  * STATUS: Scaffold — needs real data and action buttons
  */

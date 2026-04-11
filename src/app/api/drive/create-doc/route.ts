@@ -1,6 +1,6 @@
 /**
  * OWNER: Person 1 (Backend)
- * PURPOSE: POST — create a Google Doc in the user's NightShift Drive folder
+ * PURPOSE: POST — create a Google Doc in the user's Alter Drive folder
  * DEPENDENCIES: @clerk/nextjs, Prisma, @/lib/google-drive
  * STATUS: LIVE
  */

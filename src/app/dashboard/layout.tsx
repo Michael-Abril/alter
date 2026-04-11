@@ -5,7 +5,7 @@
 
 import { auth } from '@clerk/nextjs/server';
 import { redirect } from 'next/navigation';
-import { getCachedDashboardUser } from '@/lib/clerk-user';
+import { ensureDashboardUser } from '@/lib/clerk-user';
 
 export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
   const { userId } = await auth();
@@ -13,12 +13,12 @@ export default async function DashboardLayout({ children }: { children: React.Re
     redirect('/sign-in?redirect_url=/dashboard');
   }
 
-  const user = await getCachedDashboardUser(userId);
+  const user = await ensureDashboardUser(userId);
   if (!user) {
-    redirect('/onboarding');
+    redirect('/sign-in?redirect_url=/dashboard');
   }
 
   return (
-    <div className="min-h-screen bg-nightshift-bg text-nightshift-text-primary">{children}</div>
+    <div className="min-h-screen bg-nightshift-bg text-nightshift-text-primary antialiased">{children}</div>
   );
 }

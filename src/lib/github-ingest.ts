@@ -19,7 +19,7 @@ function buildHeaders(token: string): GitHubHeaders {
   return {
     Authorization: `Bearer ${token}`,
     Accept: 'application/vnd.github.v3+json',
-    'User-Agent': 'NightShift-AI',
+    'User-Agent': 'Alter-AI',
   };
 }
 

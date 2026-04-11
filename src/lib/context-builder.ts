@@ -1,6 +1,6 @@
 /**
  * OWNER: Person 3 (Royce/OpenClaw)
- * PURPOSE: Centralized context builder — packages everything NightShift knows about a project
+ * PURPOSE: Centralized context builder — packages everything Alter knows about a project
  * DEPENDENCIES: Prisma, vectra, embeddings
  * STATUS: LIVE — builds comprehensive context packages for projects
  *

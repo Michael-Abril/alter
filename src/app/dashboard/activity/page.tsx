@@ -1,6 +1,6 @@
 /**
  * OWNER: Person 4 (Voice/UI)
- * PURPOSE: Activity log view — shows all NightShift actions over time
+ * PURPOSE: Activity log — actions Alter took on your behalf
  * DEPENDENCIES: @clerk/nextjs, components/layout/*
  * STATUS: LIVE — fetches real data from API
  */
@@ -76,9 +76,11 @@ export default function ActivityPage() {
         <main className="flex-1 overflow-y-auto p-6">
           <div className="mx-auto max-w-4xl space-y-6">
             <div>
-              <h1 className="text-2xl font-bold">Activity Log</h1>
-              <p className="mt-1 text-nightshift-text-secondary">
-                Everything NightShift has done on your behalf.
+              <h1 className="font-display text-2xl font-bold tracking-tight text-nightshift-text-primary">
+                Activity
+              </h1>
+              <p className="mt-1 text-sm text-nightshift-text-secondary">
+                Everything Alter has done on your behalf.
               </p>
             </div>
 
@@ -88,7 +90,11 @@ export default function ActivityPage() {
                 <button
                   key={f.value}
                   onClick={() => setFilter(f.value as any)}
-                  className={`btn-ghost text-sm ${filter === f.value ? 'bg-nightshift-bg-card text-nightshift-text-primary' : ''}`}
+                  className={`rounded-lg px-3 py-1.5 text-sm transition-colors ${
+                    filter === f.value
+                      ? 'bg-nightshift-accent/15 font-medium text-nightshift-text-primary ring-1 ring-nightshift-accent/30'
+                      : 'text-nightshift-text-secondary hover:bg-nightshift-bg-card hover:text-nightshift-text-primary'
+                  }`}
                 >
                   {f.label}
                 </button>

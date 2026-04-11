@@ -60,33 +60,34 @@ async function getDriveClient(userId: string) {
 
 // ─── Folder Management ──────────────────────────────────────────────────────
 
-export async function getOrCreateNightShiftFolder(
-  userId: string
-): Promise<{ folderId: string }> {
+/** Drive folder for Alter outputs; prefers "Alter", falls back to legacy "NightShift" if present. */
+export async function getOrCreateAlterFolder(userId: string): Promise<{ folderId: string }> {
   const cached = folderCache.get(userId);
   if (cached) return { folderId: cached };
 
   try {
     const drive = await getDriveClient(userId);
 
-    // Search for existing NightShift folder
     const search = await drive.files.list({
-      q: "name = 'NightShift' and mimeType = 'application/vnd.google-apps.folder' and trashed = false",
+      q: "(name = 'Alter' or name = 'NightShift') and mimeType = 'application/vnd.google-apps.folder' and trashed = false",
       fields: 'files(id, name)',
       spaces: 'drive',
     });
 
-    if (search.data.files?.length && search.data.files[0].id) {
-      const folderId = search.data.files[0].id;
-      folderCache.set(userId, folderId);
-      console.log(`[google-drive] Found existing NightShift folder: ${folderId}`);
-      return { folderId };
+    const files = search.data.files ?? [];
+    const preferAlter = files.find((f) => f.name === 'Alter');
+    const legacy = files.find((f) => f.name === 'NightShift');
+    const existing = preferAlter ?? legacy;
+
+    if (existing?.id) {
+      folderCache.set(userId, existing.id);
+      console.log(`[google-drive] Found existing Drive folder (${existing.name}): ${existing.id}`);
+      return { folderId: existing.id };
     }
 
-    // Create the folder
     const folder = await drive.files.create({
       requestBody: {
-        name: 'NightShift',
+        name: 'Alter',
         mimeType: 'application/vnd.google-apps.folder',
       },
       fields: 'id',
@@ -94,13 +95,16 @@ export async function getOrCreateNightShiftFolder(
 
     const folderId = folder.data.id!;
     folderCache.set(userId, folderId);
-    console.log(`[google-drive] Created NightShift folder: ${folderId}`);
+    console.log(`[google-drive] Created Alter folder: ${folderId}`);
     return { folderId };
   } catch (error) {
-    console.error('[google-drive] Error in getOrCreateNightShiftFolder:', error);
+    console.error('[google-drive] Error in getOrCreateAlterFolder:', error);
     throw error;
   }
 }
+
+/** @deprecated Use getOrCreateAlterFolder */
+export const getOrCreateNightShiftFolder = getOrCreateAlterFolder;
 
 // ─── Document Creation ──────────────────────────────────────────────────────
 
@@ -111,7 +115,7 @@ export async function createGoogleDoc(
 ): Promise<{ docId: string; docUrl: string; title: string }> {
   try {
     const drive = await getDriveClient(userId);
-    const { folderId } = await getOrCreateNightShiftFolder(userId);
+    const { folderId } = await getOrCreateAlterFolder(userId);
 
     const htmlContent = markdownToSimpleHtml(markdownContent);
 
@@ -149,7 +153,7 @@ export async function uploadFileToDrive(
 ): Promise<{ fileId: string; fileUrl: string }> {
   try {
     const drive = await getDriveClient(userId);
-    const { folderId } = await getOrCreateNightShiftFolder(userId);
+    const { folderId } = await getOrCreateAlterFolder(userId);
 
     const { Readable } = await import('stream');
     const stream = Readable.from(buffer);
@@ -179,7 +183,7 @@ export async function uploadFileToDrive(
 
 // ─── File Listing ───────────────────────────────────────────────────────────
 
-export async function listNightShiftFiles(
+export async function listAlterFiles(
   userId: string
 ): Promise<
   Array<{
@@ -192,7 +196,7 @@ export async function listNightShiftFiles(
 > {
   try {
     const drive = await getDriveClient(userId);
-    const { folderId } = await getOrCreateNightShiftFolder(userId);
+    const { folderId } = await getOrCreateAlterFolder(userId);
 
     const res = await drive.files.list({
       q: `'${folderId}' in parents and trashed = false`,
@@ -209,7 +213,7 @@ export async function listNightShiftFiles(
       createdTime: f.createdTime!,
     }));
   } catch (error) {
-    console.error('[google-drive] Error in listNightShiftFiles:', error);
+    console.error('[google-drive] Error in listAlterFiles:', error);
     throw error;
   }
 }
