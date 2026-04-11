@@ -1,20 +1,23 @@
 /**
  * OWNER: Person 4 (Voice/UI)
- * PURPOSE: Top bar with user info and NightShift status indicator
+ * PURPOSE: Top bar with user info and NightShift daemon status
  * DEPENDENCIES: @clerk/nextjs
- * STATUS: Scaffold — needs real user data
+ * STATUS: LIVE
  */
 
 'use client';
 
 import { UserButton } from '@clerk/nextjs';
-import StatusIndicator from '@/components/shared/StatusIndicator';
+import DaemonStatus from '@/components/layout/DaemonStatus';
 
 export default function Header() {
   return (
     <header className="flex items-center justify-between border-b border-nightshift-border bg-nightshift-bg-light px-6 py-3">
       <div className="flex items-center gap-4">
-        <StatusIndicator />
+        <span className="text-xs font-semibold uppercase tracking-wider text-nightshift-text-muted">
+          NightShift status
+        </span>
+        <DaemonStatus />
       </div>
       <div className="flex items-center gap-4">
         <span className="text-sm text-nightshift-text-secondary">
@@ -25,7 +28,6 @@ export default function Header() {
           })}
         </span>
         <UserButton
-          afterSignOutUrl="/"
           appearance={{
             elements: {
               avatarBox: 'h-8 w-8',

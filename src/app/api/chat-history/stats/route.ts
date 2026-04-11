@@ -72,6 +72,9 @@ export async function GET(req: NextRequest) {
     });
   } catch (error) {
     console.error('[chat-history/stats] Error:', error);
-    return apiError('Failed to fetch stats', 500);
+    return apiError(
+      error instanceof Error ? error.message : 'Failed to fetch stats',
+      500
+    );
   }
 }

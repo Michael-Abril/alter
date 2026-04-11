@@ -9,10 +9,14 @@ import { auth } from '@clerk/nextjs/server';
 import { redirect } from 'next/navigation';
 import Sidebar from '@/components/layout/Sidebar';
 import Header from '@/components/layout/Header';
-import BriefSummary from '@/components/brief/BriefSummary';
 import CompletedActions from '@/components/brief/CompletedActions';
 import FlaggedItems from '@/components/brief/FlaggedItems';
+import MorningBriefLead from '@/components/dashboard/MorningBriefLead';
+import TasksTodaySection from '@/components/dashboard/TasksTodaySection';
 import db from '@/lib/db';
+import { getCachedDashboardUser } from '@/lib/clerk-user';
+import { buildMorningBriefLead, firstNameFromUser } from '@/lib/dashboard-morning-line';
+import { buildTodayTasks, type TodayTask } from '@/lib/tasks-today';
 
 type ProjectWithContext = {
   id: string;
@@ -37,95 +41,130 @@ function parseProjectContext(rawContext: string | null): Record<string, unknown>
 
 export default async function DashboardPage() {
   const { userId } = await auth();
-  if (!userId) redirect('/sign-in');
+  if (typeof userId !== 'string' || userId.length === 0) redirect('/sign-in');
 
-  // Fetch real data directly from DB (server component — no HTTP needed)
-  let user = await db.user.findUnique({ where: { clerkId: userId } });
+  const user = await getCachedDashboardUser(userId);
+  if (!user) redirect('/onboarding');
 
-  // Dev convenience: if no user found but a test user exists, link the Clerk session to it
-  if (!user) {
-    const testUser = await db.user.findUnique({ where: { clerkId: 'user_test_123' } });
-    if (testUser) {
-      user = await db.user.update({
-        where: { id: testUser.id },
-        data: { clerkId: userId },
-      });
-      console.log(`[dashboard] Linked Clerk user ${userId} to existing test user ${user.id}`);
-    }
+  let projects: ProjectWithContext[] = [];
+  let chatCount = 0;
+  let embeddedCount = 0;
+  let sessions: Array<{ sessionId: string | null }> = [];
+  let upcomingEvents: unknown[] = [];
+  let recentGithub: unknown[] = [];
+  let pendingDrafts = 0;
+  let recentActions: Awaited<ReturnType<typeof db.action.findMany>> = [];
+  let todayTasks: TodayTask[] = [];
+  let overnightWorkCount = 0;
+  let overnightEmailDraftCount = 0;
+
+  try {
+    todayTasks = await buildTodayTasks(user.id);
+  } catch {
+    /* brief empty task list */
   }
 
-  const [projects, chatCount, embeddedCount, sessions, upcomingEvents, recentGithub, pendingDrafts, recentActions] = user
-    ? await Promise.all([
-        db.project.findMany({
-          where: { userId: user.id },
-          orderBy: { lastActive: 'desc' },
-          select: {
-            id: true,
-            userId: true,
-            name: true,
-            description: true,
-            context: true,
-            status: true,
-            progress: true,
-            lastActive: true,
-            updatedAt: true,
-          },
-        }),
-        db.chatMessage.count({ where: { userId: user.id } }),
-        db.chatMessage.count({ where: { userId: user.id, embedded: true } }),
-        db.chatMessage.groupBy({
-          by: ['sessionId'],
-          where: { userId: user.id },
-        }),
-        db.calendarEvent.findMany({
+  try {
+    const results = await Promise.all([
+      db.project.findMany({
+        where: { userId: user.id },
+        orderBy: { lastActive: 'desc' },
+        select: {
+          id: true,
+          userId: true,
+          name: true,
+          description: true,
+          context: true,
+          status: true,
+          progress: true,
+          lastActive: true,
+          updatedAt: true,
+        },
+      }),
+      db.chatMessage.count({ where: { userId: user.id } }),
+      db.chatMessage.count({ where: { userId: user.id, embedded: true } }),
+      db.chatMessage.groupBy({
+        by: ['sessionId'],
+        where: { userId: user.id },
+      }),
+      (
+        (db as { calendarEvent?: { findMany: (a: object) => Promise<unknown[]> } }).calendarEvent?.findMany({
           where: { userId: user.id, startTime: { gte: new Date() } },
           orderBy: { startTime: 'asc' },
           take: 5,
-        }).catch(() => []),
-        db.githubActivity.findMany({
+        }) ?? Promise.resolve([])
+      ).catch(() => []),
+      (
+        (db as { githubActivity?: { findMany: (a: object) => Promise<unknown[]> } }).githubActivity?.findMany({
           where: { userId: user.id },
           orderBy: { authoredAt: 'desc' },
           take: 5,
-        }).catch(() => []),
-        db.draft.count({ where: { userId: user.id, status: 'pending' } }),
-        db.action.findMany({
-          where: { userId: user.id },
-          orderBy: { createdAt: 'desc' },
-          take: 5,
-        }),
-      ])
-    : [[], 0, 0, [], [], [], 0, []];
-
-  // New users with no data → send to onboarding
-  if (projects.length === 0 && chatCount === 0) redirect('/onboarding');
-
-  const inProgress = projects.filter((p) => p.status === 'in_progress');
-  const completed = projects.filter((p) => p.status === 'completed');
-  const stalled = projects.filter((p) => p.status === 'stalled');
-
-  // Build summary
-  const summaryParts: string[] = [];
-  if (projects.length > 0) {
-    summaryParts.push(
-      `I've analyzed ${chatCount} chat messages across ${sessions.length} conversations and detected ${projects.length} projects.`
-    );
-    if (inProgress.length > 0)
-      summaryParts.push(
-        `${inProgress.length} project${inProgress.length > 1 ? 's are' : ' is'} in progress.`
-      );
-    if (completed.length > 0)
-      summaryParts.push(
-        `${completed.length} project${completed.length > 1 ? 's appear' : ' appears'} completed.`
-      );
-    if (stalled.length > 0)
-      summaryParts.push(
-        `${stalled.length} project${stalled.length > 1 ? 's need' : ' needs'} attention.`
-      );
-  } else {
-    summaryParts.push(
-      'No projects detected yet. Run the project detector to analyze your chat history.'
-    );
+        }) ?? Promise.resolve([])
+      ).catch(() => []),
+      db.draft.count({ where: { userId: user.id, status: 'pending' } }),
+      db.action.findMany({
+        where: { userId: user.id },
+        orderBy: { createdAt: 'desc' },
+        take: 5,
+      }),
+    ]);
+    projects = Array.isArray(results[0]) ? (results[0] as ProjectWithContext[]) : [];
+    chatCount = typeof results[1] === 'number' ? results[1] : 0;
+    embeddedCount = typeof results[2] === 'number' ? results[2] : 0;
+    sessions = Array.isArray(results[3]) ? (results[3] as Array<{ sessionId: string | null }>) : [];
+    upcomingEvents = Array.isArray(results[4]) ? results[4] : [];
+    recentGithub = Array.isArray(results[5]) ? results[5] : [];
+    pendingDrafts = typeof results[6] === 'number' ? results[6] : 0;
+    recentActions = Array.isArray(results[7]) ? results[7] : [];
+  } catch {
+    /* keep defaults */
   }
+
+  const since24h = new Date();
+  since24h.setDate(since24h.getDate() - 1);
+  try {
+    const [w, d] = await Promise.all([
+      db.action.count({
+        where: { userId: user.id, type: 'work_continued', createdAt: { gte: since24h } },
+      }),
+      db.draft.count({
+        where: { userId: user.id, type: 'email', createdAt: { gte: since24h } },
+      }),
+    ]);
+    overnightWorkCount = w;
+    overnightEmailDraftCount = d;
+  } catch {
+    /* leave zeros */
+  }
+
+  // First-time users with no data → onboarding (unless they already finished onboarding once)
+  if (
+    !user.onboardingCompletedAt &&
+    projects.length === 0 &&
+    chatCount === 0
+  ) {
+    redirect('/onboarding');
+  }
+
+  const inProgress = projects.filter((p) => p?.status === 'in_progress');
+  const completed = projects.filter((p) => p?.status === 'completed');
+  const stalled = projects.filter((p) => p?.status === 'stalled');
+
+  const topCanvasTask = todayTasks.find((t) => t.source === 'canvas');
+  const hasDocOrAcademicInProgress = inProgress.some((p) => {
+    const c = parseProjectContext(p.context);
+    return c.classification === 'document_build' || c.classification === 'academic_deliverable';
+  });
+
+  const morningLead = buildMorningBriefLead({
+    firstName: firstNameFromUser(user.name, user.email),
+    projectsContinued: overnightWorkCount,
+    emailDraftsOvernight: overnightEmailDraftCount,
+    topCanvas: topCanvasTask
+      ? { title: topCanvasTask.title, dueDate: topCanvasTask.dueDate }
+      : null,
+    hasDocOrAcademicInProgress,
+  });
 
   // Build completed actions from completed projects
   const completedActions = completed.map((p) => {
@@ -182,21 +221,17 @@ export default async function DashboardPage() {
     });
 
   return (
-    <div className="flex h-screen">
+    <div className="flex h-screen bg-nightshift-bg">
       <Sidebar />
       <div className="flex flex-1 flex-col overflow-hidden">
         <Header />
         <main className="flex-1 overflow-y-auto p-6">
-          <div className="mx-auto max-w-5xl space-y-6">
-            <h1 className="text-2xl font-bold">Good Morning ☀️</h1>
+          <div className="mx-auto max-w-5xl space-y-8">
+            <MorningBriefLead lead={morningLead} />
 
-            <BriefSummary
-              summary={summaryParts.join(' ')}
-              actionsCompleted={completed.length}
-              flaggedForReview={stalled.length}
-            />
+            <TasksTodaySection tasks={todayTasks} />
 
-            {/* Real stats banner */}
+            {/* At a glance */}
             <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
               <div className="card text-center">
                 <div className="text-2xl font-bold text-nightshift-accent">{projects.length}</div>
@@ -273,18 +308,23 @@ export default async function DashboardPage() {
                 </h2>
                 {upcomingEvents.length > 0 ? (
                   <div className="space-y-2">
-                    {upcomingEvents.map((event: any) => {
-                      const isDeadline = ['due', 'deadline', 'quiz', 'exam', 'assignment', 'submit'].some(
-                        (k: string) => event.title.toLowerCase().includes(k)
+                    {upcomingEvents.map((event: any, idx: number) => {
+                      const title = typeof event?.title === 'string' ? event.title : 'Event';
+                      const start = event?.startTime ? new Date(event.startTime) : new Date();
+                      const isDeadline = ['due', 'deadline', 'quiz', 'exam', 'assignment', 'submit'].some((k: string) =>
+                        title.toLowerCase().includes(k)
                       );
                       return (
-                        <div key={event.id} className={`rounded-lg p-3 ${isDeadline ? 'bg-nightshift-warning/10 border border-nightshift-warning/30' : 'bg-nightshift-bg-light'}`}>
+                        <div
+                          key={event?.id ?? `ev-${idx}`}
+                          className={`rounded-lg p-3 ${isDeadline ? 'bg-nightshift-warning/10 border border-nightshift-warning/30' : 'bg-nightshift-bg-light'}`}
+                        >
                           <div className="flex items-center gap-2">
                             <span className="text-sm">{isDeadline ? '⚡' : '📅'}</span>
-                            <span className="text-sm font-medium text-nightshift-text-primary">{event.title}</span>
+                            <span className="text-sm font-medium text-nightshift-text-primary">{title}</span>
                           </div>
                           <p className="text-xs text-nightshift-text-muted mt-1 ml-6">
-                            {new Date(event.startTime).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}
+                            {start.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}
                           </p>
                         </div>
                       );
@@ -302,16 +342,22 @@ export default async function DashboardPage() {
                 </h2>
                 {recentGithub.length > 0 ? (
                   <div className="space-y-2">
-                    {recentGithub.map((gh: any) => (
-                      <div key={gh.id} className="rounded-lg bg-nightshift-bg-light p-3">
+                    {recentGithub.map((gh: any, idx: number) => (
+                      <div key={gh?.id ?? `gh-${idx}`} className="rounded-lg bg-nightshift-bg-light p-3">
                         <div className="flex items-center gap-2">
-                          <span className="text-sm">{gh.type === 'commit' ? '📦' : gh.type === 'pr' ? '🔀' : '🐛'}</span>
-                          <a href={gh.url} target="_blank" rel="noopener noreferrer" className="text-sm font-medium text-nightshift-accent hover:underline truncate">
-                            {gh.title}
+                          <span className="text-sm">{gh?.type === 'commit' ? '📦' : gh?.type === 'pr' ? '🔀' : '🐛'}</span>
+                          <a
+                            href={typeof gh?.url === 'string' ? gh.url : '#'}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-sm font-medium text-nightshift-accent hover:underline truncate"
+                          >
+                            {typeof gh?.title === 'string' ? gh.title : 'Activity'}
                           </a>
                         </div>
                         <p className="text-xs text-nightshift-text-muted mt-1 ml-6">
-                          {gh.type} &middot; {new Date(gh.authoredAt).toLocaleDateString()}
+                          {String(gh?.type ?? 'item')} &middot;{' '}
+                          {gh?.authoredAt ? new Date(gh.authoredAt).toLocaleDateString() : '—'}
                         </p>
                       </div>
                     ))}

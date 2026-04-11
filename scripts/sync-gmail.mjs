@@ -118,6 +118,7 @@ async function syncGmail() {
             to,
             body: body.substring(0, 10000), // Limit body size
             direction: msg.direction,
+            ingestChannel: msg.direction === 'sent' ? 'sent' : 'inbox',
             receivedAt: new Date(date),
             embedded: false,
           }

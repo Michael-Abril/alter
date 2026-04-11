@@ -6,64 +6,57 @@
  */
 
 import { NextRequest } from 'next/server';
-import { auth } from '@clerk/nextjs/server';
 import { apiSuccess, apiError } from '@/lib/utils';
+import Anthropic from '@anthropic-ai/sdk';
+import fs from 'fs';
+import path from 'path';
+import db from '@/lib/db';
+import { tryAuthUser } from '@/lib/clerk-user';
 
 // GET: Return unfinished tasks detected for the user
 export async function GET() {
-  const { userId: clerkId } = await auth();
-  if (!clerkId) return apiError('Unauthorized', 401);
+  try {
+    const authResult = await tryAuthUser();
+    if (!authResult.ok) return authResult.response;
+    const { user } = authResult;
 
-  const user = await db.user.findUnique({ where: { clerkId } });
-  if (!user) return apiSuccess([]);
+    const projects = await db.project.findMany({
+      where: { userId: user.id, status: 'in_progress' },
+      orderBy: { lastActive: 'desc' },
+    });
 
-  const projects = await db.project.findMany({
-    where: { userId: user.id, status: 'in_progress' },
-    orderBy: { lastActive: 'desc' },
-  });
+    const tasks = projects.map((p) => {
+      const ctx = p.context ? JSON.parse(p.context) : {};
+      return {
+        id: p.id,
+        projectId: p.id,
+        title: p.name,
+        description: ctx.nextStep || p.description || `${p.progress}% complete — continue this work`,
+        app: 'claude',
+        estimatedConfidence: p.progress / 100,
+        selected: false,
+      };
+    });
 
-  const tasks = projects.map((p) => {
-    const ctx = p.context ? JSON.parse(p.context) : {};
-    return {
-      id: p.id,
-      projectId: p.id,
-      title: p.name,
-      description: ctx.nextStep || p.description || `${p.progress}% complete — continue this work`,
-      app: 'claude',
-      estimatedConfidence: p.progress / 100,
-      selected: false,
-    };
-  });
-
-  return apiSuccess(tasks);
+    return apiSuccess(tasks);
+  } catch (e) {
+    console.error('[handoff] GET', e);
+    return apiError(e instanceof Error ? e.message : 'Failed to load handoff tasks', 500);
+  }
 }
 
 // POST: Submit handoff selections — activate NightShift for tonight
 export async function POST(req: NextRequest) {
-  const { userId: clerkId } = await auth();
-  if (!clerkId) return apiError('Unauthorized', 401);
-
   try {
+    const authResult = await tryAuthUser();
+    if (!authResult.ok) return authResult.response;
+    const { user } = authResult;
+
     const body = await req.json();
     const { projectIds, instructions } = body;
 
     if (!projectIds || !Array.isArray(projectIds) || projectIds.length === 0) {
       return apiError('No projects selected for handoff', 400);
-    }
-
-    // Find user (with auto-link fallback for dev)
-    let user = await db.user.findUnique({ where: { clerkId } });
-    if (!user) {
-      const testUser = await db.user.findUnique({ where: { clerkId: 'user_test_123' } });
-      if (testUser) {
-        user = await db.user.update({
-          where: { id: testUser.id },
-          data: { clerkId },
-        });
-        console.log(`[handoff] Auto-linked Clerk user ${clerkId} to internal user ${user.id}`);
-      } else {
-        return apiError('User not found', 404);
-      }
     }
 
     console.log(`[handoff] Triggering overnight loop for user ${user.id} with ${projectIds.length} projects`);
@@ -120,16 +113,14 @@ export async function POST(req: NextRequest) {
     });
   } catch (error) {
     console.error('[handoff] Fatal error:', error);
-    return apiError('Failed to activate NightShift', 500);
+    return apiError(
+      error instanceof Error ? error.message : 'Failed to activate NightShift',
+      500
+    );
   }
 }
 
 // ─── Helper Functions ────────────────────────────────────────────────────────
-
-import Anthropic from '@anthropic-ai/sdk';
-import db from '@/lib/db';
-import fs from 'fs';
-import path from 'path';
 
 const anthropic = new Anthropic({
   apiKey: process.env.ANTHROPIC_API_KEY!,

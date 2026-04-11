@@ -1,7 +1,15 @@
 import fs from 'fs';
 import path from 'path';
 
-export type SyncSource = 'claude' | 'chatgpt';
+export type SyncSource = 'claude' | 'chatgpt' | 'canvas' | 'other';
+
+/** Maps ingest `source` string to fingerprint bucket (never collides chatgpt with canvas). */
+export function syncSourceForIngest(source: string): SyncSource {
+  if (source === 'claude') return 'claude';
+  if (source === 'chatgpt') return 'chatgpt';
+  if (source === 'canvas') return 'canvas';
+  return 'other';
+}
 export type SyncState = 'idle' | 'running' | 'completed' | 'failed' | 'auth_required';
 
 export interface OnboardingSyncStatus {
@@ -135,7 +143,7 @@ export function writeFingerprints(clerkId: string, source: SyncSource, fingerpri
 
 export function clearOnboardingSyncForUser(clerkId: string) {
   ensureDir();
-  for (const source of ['claude', 'chatgpt'] as const) {
+  for (const source of ['claude', 'chatgpt', 'canvas', 'other'] as const) {
     const filePath = statusPath(clerkId, source);
     if (fs.existsSync(filePath)) {
       fs.unlinkSync(filePath);
@@ -143,12 +151,14 @@ export function clearOnboardingSyncForUser(clerkId: string) {
   }
 
   const checkpoints = readJsonFile<CheckpointMap>(CHECKPOINTS_PATH, {});
-  delete checkpoints[keyFor(clerkId, 'claude')];
-  delete checkpoints[keyFor(clerkId, 'chatgpt')];
+  for (const source of ['claude', 'chatgpt', 'canvas', 'other'] as const) {
+    delete checkpoints[keyFor(clerkId, source)];
+  }
   writeJsonFile(CHECKPOINTS_PATH, checkpoints);
 
   const fingerprints = readJsonFile<FingerprintMap>(FINGERPRINTS_PATH, {});
-  delete fingerprints[keyFor(clerkId, 'claude')];
-  delete fingerprints[keyFor(clerkId, 'chatgpt')];
+  for (const source of ['claude', 'chatgpt', 'canvas', 'other'] as const) {
+    delete fingerprints[keyFor(clerkId, source)];
+  }
   writeJsonFile(FINGERPRINTS_PATH, fingerprints);
 }

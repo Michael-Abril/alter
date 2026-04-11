@@ -40,6 +40,7 @@ export async function POST() {
             gmailConnected: false,
             gmailToken: null,
             gmailRefreshToken: null,
+            onboardingCompletedAt: null,
           },
         }),
       ]);

@@ -10,6 +10,7 @@ import { auth, clerkClient } from '@clerk/nextjs/server';
 import { exchangeCodeForTokens } from '@/lib/gmail';
 import { apiError } from '@/lib/utils';
 import db from '@/lib/db';
+import { runOnboardingIntegrationSnapshot } from '@/lib/onboarding-integration-snapshot';
 
 function redirectWithContext(
   req: NextRequest,
@@ -139,12 +140,28 @@ export async function GET(req: NextRequest) {
     }
 
     console.log(`[gmail/callback] Successfully connected Gmail for user ${clerkId}`);
-    
+
+    const dbUser = await db.user.findUnique({
+      where: { clerkId },
+      select: { id: true },
+    });
+    if (dbUser) {
+      try {
+        const snap = await runOnboardingIntegrationSnapshot(dbUser.id, clerkId, {
+          gmailSinceDays: 14,
+          calendarDaysAhead: 21,
+        });
+        console.log('[gmail/callback] Integration snapshot:', snap);
+      } catch (syncErr) {
+        console.warn('[gmail/callback] Post-OAuth snapshot failed (non-fatal):', syncErr);
+      }
+    }
+
     // Check if we came from onboarding (state contains onboarding flag)
     const redirectUrl = fromOnboarding
-      ? '/onboarding?step=github&gmail=connected'
+      ? '/onboarding?step=gmail&gmail=connected'
       : '/dashboard/settings?gmail=connected';
-    
+
     return redirectWithContext(req, redirectUrl);
   } catch (error) {
     console.error('[gmail/callback] Error exchanging code:', error);

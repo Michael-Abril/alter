@@ -1,20 +1,19 @@
 /**
  * OWNER: Person 3 (Orchestration)
  * PURPOSE: POST: validate Canvas API token and save credentials
- * DEPENDENCIES: Prisma, @clerk/nextjs, Canvas API
- * STATUS: LIVE
+ * DEPENDENCIES: Prisma, @clerk/nextjs, Canvas API, src/lib/canvas.ts
+ * STATUS: LIVE — persists per-user config for loadCanvasConfig / tasks-today
  */
 
 import { NextRequest } from 'next/server';
 import { auth } from '@clerk/nextjs/server';
 import { apiSuccess, apiError } from '@/lib/utils';
 import db from '@/lib/db';
-import fs from 'fs';
-import path from 'path';
+import { saveCanvasConfig } from '@/lib/canvas';
 
 export async function POST(req: NextRequest) {
-  const { userId } = await auth();
-  if (!userId) return apiError('Unauthorized', 401);
+  const { userId: clerkId } = await auth();
+  if (!clerkId) return apiError('Unauthorized', 401);
 
   try {
     const body = await req.json();
@@ -24,11 +23,10 @@ export async function POST(req: NextRequest) {
       return apiError('Missing token or domain', 400);
     }
 
-    // Validate token by making a test API call to Canvas
     const testUrl = `https://${domain}/api/v1/users/self`;
     const testResponse = await fetch(testUrl, {
       headers: {
-        'Authorization': `Bearer ${token}`,
+        Authorization: `Bearer ${token}`,
       },
     });
 
@@ -38,25 +36,14 @@ export async function POST(req: NextRequest) {
 
     const userData = await testResponse.json();
 
-    // Save Canvas credentials to /data/canvas-config.json
-    const configPath = path.join(process.cwd(), 'data', 'canvas-config.json');
-    const configDir = path.dirname(configPath);
-
-    if (!fs.existsSync(configDir)) {
-      fs.mkdirSync(configDir, { recursive: true });
+    const user = await db.user.findUnique({ where: { clerkId } });
+    if (!user) {
+      return apiError('User not found — complete sign-up first', 404);
     }
 
-    const config = {
-      apiToken: token,
-      baseUrl: `https://${domain}`,
-      userId: userData.id,
-      userName: userData.name,
-      updatedAt: new Date().toISOString(),
-    };
+    saveCanvasConfig(user.id, { token, domain });
 
-    fs.writeFileSync(configPath, JSON.stringify(config, null, 2));
-
-    console.log('[canvas/validate] Canvas credentials validated and saved');
+    console.log('[canvas/validate] Canvas credentials validated and saved for user', user.id);
 
     return apiSuccess({
       valid: true,

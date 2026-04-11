@@ -5,30 +5,18 @@
  * STATUS: LIVE — returns real detected projects from DB, falls back to mock when empty
  */
 
-import { auth } from '@clerk/nextjs/server';
 import { apiSuccess, apiError } from '@/lib/utils';
 import db from '@/lib/db';
+import { tryAuthUser } from '@/lib/clerk-user';
 
 // GET: Return detected active projects for the authenticated user
 export async function GET() {
-  const { userId } = await auth();
-  if (!userId) return apiError('Unauthorized', 401);
-
   try {
-    // Find user, with dev auto-link fallback
-    let user = await db.user.findUnique({ where: { clerkId: userId } });
-    if (!user) {
-      const testUser = await db.user.findUnique({ where: { clerkId: 'user_test_123' } });
-      if (testUser) {
-        user = await db.user.update({
-          where: { id: testUser.id },
-          data: { clerkId: userId },
-        });
-        console.log(`[projects] Linked Clerk user ${userId} to existing test user ${user.id}`);
-      }
-    }
+    const authResult = await tryAuthUser();
+    if (!authResult.ok) return authResult.response;
+    const { user } = authResult;
 
-    const projects = user ? await db.project.findMany({
+    const projects = await db.project.findMany({
       where: { userId: user.id },
       orderBy: { lastActive: 'desc' },
       select: {
@@ -42,7 +30,7 @@ export async function GET() {
         createdAt: true,
         updatedAt: true,
       },
-    }) : [];
+    });
 
     // Parse context JSON for each project
     const enriched = projects.map((p) => ({
@@ -57,6 +45,9 @@ export async function GET() {
     });
   } catch (error) {
     console.error('[projects] Error:', error);
-    return apiError('Failed to fetch projects', 500);
+    return apiError(
+      error instanceof Error ? error.message : 'Failed to fetch projects',
+      500
+    );
   }
 }

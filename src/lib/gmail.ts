@@ -84,6 +84,8 @@ export interface FetchedEmail {
   body: string;
   direction: 'sent' | 'received';
   receivedAt: Date;
+  /** Persisted to Email.ingestChannel */
+  ingestChannel?: 'sent' | 'important_inbox' | 'inbox';
 }
 
 /**
@@ -155,6 +157,7 @@ export async function fetchSentEmails(
         body: body.slice(0, 50000), // cap body at 50k chars
         direction: 'sent',
         receivedAt: new Date(parseInt(detail.internalDate || '0')),
+        ingestChannel: 'sent',
       });
     }
 
@@ -343,11 +346,82 @@ export async function fetchInboxEmails(
         body: extractBody(detail.payload).slice(0, 50000),
         direction: 'received',
         receivedAt: new Date(parseInt(detail.internalDate || '0')),
+        ingestChannel: 'inbox',
       });
     }
   }
 
   console.log(`[gmail] Parsed ${emails.length} inbox emails`);
+  return emails;
+}
+
+/**
+ * Important received mail only (Gmail Important label). Capped for high-signal ingest.
+ */
+export async function fetchImportantEmails(
+  accessToken: string,
+  refreshToken: string | null,
+  maxTotal: number = 25,
+  newerThanDays: number = 14
+): Promise<FetchedEmail[]> {
+  const { gmail } = createGmailClient(accessToken, refreshToken);
+
+  const query = `is:important newer_than:${newerThanDays}d -in:sent`;
+
+  const messageIds: string[] = [];
+  let pageToken: string | undefined;
+
+  while (messageIds.length < maxTotal) {
+    const remaining = maxTotal - messageIds.length;
+    const response = await gmail.users.messages.list({
+      userId: 'me',
+      q: query,
+      maxResults: Math.min(remaining, 100),
+      pageToken,
+    });
+
+    for (const msg of response.data.messages || []) {
+      if (msg.id) messageIds.push(msg.id);
+    }
+    pageToken = response.data.nextPageToken || undefined;
+    if (!pageToken) break;
+  }
+
+  console.log(`[gmail] Found ${messageIds.length} important message IDs (newer_than ${newerThanDays}d)`);
+
+  const emails: FetchedEmail[] = [];
+  const BATCH_SIZE = 20;
+
+  for (let i = 0; i < messageIds.length; i += BATCH_SIZE) {
+    const batch = messageIds.slice(i, i + BATCH_SIZE);
+    const results = await Promise.allSettled(
+      batch.map((id) => gmail.users.messages.get({ userId: 'me', id, format: 'full' }))
+    );
+
+    for (const result of results) {
+      if (result.status !== 'fulfilled') continue;
+      const detail = result.value.data;
+      if (!detail.id) continue;
+
+      const hdrs = detail.payload?.headers || [];
+      const getH = (name: string) =>
+        hdrs.find((h) => h.name?.toLowerCase() === name.toLowerCase())?.value || '';
+
+      emails.push({
+        gmailId: detail.id,
+        threadId: detail.threadId || null,
+        from: getH('From'),
+        to: getH('To'),
+        subject: getH('Subject'),
+        body: extractBody(detail.payload).slice(0, 50000),
+        direction: 'received',
+        receivedAt: new Date(parseInt(detail.internalDate || '0')),
+        ingestChannel: 'important_inbox',
+      });
+    }
+  }
+
+  console.log(`[gmail] Parsed ${emails.length} important emails`);
   return emails;
 }
 

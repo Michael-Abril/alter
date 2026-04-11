@@ -96,9 +96,21 @@ export function apiSuccess<T>(data: T, message?: string) {
 
 /**
  * Create a standard API error response
+ * @param extras optional `code` for clients (e.g. USER_NOT_FOUND → redirect to onboarding)
  */
-export function apiError(error: string, status: number = 400) {
-  return Response.json({ success: false, error }, { status });
+export function apiError(
+  error: string,
+  status: number = 400,
+  extras?: { code?: string }
+) {
+  return Response.json(
+    {
+      success: false,
+      error,
+      ...(extras?.code ? { code: extras.code } : {}),
+    },
+    { status }
+  );
 }
 
 // ─── Confidence Utilities ────────────────────────────────────────────────────

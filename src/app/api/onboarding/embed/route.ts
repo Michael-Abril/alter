@@ -101,16 +101,21 @@ export async function POST(req: NextRequest) {
 
   try {
     const sinceDaysParam = req.nextUrl.searchParams.get('sinceDays');
-    const sinceDays = sinceDaysParam ? Math.max(1, parseInt(sinceDaysParam, 10)) : 3;
+    const fullHistory = req.nextUrl.searchParams.get('fullHistory') === '1';
+    const sinceDays = fullHistory ? 3650 : sinceDaysParam ? Math.max(1, parseInt(sinceDaysParam, 10)) : 3;
     const cutoffDate = new Date(Date.now() - sinceDays * 24 * 60 * 60 * 1000);
 
     // Find user
     const user = await db.user.findUnique({ where: { clerkId: userId } });
     if (!user) return apiError('User not found', 404);
 
+    const unembeddedWhere = fullHistory
+      ? { userId: user.id, embedded: false }
+      : { userId: user.id, embedded: false, timestamp: { gte: cutoffDate } };
+
     // Count un-embedded messages
     const totalUnembedded = await db.chatMessage.count({
-      where: { userId: user.id, embedded: false, timestamp: { gte: cutoffDate } },
+      where: unembeddedWhere,
     });
 
     console.log(
@@ -118,11 +123,12 @@ export async function POST(req: NextRequest) {
     );
 
     if (totalUnembedded === 0) {
-      return apiSuccess({
-        messagesEmbedded: 0,
-        status: 'complete',
-        backend: hasOpenAIKey() ? 'openai' : 'local-tfidf',
-      });
+    return apiSuccess({
+      messagesEmbedded: 0,
+      status: 'complete',
+      backend: hasOpenAIKey() ? 'openai' : 'local-tfidf',
+      fullHistory,
+    });
     }
 
     // Get or create vectra index for this user
@@ -142,7 +148,7 @@ export async function POST(req: NextRequest) {
 
     while (true) {
       const messages = await db.chatMessage.findMany({
-        where: { userId: user.id, embedded: false, timestamp: { gte: cutoffDate } },
+        where: unembeddedWhere,
         orderBy: { timestamp: 'asc' },
         take: BATCH_SIZE,
       });
@@ -201,6 +207,7 @@ export async function POST(req: NextRequest) {
       status: 'complete',
       backend: hasOpenAIKey() ? 'openai' : 'local-tfidf',
       sinceDays,
+      fullHistory,
     });
   } catch (error: any) {
     console.error('[onboarding/embed] Error:', error);

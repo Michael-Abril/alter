@@ -210,6 +210,67 @@ export async function getUpcomingAssignments(
   return allAssignments;
 }
 
+/** Minimal rows for project classifier ↔ Canvas cross-reference */
+export type CanvasRefForClassifier = {
+  name: string;
+  courseCode: string;
+};
+
+/**
+ * Course codes + assignment names for matching chat threads to Canvas work.
+ * Includes assignments due roughly within the last 120 days through the next 180 days.
+ */
+export async function getCanvasRefsForClassifier(
+  config: CanvasConfig
+): Promise<CanvasRefForClassifier[]> {
+  const courses = await getCourses(config);
+  const out: CanvasRefForClassifier[] = [];
+  const now = Date.now();
+  const minDue = now - 120 * 24 * 60 * 60 * 1000;
+  const maxDue = now + 180 * 24 * 60 * 60 * 1000;
+
+  const seen = new Set<string>();
+
+  const push = (name: string, courseCode: string) => {
+    const n = name.trim();
+    const c = courseCode.trim();
+    if (!n && !c) return;
+    const key = `${n.toLowerCase()}|${c.toLowerCase()}`;
+    if (seen.has(key)) return;
+    seen.add(key);
+    out.push({ name: n || c, courseCode: c || n });
+  };
+
+  for (const course of courses) {
+    const code = (course.course_code || course.name || '').trim();
+    if (code) push(course.name || code, code);
+
+    try {
+      const assignments = await canvasRequest<CanvasAssignment[]>(
+        config,
+        `/courses/${course.id}/assignments`,
+        { per_page: '100', order_by: 'due_at' }
+      );
+
+      for (const a of assignments) {
+        const codeForRow = code || `Course ${course.id}`;
+        if (!a.due_at) {
+          push(a.name, codeForRow);
+          continue;
+        }
+        const due = new Date(a.due_at).getTime();
+        if (due >= minDue && due <= maxDue) {
+          push(a.name, codeForRow);
+        }
+      }
+    } catch (err) {
+      console.error(`[getCanvasRefsForClassifier] course ${course.id}:`, err);
+    }
+  }
+
+  return out;
+}
+
 /**
  * Get recent course announcements
  */
@@ -254,6 +315,90 @@ export async function getAnnouncements(
   });
 
   return allAnnouncements;
+}
+
+/**
+ * Course syllabus HTML as plain text (truncated). Requires syllabus on the course in Canvas.
+ */
+export async function getCourseSyllabusBody(
+  config: CanvasConfig,
+  courseId: number
+): Promise<string | null> {
+  try {
+    const url = new URL(`https://${config.domain}/api/v1/courses/${courseId}`);
+    url.searchParams.append('include[]', 'syllabus_body');
+    const response = await fetch(url.toString(), {
+      headers: {
+        Authorization: `Bearer ${config.token}`,
+        Accept: 'application/json',
+      },
+    });
+    if (!response.ok) return null;
+    const data = (await response.json()) as { syllabus_body?: string };
+    const raw = data.syllabus_body;
+    if (!raw || !String(raw).trim()) return null;
+    return String(raw)
+      .replace(/<[^>]*>/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim()
+      .slice(0, 12000);
+  } catch {
+    return null;
+  }
+}
+
+export interface CanvasConversationSummary {
+  id: number;
+  subject: string;
+  preview: string;
+  updatedAt: string;
+}
+
+function conversationPreview(c: Record<string, unknown>): string {
+  const lm = c.last_message as Record<string, unknown> | string | undefined;
+  if (!lm) return '';
+  if (typeof lm === 'string') return lm.slice(0, 400);
+  const body = (lm.body as string) || (lm.preview as string) || '';
+  return String(body)
+    .replace(/<[^>]*>/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .slice(0, 400);
+}
+
+/**
+ * Canvas internal inbox (Conversations). Capped list.
+ */
+export async function getRecentConversations(
+  config: CanvasConfig,
+  max: number = 15
+): Promise<CanvasConversationSummary[]> {
+  try {
+    const raw = (await canvasRequest<unknown>(config, '/conversations', {
+      per_page: String(Math.min(Math.max(max, 1), 50)),
+    })) as unknown[] | Record<string, unknown>;
+
+    const list: unknown[] = Array.isArray(raw)
+      ? raw
+      : Array.isArray((raw as { conversations?: unknown[] }).conversations)
+        ? (raw as { conversations: unknown[] }).conversations
+        : [];
+
+    return list.slice(0, max).map((item) => {
+      const c = item as Record<string, unknown>;
+      return {
+        id: Number(c.id) || 0,
+        subject: String(c.subject || '(no subject)'),
+        preview: conversationPreview(c),
+        updatedAt: String(
+          c.last_message_at || c.updated_at || new Date().toISOString()
+        ),
+      };
+    });
+  } catch (e) {
+    console.warn('[canvas] getRecentConversations:', e);
+    return [];
+  }
 }
 
 /**

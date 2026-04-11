@@ -19,6 +19,7 @@ model User {
   autonomyLevel       Int      @default(0)
   wakeTime            String   @default("07:00")
   outputDirectory     String?
+  onboardingCompletedAt DateTime?
   createdAt           DateTime @default(now())
   updatedAt           DateTime @updatedAt
 
@@ -35,22 +36,25 @@ model User {
 }
 
 model Email {
-  id         String   @id @default(cuid())
-  userId     String
-  user       User     @relation(fields: [userId], references: [id])
-  gmailId    String   @unique
-  threadId   String?
-  from       String
-  to         String
-  subject    String
-  body       String
-  direction  String
-  isRead     Boolean  @default(false)
-  receivedAt DateTime
-  createdAt  DateTime @default(now())
-  embedded   Boolean  @default(false)
+  id            String   @id @default(cuid())
+  userId        String
+  user          User     @relation(fields: [userId], references: [id])
+  gmailId       String   @unique
+  threadId      String?
+  from          String
+  to            String
+  subject       String
+  body          String
+  direction     String
+  // sent | important_inbox | inbox
+  ingestChannel String   @default("inbox")
+  isRead        Boolean  @default(false)
+  receivedAt    DateTime
+  createdAt     DateTime @default(now())
+  embedded      Boolean  @default(false)
 
   @@index([userId, direction])
+  @@index([userId, ingestChannel])
   @@index([userId, embedded])
 }
 

@@ -26,7 +26,7 @@ const __dirname = path.dirname(__filename);
 // Load .env from parent directory
 dotenv.config({ path: path.join(__dirname, '..', '.env') });
 
-import { continueWork } from './continue-work.mjs';
+import { continueWork, persistContinuationOutput } from './continue-work.mjs';
 import { draftEmailReply } from './draft-email.mjs';
 import { resolveInternalUserId } from './user-resolver.mjs';
 
@@ -40,9 +40,117 @@ const INSTRUCTIONS_ARG = args.find(a => a.startsWith('--instructions='))?.split(
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000';
 const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY;
-const MAX_PROJECTS = 3; // Only process top 3 most urgent projects
 const HAIKU_MODEL = 'claude-haiku-4-5-20251001'; // For classification/summarization
 const SONNET_MODEL = 'claude-sonnet-4-20250514'; // For work continuation only
+
+/** Hard cap per run (safety); within this we spend up to RUN_BUDGET_USD. */
+const MAX_PROJECTS_PER_RUN = Math.max(1, Number(process.env.NIGHTSHIFT_MAX_PROJECTS_PER_RUN ?? 20));
+/** Default $0.05 per overnight run — tune with NIGHTSHIFT_RUN_BUDGET_USD */
+const RUN_BUDGET_USD = Number(process.env.NIGHTSHIFT_RUN_BUDGET_USD ?? 0.05);
+const SONNET_PRICE_IN_PER_MTOK = Number(process.env.ANTHROPIC_SONNET_PRICE_IN_PER_MTOK ?? 3);
+const SONNET_PRICE_OUT_PER_MTOK = Number(process.env.ANTHROPIC_SONNET_PRICE_OUT_PER_MTOK ?? 15);
+const MAX_CONTINUATION_ITERATIONS = 3;
+
+function usdForSonnetUsage(usage) {
+  const inT = usage?.input_tokens ?? 0;
+  const outT = usage?.output_tokens ?? 0;
+  return (inT / 1e6) * SONNET_PRICE_IN_PER_MTOK + (outT / 1e6) * SONNET_PRICE_OUT_PER_MTOK;
+}
+
+function parseProjectContextJson(project) {
+  if (!project.context) return {};
+  if (typeof project.context === 'object') return { ...project.context };
+  try {
+    return JSON.parse(project.context);
+  } catch {
+    return {};
+  }
+}
+
+function parseAcademicDueDate(ctx) {
+  const raw = ctx.academicDueAt || ctx.canvasDueAt || ctx.deadline || ctx.dueAt;
+  if (!raw) return null;
+  const d = new Date(raw);
+  return Number.isNaN(d.getTime()) ? null : d;
+}
+
+function academicDueWithin48Hours(project) {
+  const ctx = parseProjectContextJson(project);
+  const cls = ctx.classification || classifyProject(project);
+  if (cls !== 'academic_deliverable') return false;
+  const d = parseAcademicDueDate(ctx);
+  if (!d) return false;
+  const now = Date.now();
+  return d.getTime() > now && d.getTime() - now <= 48 * 60 * 60 * 1000;
+}
+
+function wordCountText(s) {
+  return (s || '').trim().split(/\s+/).filter(Boolean).length;
+}
+
+function outputAppearsIncomplete(text, minWords, classification) {
+  const t = (text || '').trim();
+  const cls = classification || 'other';
+  if (cls === 'code_build') {
+    const fences = (t.match(/```/g) || []).length;
+    if (fences % 2 === 1) return true;
+    if (t.length < 200) return true;
+    return false;
+  }
+  if (wordCountText(t) < minWords) return true;
+  if (t.length < 120) return true;
+  const fences = (t.match(/```/g) || []).length;
+  if (fences % 2 === 1) return true;
+  if (/[,;:]\s*$/.test(t)) return true;
+  if (/\b(and|or|as follows|the following)\s*$/i.test(t)) return true;
+  if (!/[.!?…"'")\]}]\s*$/.test(t)) return true;
+  return false;
+}
+
+function sortProjectsForOvernight(projects) {
+  return [...projects].sort((a, b) => {
+    const ua = academicDueWithin48Hours(a) ? 0 : 1;
+    const ub = academicDueWithin48Hours(b) ? 0 : 1;
+    if (ua !== ub) return ua - ub;
+    return (a.progress || 0) - (b.progress || 0);
+  });
+}
+
+function scoreUndraftedEmail(e) {
+  const subj = (e.subject || '').toLowerCase();
+  let s = 0;
+  if (/urgent|asap|important|invoice|contract|offer|deadline|action required|meeting|legal/.test(subj)) {
+    s += 10;
+  }
+  if (/re:|fw:|fwd:/.test(subj)) s += 1;
+  const ageDays = (Date.now() - new Date(e.receivedAt).getTime()) / 86400000;
+  s += Math.max(0, 5 - Math.min(5, ageDays));
+  return s;
+}
+
+async function postOvernightSummaryAction(apiUrl, userId, stats) {
+  try {
+    const res = await fetch(`${apiUrl}/api/actions`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        userId,
+        type: 'overnight_run_summary',
+        title: 'Overnight run — spend & output',
+        description: `$${stats.spentUsd.toFixed(4)} spent, ${stats.totalTokensUsed} tokens, ${stats.filesGenerated} files`,
+        app: 'nightshift',
+        confidence: 1,
+        status: 'completed',
+        metadata: JSON.stringify(stats),
+      }),
+    });
+    if (!res.ok) {
+      console.warn(`   ⚠️  overnight_run_summary action failed (${res.status})`);
+    }
+  } catch (e) {
+    console.warn('   ⚠️  Could not post overnight_run_summary action:', e.message);
+  }
+}
 
 // ─── Main Function ───────────────────────────────────────────────────────────
 
@@ -66,31 +174,14 @@ export async function runOvernightLoop(config, options = {}) {
   console.log('🌙 NightShift Overnight Loop');
   console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
   console.log(`👤 User: ${resolvedUserId}`);
-  console.log(`📋 Projects: ${projectIds.length} (processing top ${Math.min(projectIds.length, MAX_PROJECTS)})`);
+  console.log(`📋 Projects: ${projectIds.length} (up to ${MAX_PROJECTS_PER_RUN} per run, budget $${RUN_BUDGET_USD.toFixed(2)})`);
   if (instructions) console.log(`💬 Instructions: ${instructions}`);
   console.log(`⏰ Started: ${new Date().toISOString()}`);
   console.log('');
 
-  // Cost estimation
-  const limitedProjects = projectIds.slice(0, MAX_PROJECTS);
-  const estimatedTokens = {
-    continuation: limitedProjects.length * 2000, // ~2k tokens per continuation (500 words)
-    brief: 1000, // Morning brief generation
-    total: 0
-  };
-  estimatedTokens.total = estimatedTokens.continuation + estimatedTokens.brief;
-  
-  const estimatedCost = {
-    haiku: (estimatedTokens.brief / 1000000) * 0.80, // $0.80 per 1M tokens
-    sonnet: (estimatedTokens.continuation / 1000000) * 3.00, // $3.00 per 1M tokens
-    total: 0
-  };
-  estimatedCost.total = estimatedCost.haiku + estimatedCost.sonnet;
-
-  console.log('💰 Cost Estimate:');
-  console.log(`   Continuation: ~${estimatedTokens.continuation.toLocaleString()} tokens × $3.00/M = $${estimatedCost.sonnet.toFixed(4)}`);
-  console.log(`   Brief: ~${estimatedTokens.brief.toLocaleString()} tokens × $0.80/M = $${estimatedCost.haiku.toFixed(4)}`);
-  console.log(`   Total: ~${estimatedTokens.total.toLocaleString()} tokens = $${estimatedCost.total.toFixed(4)}`);
+  console.log('💰 Run budget:');
+  console.log(`   Max spend this run: $${RUN_BUDGET_USD.toFixed(4)} (NIGHTSHIFT_RUN_BUDGET_USD)`);
+  console.log(`   Sonnet pricing (est.): $${SONNET_PRICE_IN_PER_MTOK}/M in, $${SONNET_PRICE_OUT_PER_MTOK}/M out`);
   console.log('');
 
   if (!SIMULATE && !options.skipConfirmation) {
@@ -113,6 +204,11 @@ export async function runOvernightLoop(config, options = {}) {
       draftedEmails: 0,
       totalActions: 0,
       totalTokensUsed: 0,
+      inputTokens: 0,
+      outputTokens: 0,
+      spentUsd: 0,
+      budgetUsd: RUN_BUDGET_USD,
+      filesGenerated: 0,
       duration: 0,
     },
   };
@@ -157,69 +253,151 @@ export async function runOvernightLoop(config, options = {}) {
   console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
   console.log('');
 
-  // Limit to top MAX_PROJECTS
-  const projectsToProcess = projectIds.slice(0, MAX_PROJECTS);
-  
-  for (let i = 0; i < projectsToProcess.length; i++) {
-    const projectId = projectsToProcess[i];
-    console.log(`[${i + 1}/${projectsToProcess.length}] Processing project: ${projectId}`);
-    console.log('');
+  const projectResponse = await fetch(`${apiUrl}/api/internal/projects?userId=${resolvedUserId}`);
+  if (!projectResponse.ok) {
+    console.error(`   ❌ Failed to fetch projects: ${projectResponse.status}`);
+    results.errors.push({ type: 'project_fetch', error: `HTTP ${projectResponse.status}` });
+  } else {
+    const projectsData = await projectResponse.json();
+    const allProjects = projectsData.data?.projects || [];
+    const byId = new Map(allProjects.map(p => [p.id, p]));
+    let queue = projectIds.map(id => byId.get(id)).filter(Boolean);
+    queue = sortProjectsForOvernight(queue).slice(0, MAX_PROJECTS_PER_RUN);
 
-    try {
-      // Load project from database
-      const projectResponse = await fetch(`${apiUrl}/api/internal/projects?userId=${resolvedUserId}`);
-      if (!projectResponse.ok) {
-        throw new Error(`Failed to fetch projects: ${projectResponse.status}`);
-      }
-      const projectsData = await projectResponse.json();
-      const project = projectsData.data?.projects?.find(p => p.id === projectId);
-
-      if (!project) {
-        throw new Error(`Project not found: ${projectId}`);
+    for (let i = 0; i < queue.length; i++) {
+      if (results.stats.spentUsd >= RUN_BUDGET_USD - 1e-9) {
+        console.log('   💸 Run budget exhausted — stopping project continuation.');
+        break;
       }
 
-      console.log(`   📋 ${project.name} (${project.progress}%)`);
+      const project = queue[i];
+      console.log(`[${i + 1}/${queue.length}] Processing project: ${project.id}`);
       console.log('');
 
-      // Run continuation agent
-      const result = await continueWork(project, {
-        apiKey,
-        apiUrl,
-        dryRun: false,
-        model: SONNET_MODEL,
-        maxTokens: 2000, // ~500 words
-      });
+      try {
+        const ctx = parseProjectContextJson(project);
+        const classification = ctx.classification || classifyProject(project);
+        const urgentAcademic = academicDueWithin48Hours(project);
+        const minWords = urgentAcademic ? 2000 : 500;
+        const maxTokens = urgentAcademic ? 16000 : 4096;
 
-      if (result.success) {
-        // Update project progress
-        const progressIncrement = Math.floor(Math.random() * 6) + 10; // 10-15%
-        const newProgress = Math.min(100, project.progress + progressIncrement);
+        if (urgentAcademic) {
+          console.log('   🎓 Academic deliverable due within 48h — minimum ~2000 words, higher token cap');
+        }
+        console.log(`   📋 ${project.name} (${project.progress}%) [${classification}]`);
+        console.log('');
+
+        let merged = '';
+        let combinedUsage = { input_tokens: 0, output_tokens: 0 };
+        let iterations = 0;
+        let lastChunk = '';
+
+        for (let iter = 0; iter < MAX_CONTINUATION_ITERATIONS; iter++) {
+          if (results.stats.spentUsd >= RUN_BUDGET_USD - 1e-9) {
+            console.log('   💸 Budget exhausted mid-project.');
+            break;
+          }
+
+          const estNext = 0.002;
+          if (results.stats.spentUsd + estNext > RUN_BUDGET_USD) {
+            console.log('   💸 Insufficient budget for another model call.');
+            break;
+          }
+
+          const chunk = await continueWork(
+            { ...project, context: ctx },
+            {
+              apiKey,
+              apiUrl,
+              dryRun: false,
+              model: SONNET_MODEL,
+              maxTokens,
+              minWordsTarget: minWords,
+              continuationOf: iter === 0 ? null : merged,
+              deferPersist: true,
+              quietLog: iter > 0,
+            }
+          );
+
+          if (!chunk.success || !chunk.content) {
+            throw new Error('Continuation returned no content');
+          }
+
+          const u = chunk.usage || { input_tokens: 0, output_tokens: 0 };
+          combinedUsage.input_tokens += u.input_tokens;
+          combinedUsage.output_tokens += u.output_tokens;
+          const sliceCost = usdForSonnetUsage(u);
+          results.stats.spentUsd += sliceCost;
+          results.stats.inputTokens += u.input_tokens;
+          results.stats.outputTokens += u.output_tokens;
+          results.stats.totalTokensUsed += u.input_tokens + u.output_tokens;
+
+          lastChunk = chunk.content;
+          merged = iter === 0 ? chunk.content : `${merged}\n\n${chunk.content}`;
+          iterations++;
+
+          const incomplete = outputAppearsIncomplete(lastChunk, minWords, classification);
+          console.log(
+            `   🔁 Iteration ${iterations}/${MAX_CONTINUATION_ITERATIONS} — ${lastChunk.length} chars, +$${sliceCost.toFixed(5)} (run total $${results.stats.spentUsd.toFixed(4)})`
+          );
+          if (!incomplete) {
+            console.log('   ✅ Output looks complete — stopping iterations for this project.');
+            break;
+          }
+        }
+
+        if (!merged.trim()) {
+          throw new Error('No continuation output produced');
+        }
+
+        const persisted = await persistContinuationOutput(
+          { ...project, context: ctx },
+          merged,
+          combinedUsage.input_tokens + combinedUsage.output_tokens,
+          {
+            apiKey,
+            apiUrl,
+            logMetadata: {
+              continuationIterations: iterations,
+              academicUrgent: urgentAcademic,
+              minWordsTarget: minWords,
+              combinedInputTokens: combinedUsage.input_tokens,
+              combinedOutputTokens: combinedUsage.output_tokens,
+            },
+          }
+        );
+
+        const progressIncrement = Math.min(25, 8 + iterations * 4);
+        const newProgress = Math.min(100, (project.progress || 0) + progressIncrement);
 
         results.projectsContinued.push({
           projectId: project.id,
           projectName: project.name,
           progressBefore: project.progress,
           progressAfter: newProgress,
-          outputPath: result.outputPath,
-          contentLength: result.content?.length || 0,
-          tokensUsed: result.tokensUsed || 0,
+          outputPath: persisted.outputPath,
+          contentLength: merged.length,
+          tokensUsed: combinedUsage.input_tokens + combinedUsage.output_tokens,
+          iterations,
+          academicUrgent: urgentAcademic,
         });
 
         results.stats.successfulProjects++;
-        results.stats.totalTokensUsed += result.tokensUsed || 0;
+        results.stats.filesGenerated += 1;
 
-        console.log(`   ✅ Success: ${project.progress}% → ${newProgress}%`);
+        console.log(`   ✅ Saved (${iterations} iteration(s)): ${persisted.outputPath}`);
+        console.log(`   📈 Progress estimate: ${project.progress}% → ${newProgress}%`);
         console.log('');
+      } catch (err) {
+        console.error(`   ❌ Error: ${err.message}`);
+        console.log('');
+        results.errors.push({
+          type: 'project_continuation',
+          projectId: project.id,
+          error: err.message,
+        });
+        results.stats.failedProjects++;
       }
-    } catch (err) {
-      console.error(`   ❌ Error: ${err.message}`);
-      console.log('');
-      results.errors.push({
-        type: 'project_continuation',
-        projectId,
-        error: err.message,
-      });
-      results.stats.failedProjects++;
     }
   }
 
@@ -244,12 +422,21 @@ export async function runOvernightLoop(config, options = {}) {
         console.log('   ℹ️  No incoming emails requiring drafts');
         console.log('');
       } else {
-        console.log(`   Found ${undraftedEmails.length} incoming emails requiring drafts`);
+        const ranked = [...undraftedEmails].sort((a, b) => scoreUndraftedEmail(b) - scoreUndraftedEmail(a));
+        const topEmails = ranked.slice(0, 3);
+        console.log(
+          `   Found ${undraftedEmails.length} undrafted; drafting top ${topEmails.length} by importance (after projects, within budget)`
+        );
         console.log('');
 
-        for (let i = 0; i < undraftedEmails.length; i++) {
-          const email = undraftedEmails[i];
-          console.log(`   [${i + 1}/${undraftedEmails.length}] Drafting reply to: ${email.from}`);
+        for (let i = 0; i < topEmails.length; i++) {
+          if (results.stats.spentUsd >= RUN_BUDGET_USD - 1e-9) {
+            console.log('   💸 Budget exhausted — skipping remaining email drafts.');
+            break;
+          }
+
+          const email = topEmails[i];
+          console.log(`   [${i + 1}/${topEmails.length}] Drafting reply to: ${email.from}`);
           console.log(`   Subject: ${email.subject}`);
           console.log('');
 
@@ -265,6 +452,13 @@ export async function runOvernightLoop(config, options = {}) {
             );
 
             if (draftResult.success) {
+              const u = draftResult.usage || { input_tokens: 0, output_tokens: 0 };
+              const c = usdForSonnetUsage(u);
+              results.stats.spentUsd += c;
+              results.stats.inputTokens += u.input_tokens;
+              results.stats.outputTokens += u.output_tokens;
+              results.stats.totalTokensUsed += draftResult.tokensUsed || 0;
+
               results.emailsDrafted.push({
                 emailId: email.id,
                 from: email.from,
@@ -275,9 +469,9 @@ export async function runOvernightLoop(config, options = {}) {
               });
 
               results.stats.draftedEmails++;
-              results.stats.totalTokensUsed += draftResult.tokensUsed || 0;
+              results.stats.filesGenerated += 1;
 
-              console.log(`   ✅ Draft created (confidence: ${draftResult.confidence.toFixed(2)})`);
+              console.log(`   ✅ Draft created (confidence: ${draftResult.confidence.toFixed(2)}, +$${c.toFixed(5)})`);
               console.log('');
             }
           } catch (err) {
@@ -367,8 +561,22 @@ export async function runOvernightLoop(config, options = {}) {
   console.log(`📂 Projects: ${results.stats.successfulProjects}/${results.stats.totalProjects} completed`);
   console.log(`📧 Emails: ${results.stats.draftedEmails}/${results.stats.totalEmails} drafted`);
   console.log(`🚩 Flagged: ${results.flaggedItems.length} items`);
-  console.log(`🪙 Tokens: ${results.stats.totalTokensUsed.toLocaleString()}`);
+  console.log(`🪙 Tokens: ${results.stats.totalTokensUsed.toLocaleString()} (in ${results.stats.inputTokens} / out ${results.stats.outputTokens})`);
+  console.log(`💸 Spend (est.): $${results.stats.spentUsd.toFixed(4)} / $${RUN_BUDGET_USD.toFixed(4)} budget`);
+  console.log(`📄 Files generated: ${results.stats.filesGenerated}`);
   console.log('');
+
+  await postOvernightSummaryAction(apiUrl, resolvedUserId, {
+    spentUsd: results.stats.spentUsd,
+    budgetUsd: RUN_BUDGET_USD,
+    totalTokensUsed: results.stats.totalTokensUsed,
+    inputTokens: results.stats.inputTokens,
+    outputTokens: results.stats.outputTokens,
+    filesGenerated: results.stats.filesGenerated,
+    projectsContinued: results.projectsContinued.length,
+    emailsDrafted: results.emailsDrafted.length,
+    durationSec: results.stats.duration,
+  });
 
   // Write run status for the handoff status endpoint
   writeRunStatus('completed', results, briefPath);
@@ -390,6 +598,11 @@ function writeRunStatus(state, results = null, briefPath = null) {
       payload.projectsContinued = results.projectsContinued?.length || 0;
       payload.emailsDrafted = results.emailsDrafted?.length || 0;
       payload.totalTokensUsed = results.stats?.totalTokensUsed || 0;
+      payload.inputTokens = results.stats?.inputTokens || 0;
+      payload.outputTokens = results.stats?.outputTokens || 0;
+      payload.spentUsd = results.stats?.spentUsd ?? 0;
+      payload.budgetUsd = results.stats?.budgetUsd ?? RUN_BUDGET_USD;
+      payload.filesGenerated = results.stats?.filesGenerated || 0;
       payload.duration = results.stats?.duration || 0;
       payload.outputs = (results.projectsContinued || []).map(p => p.outputPath);
     }
@@ -426,7 +639,14 @@ function generateMorningBrief(results, metadata) {
   lines.push(`- ✅ **${results.stats.successfulProjects}** projects continued`);
   lines.push(`- 📧 **${results.stats.draftedEmails}** email drafts created`);
   lines.push(`- 🚩 **${results.flaggedItems.length}** items flagged for review`);
-  lines.push(`- 🪙 **${results.stats.totalTokensUsed.toLocaleString()}** tokens used`);
+  lines.push(`- 🪙 **${results.stats.totalTokensUsed.toLocaleString()}** tokens used (in+out)`);
+  lines.push('');
+
+  lines.push('## 💸 Overnight run economics');
+  lines.push('');
+  lines.push(`- **Estimated spend:** $${(results.stats.spentUsd ?? 0).toFixed(4)} (budget $${(results.stats.budgetUsd ?? RUN_BUDGET_USD).toFixed(4)})`);
+  lines.push(`- **Tokens:** ${(results.stats.inputTokens ?? 0).toLocaleString()} in + ${(results.stats.outputTokens ?? 0).toLocaleString()} out = **${results.stats.totalTokensUsed.toLocaleString()}** total`);
+  lines.push(`- **Files generated:** ${results.stats.filesGenerated ?? 0} (continuations + email drafts)`);
   lines.push('');
 
   if (instructions) {
@@ -446,9 +666,13 @@ function generateMorningBrief(results, metadata) {
       lines.push(`### ${proj.projectName}`);
       lines.push('');
       lines.push(`- **Progress:** ${proj.progressBefore}% → ${proj.progressAfter}% (+${proj.progressAfter - proj.progressBefore}%)`);
+      lines.push(`- **Continuation iterations:** ${proj.iterations ?? 1} (max ${MAX_CONTINUATION_ITERATIONS})`);
+      if (proj.academicUrgent) {
+        lines.push('- **Academic urgent (≤48h):** expanded minimum length / token budget');
+      }
       lines.push(`- **Output:** ${(proj.contentLength / 1000).toFixed(1)}k characters generated`);
       lines.push(`- **Tokens:** ${proj.tokensUsed.toLocaleString()}`);
-      lines.push(`- **File:** \`${path.basename(proj.outputPath)}\``);
+      lines.push(`- **File:** \`${path.basename(String(proj.outputPath || 'output'))}\``);
       lines.push('');
     }
   }
@@ -643,11 +867,11 @@ async function main() {
     console.log(`   Quick Tasks: ${stats.quick_task} (skipped)`);
     console.log(`   Casual: ${stats.casual} (skipped)`);
     console.log('');
-    console.log(`✅ Will continue: ${Math.min(prioritized.length, MAX_PROJECTS)} projects`);
+    console.log(`✅ Will continue: ${Math.min(prioritized.length, MAX_PROJECTS_PER_RUN)} projects`);
     console.log(`⏭️  Will skip: ${skipped.length} projects`);
     console.log('');
 
-    const projectIds = prioritized.slice(0, MAX_PROJECTS).map(p => p.id);
+    const projectIds = prioritized.slice(0, MAX_PROJECTS_PER_RUN).map(p => p.id);
     
     console.log(`📋 Found ${projectIds.length} in-progress projects`);
     console.log('');

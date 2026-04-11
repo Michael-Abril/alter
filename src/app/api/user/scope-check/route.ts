@@ -1,18 +1,20 @@
-import { auth } from '@clerk/nextjs/server';
-import { apiSuccess, apiError } from '@/lib/utils';
+import { apiSuccess } from '@/lib/utils';
 import db from '@/lib/db';
 import { CURRENT_SCOPES_VERSION, needsScopeUpgrade } from '@/lib/google-auth';
+import { tryAuthUser } from '@/lib/clerk-user';
 
 export async function GET() {
-  const { userId: clerkId } = await auth();
-  if (!clerkId) return apiError('Unauthorized', 401);
+  const authResult = await tryAuthUser();
+  if (!authResult.ok) return authResult.response;
 
   const user = await db.user.findUnique({
-    where: { clerkId },
+    where: { id: authResult.user.id },
     select: { googleScopesVersion: true, gmailConnected: true },
   });
 
-  if (!user) return apiSuccess({ needsUpgrade: false, connected: false });
+  if (!user) {
+    return apiSuccess({ needsUpgrade: false, connected: false });
+  }
 
   return apiSuccess({
     connected: user.gmailConnected,

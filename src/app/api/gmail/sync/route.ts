@@ -4,9 +4,9 @@
 
 import { NextRequest } from 'next/server';
 import { auth } from '@clerk/nextjs/server';
-import { fetchSentEmails, fetchInboxEmails, refreshAccessToken } from '@/lib/gmail';
 import { apiSuccess, apiError } from '@/lib/utils';
 import db from '@/lib/db';
+import { syncGmailForUser } from '@/lib/gmail-sync';
 
 export async function POST(req: NextRequest) {
   const { userId: clerkId } = await auth();
@@ -15,7 +15,7 @@ export async function POST(req: NextRequest) {
   try {
     const user = await db.user.findUnique({
       where: { clerkId },
-      select: { id: true, gmailConnected: true, gmailToken: true, gmailRefreshToken: true },
+      select: { id: true, gmailConnected: true, gmailToken: true },
     });
 
     if (!user || !user.gmailConnected || !user.gmailToken) {
@@ -23,70 +23,25 @@ export async function POST(req: NextRequest) {
     }
 
     const body = await req.json().catch(() => ({}));
-    const direction: string = body.direction || 'both';
-    const sinceDays: number = body.sinceDays || 3;
+    const direction = body.direction as 'sent' | 'received' | 'both' | undefined;
+    const mode = body.mode as 'high_signal' | 'full_inbox' | 'sent_only' | undefined;
+    const sinceDays: number =
+      typeof body.sinceDays === 'number' && body.sinceDays > 0 ? body.sinceDays : 14;
 
-    let accessToken = user.gmailToken;
-
-    async function withTokenRefresh<T>(fn: (token: string) => Promise<T>): Promise<T> {
-      try {
-        return await fn(accessToken);
-      } catch (error: any) {
-        if (user.gmailRefreshToken && (error.code === 401 || error.message?.includes('401'))) {
-          accessToken = await refreshAccessToken(user.gmailRefreshToken);
-          await db.user.update({ where: { id: user.id }, data: { gmailToken: accessToken } });
-          return await fn(accessToken);
-        }
-        throw error;
-      }
-    }
-
-    let sentEmails: any[] = [];
-    let inboxEmails: any[] = [];
-
-    if (direction === 'sent' || direction === 'both') {
-      sentEmails = await withTokenRefresh(t => fetchSentEmails(t, user.gmailRefreshToken, 100));
-    }
-    if (direction === 'received' || direction === 'both') {
-      inboxEmails = await withTokenRefresh(t => fetchInboxEmails(t, user.gmailRefreshToken, 50, sinceDays));
-    }
-
-    const allEmails = [...sentEmails, ...inboxEmails];
-    let newEmails = 0;
-    let skipped = 0;
-
-    for (const email of allEmails) {
-      const existing = await db.email.findUnique({ where: { gmailId: email.gmailId } });
-      if (existing) { skipped++; continue; }
-
-      await db.email.create({
-        data: {
-          userId: user.id,
-          gmailId: email.gmailId,
-          threadId: email.threadId,
-          from: email.from,
-          to: email.to,
-          subject: email.subject,
-          body: email.body,
-          direction: email.direction,
-          isRead: email.direction === 'sent',
-          receivedAt: email.receivedAt,
-        },
-      });
-      newEmails++;
-    }
-
-    console.log(`[gmail/sync] Sync complete: ${newEmails} new, ${skipped} skipped`);
-
-    return apiSuccess({
-      totalFetched: allEmails.length,
-      newEmails,
-      skippedEmails: skipped,
-      sent: sentEmails.length,
-      received: inboxEmails.length,
+    const result = await syncGmailForUser(user.id, {
+      mode,
+      direction,
+      sinceDays,
     });
-  } catch (error) {
+
+    console.log(
+      `[gmail/sync] Sync complete: ${result.newEmails} new, ${result.skippedEmails} skipped`
+    );
+
+    return apiSuccess(result);
+  } catch (error: any) {
     console.error('[gmail/sync] Error:', error);
-    return apiError('Failed to sync emails', 500);
+    const msg = error?.message === 'Gmail not connected' ? 'Gmail not connected' : 'Failed to sync emails';
+    return apiError(msg, error?.message === 'Gmail not connected' ? 400 : 500);
   }
 }

@@ -5,12 +5,13 @@
  * STATUS: Ready for integration
  */
 
+import { NextRequest } from 'next/server';
 import { auth } from '@clerk/nextjs/server';
-import { fetchUpcomingEvents } from '@/lib/google-calendar';
 import { apiSuccess, apiError } from '@/lib/utils';
 import db from '@/lib/db';
+import { syncCalendarForUser } from '@/lib/calendar-sync';
 
-export async function POST() {
+export async function POST(req: NextRequest) {
   const { userId: clerkId } = await auth();
   if (!clerkId) return apiError('Unauthorized', 401);
 
@@ -22,35 +23,13 @@ export async function POST() {
 
     if (!user) return apiError('User not found', 404);
 
-    const events = await fetchUpcomingEvents(user.id, 14);
+    const body = await req.json().catch(() => ({}));
+    const daysAhead =
+      typeof body.daysAhead === 'number' && body.daysAhead > 0 && body.daysAhead <= 90
+        ? body.daysAhead
+        : 14;
 
-    let synced = 0;
-    for (const event of events) {
-      await db.calendarEvent.upsert({
-        where: { googleId: event.googleId },
-        create: {
-          userId: user.id,
-          googleId: event.googleId,
-          calendarId: event.calendarId,
-          title: event.title,
-          description: event.description,
-          startTime: event.startTime,
-          endTime: event.endTime,
-          location: event.location,
-          isAllDay: event.isAllDay,
-        },
-        update: {
-          title: event.title,
-          description: event.description,
-          startTime: event.startTime,
-          endTime: event.endTime,
-          location: event.location,
-          isAllDay: event.isAllDay,
-          syncedAt: new Date(),
-        },
-      });
-      synced++;
-    }
+    const { synced } = await syncCalendarForUser(user.id, daysAhead);
 
     console.log(`[calendar/sync] Synced ${synced} events for user ${user.id}`);
     return apiSuccess({ synced });

@@ -2,7 +2,7 @@
  * OWNER: Person 4 (Voice/UI)
  * PURPOSE: Dashboard sidebar navigation
  * DEPENDENCIES: next/link, next/navigation
- * STATUS: Scaffold — needs active route highlighting polish
+ * STATUS: LIVE
  */
 
 'use client';

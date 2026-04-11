@@ -5,22 +5,19 @@
  * STATUS: LIVE — work completed, deadlines, emails, today's focus
  */
 
-import { auth } from '@clerk/nextjs/server';
 import { apiSuccess, apiError } from '@/lib/utils';
 import db from '@/lib/db';
+import { tryAuthUser } from '@/lib/clerk-user';
 import Anthropic from '@anthropic-ai/sdk';
 import fs from 'fs';
 import path from 'path';
 
 // GET: Generate and return morning brief
 export async function GET() {
-  const { userId } = await auth();
-  if (!userId) return apiError('Unauthorized', 401);
-
   try {
-    // Find the user
-    const user = await db.user.findUnique({ where: { clerkId: userId } });
-    if (!user) return apiError('User not found', 404);
+    const authResult = await tryAuthUser();
+    if (!authResult.ok) return authResult.response;
+    const { user } = authResult;
 
     // ─── Section 1: Work Completed Overnight ────────────────────────────────
     const yesterday = new Date();
@@ -45,6 +42,23 @@ export async function GET() {
         completedAt: action.createdAt.toISOString(),
       };
     });
+
+    const overnightSummaryAction = await db.action.findFirst({
+      where: {
+        userId: user.id,
+        type: 'overnight_run_summary',
+        createdAt: { gte: yesterday },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+    let overnightEconomics: Record<string, unknown> | null = null;
+    if (overnightSummaryAction?.metadata) {
+      try {
+        overnightEconomics = JSON.parse(overnightSummaryAction.metadata) as Record<string, unknown>;
+      } catch {
+        overnightEconomics = null;
+      }
+    }
 
     // ─── Section 2: Deadlines Coming Up ─────────────────────────────────────
     const sevenDaysFromNow = new Date();
@@ -113,6 +127,34 @@ export async function GET() {
       createdAt: draft.createdAt.toISOString(),
     }));
 
+    // ─── Section 3b: Sent + Important (high-signal Gmail) ───────────────────
+    const mailHighlightRows = await db.email.findMany({
+      where: {
+        userId: user.id,
+        ingestChannel: { in: ['sent', 'important_inbox'] },
+      },
+      orderBy: { receivedAt: 'desc' },
+      take: 8,
+      select: {
+        id: true,
+        from: true,
+        subject: true,
+        body: true,
+        isRead: true,
+        ingestChannel: true,
+        receivedAt: true,
+      },
+    });
+
+    const recentInboxHighlights = mailHighlightRows.map((e) => ({
+      from: e.from,
+      subject: e.subject,
+      preview: e.body.replace(/\s+/g, ' ').trim().slice(0, 160),
+      isRead: e.isRead,
+      kind: e.ingestChannel === 'sent' ? ('sent' as const) : ('important' as const),
+      receivedAt: e.receivedAt.toISOString(),
+    }));
+
     // ─── Section 4: Today's Focus ───────────────────────────────────────────
     const projects = await db.project.findMany({
       where: { userId: user.id, status: 'in_progress' },
@@ -164,6 +206,28 @@ export async function GET() {
     // ─── Generate Natural Language Summary with Haiku ───────────────────────
     const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
     
+    const overnightLines =
+      overnightEconomics != null
+        ? [
+            '',
+            'Latest overnight daemon run (estimated):',
+            `- Spend: $${Number(overnightEconomics.spentUsd ?? 0).toFixed(4)} of $${Number(overnightEconomics.budgetUsd ?? 0).toFixed(4)} budget`,
+            `- Tokens: ${Number(overnightEconomics.totalTokensUsed ?? 0)} total (${Number(overnightEconomics.inputTokens ?? 0)} in / ${Number(overnightEconomics.outputTokens ?? 0)} out)`,
+            `- Files generated: ${Number(overnightEconomics.filesGenerated ?? 0)}`,
+          ].join('\n')
+        : '';
+
+    const inboxLine =
+      recentInboxHighlights.length > 0
+        ? `\nRecent sent / important mail: ${recentInboxHighlights
+            .slice(0, 3)
+            .map(
+              (e) =>
+                `- [${e.kind === 'sent' ? 'Sent' : 'Important'}] ${e.subject} (${e.from.split('<')[0].trim()})`
+            )
+            .join('\n')}`
+        : '';
+
     const summaryPrompt = [
       'Generate a 2-sentence natural language morning greeting based on this data:',
       '',
@@ -172,6 +236,8 @@ export async function GET() {
       '',
       `Urgent deadlines: ${urgentDeadlines.length}`,
       urgentDeadlines.slice(0, 2).map(d => `- ${d!.courseName} ${d!.assignmentName} due ${d!.daysUntil === 0 ? 'today' : d!.daysUntil === 1 ? 'tomorrow' : `in ${d!.daysUntil} days`}`).join('\n'),
+      overnightLines,
+      inboxLine,
       '',
       'Write a friendly, concise 2-sentence summary. Start with "Good morning."',
     ].join('\n');
@@ -195,13 +261,16 @@ export async function GET() {
         workCompleted,
         deadlines,
         emailsNeedingAttention,
+        recentInboxHighlights,
         todaysFocus,
       },
       stats: {
         actionsCompleted: workCompleted.length,
         upcomingDeadlines: deadlines.length,
         emailsDrafted: emailsNeedingAttention.length,
+        recentInboxCount: recentInboxHighlights.length,
         focusItems: todaysFocus.length,
+        overnightRun: overnightEconomics,
       },
     };
 
@@ -255,6 +324,27 @@ export async function GET() {
           ].join('\n')).join('\n')
         : 'No emails needing attention.',
       '',
+      '## 📥 Sent and important mail (Gmail)',
+      '',
+      recentInboxHighlights.length > 0
+        ? recentInboxHighlights
+            .map(
+              (e) =>
+                `- **[${e.kind === 'sent' ? 'Sent' : 'Important'}]** ${e.subject} — ${e.from.split('<')[0].trim()}${e.kind === 'important' && !e.isRead ? ' (unread)' : ''}\n  _${e.preview}${e.preview.length >= 160 ? '…' : ''}_`
+            )
+            .join('\n\n')
+        : 'No high-signal mail synced yet — connect Gmail and run sync.',
+      '',
+      overnightEconomics
+        ? [
+            '## 💸 Overnight run (daemon)',
+            '',
+            `- **Estimated spend:** $${Number(overnightEconomics.spentUsd ?? 0).toFixed(4)} (budget $${Number(overnightEconomics.budgetUsd ?? 0).toFixed(4)})`,
+            `- **Tokens:** ${Number(overnightEconomics.inputTokens ?? 0).toLocaleString()} in + ${Number(overnightEconomics.outputTokens ?? 0).toLocaleString()} out = **${Number(overnightEconomics.totalTokensUsed ?? 0).toLocaleString()}** total`,
+            `- **Files generated:** ${Number(overnightEconomics.filesGenerated ?? 0)}`,
+            '',
+          ].join('\n')
+        : '',
       '## 🎯 Today\'s Focus',
       '',
       todaysFocus.length > 0
@@ -271,6 +361,9 @@ export async function GET() {
     });
   } catch (error) {
     console.error('[brief] Error:', error);
-    return apiError('Failed to generate brief', 500);
+    return apiError(
+      error instanceof Error ? error.message : 'Failed to generate brief',
+      500
+    );
   }
 }

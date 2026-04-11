@@ -6,25 +6,22 @@
  */
 
 import { NextRequest } from 'next/server';
-import { auth } from '@clerk/nextjs/server';
 import { apiSuccess, apiError } from '@/lib/utils';
 import db from '@/lib/db';
+import { tryAuthUser } from '@/lib/clerk-user';
 import { loadGitHubConfig } from '@/lib/github';
 import { loadCanvasConfig } from '@/lib/canvas';
 import { getDefaultOutputDirectory, setOutputDirectory } from '@/lib/output';
 
 // PATCH: Update user settings
 export async function PATCH(req: NextRequest) {
-  const { userId } = await auth();
-  if (!userId) return apiError('Unauthorized', 401);
-
   try {
+    const authResult = await tryAuthUser();
+    if (!authResult.ok) return authResult.response;
+    const { user } = authResult;
+
     const body = await req.json();
     const { autonomyLevel, wakeTime, boundaries, outputDirectory } = body;
-
-    // Find user
-    const user = await db.user.findUnique({ where: { clerkId: userId } });
-    if (!user) return apiError('User not found', 404);
 
     // Validate autonomyLevel if provided
     if (autonomyLevel !== undefined && (autonomyLevel < 0 || autonomyLevel > 3)) {
@@ -91,16 +88,17 @@ export async function PATCH(req: NextRequest) {
 
 // GET: Fetch current user settings
 export async function GET() {
-  const { userId } = await auth();
-  if (!userId) return apiError('Unauthorized', 401);
-
   try {
+    const authResult = await tryAuthUser();
+    if (!authResult.ok) return authResult.response;
     const user = await db.user.findUnique({
-      where: { clerkId: userId },
+      where: { id: authResult.user.id },
       include: { boundaries: true },
     });
 
-    if (!user) return apiError('User not found', 404);
+    if (!user) {
+      return apiError('User not found', 404, { code: 'USER_NOT_FOUND' });
+    }
 
     const githubConnected = Boolean(loadGitHubConfig(user.clerkId)?.token || loadGitHubConfig(user.id)?.token);
     const canvasConnected = Boolean(loadCanvasConfig(user.id));

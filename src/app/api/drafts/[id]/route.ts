@@ -6,22 +6,21 @@
  */
 
 import { NextRequest } from 'next/server';
-import { auth } from '@clerk/nextjs/server';
 import { apiSuccess, apiError } from '@/lib/utils';
 import db from '@/lib/db';
+import { tryAuthUser } from '@/lib/clerk-user';
 
 // GET: View a specific draft
 export async function GET(
   req: NextRequest,
   props: { params: Promise<{ id: string }> }
 ) {
-  const { userId } = await auth();
-  if (!userId) return apiError('Unauthorized', 401);
   const { id } = await props.params;
 
   try {
-    const user = await db.user.findUnique({ where: { clerkId: userId } });
-    if (!user) return apiError('User not found', 404);
+    const authResult = await tryAuthUser();
+    if (!authResult.ok) return authResult.response;
+    const { user } = authResult;
 
     const draft = await db.draft.findFirst({
       where: { id, userId: user.id },
@@ -43,7 +42,10 @@ export async function GET(
     });
   } catch (error) {
     console.error(`[drafts/${id}] Error:`, error);
-    return apiError('Failed to fetch draft', 500);
+    return apiError(
+      error instanceof Error ? error.message : 'Failed to fetch draft',
+      500
+    );
   }
 }
 
@@ -52,20 +54,19 @@ export async function PATCH(
   req: NextRequest,
   props: { params: Promise<{ id: string }> }
 ) {
-  const { userId } = await auth();
-  if (!userId) return apiError('Unauthorized', 401);
   const { id } = await props.params;
 
   try {
+    const authResult = await tryAuthUser();
+    if (!authResult.ok) return authResult.response;
+    const { user } = authResult;
+
     const body = await req.json();
     const { status, content, rejectionReason } = body;
 
     if (!status || !['approved', 'rejected'].includes(status)) {
       return apiError('Invalid status. Must be "approved" or "rejected"', 400);
     }
-
-    const user = await db.user.findUnique({ where: { clerkId: userId } });
-    if (!user) return apiError('User not found', 404);
 
     const draft = await db.draft.findFirst({
       where: { id, userId: user.id },
@@ -233,6 +234,9 @@ export async function PATCH(
     return apiError('Invalid status', 400);
   } catch (error) {
     console.error(`[drafts/${id}] Error:`, error);
-    return apiError('Failed to update draft', 500);
+    return apiError(
+      error instanceof Error ? error.message : 'Failed to update draft',
+      500
+    );
   }
 }

@@ -8,12 +8,7 @@
 import { NextRequest } from 'next/server';
 import { apiSuccess, apiError } from '@/lib/utils';
 import db from '@/lib/db';
-import {
-  buildMessageFingerprint,
-  readFingerprints,
-  writeFingerprints,
-  type SyncSource,
-} from '@/lib/onboarding-sync';
+import { ingestChatMessages } from '@/lib/chat-history-ingest';
 
 interface IngestMessage {
   role: string;
@@ -46,7 +41,7 @@ export async function POST(req: NextRequest) {
     console.log(`[chat-history/ingest] Received ${messages.length} messages from ${source} for user ${userId}`);
 
     // Find user by clerkId OR internal id (scrapers may send either)
-    let user = await db.user.findFirst({
+    const user = await db.user.findFirst({
       where: { OR: [{ clerkId: userId }, { id: userId }] },
     });
 
@@ -55,72 +50,31 @@ export async function POST(req: NextRequest) {
       return apiError(`User not found: ${userId}`, 404);
     }
 
-    // Validate messages
-    const validMessages = messages.filter(
-      (msg) => msg.role && msg.content && msg.content.trim().length > 0
-    );
-
-    // Dedupe within payload to avoid repeated inserts on retried scrapes.
-    const dedupedMessages: IngestMessage[] = [];
-    const seen = new Set<string>();
-    for (const msg of validMessages) {
-      const ts = msg.timestamp || '';
-      const key = `${msg.role}|${msg.sessionId || ''}|${ts}|${msg.content.slice(0, 120)}`;
-      if (seen.has(key)) continue;
-      seen.add(key);
-      dedupedMessages.push(msg);
-    }
-
-    if (dedupedMessages.length === 0) {
-      return apiError('No valid messages in payload (need role + non-empty content)', 400);
-    }
-
-    const syncSource: SyncSource = source === 'claude' ? 'claude' : 'chatgpt';
-    const storedFingerprints = readFingerprints(userId, syncSource);
-    const netNewMessages = dedupedMessages.filter((msg) => {
-      const fp = buildMessageFingerprint({
-        source,
-        role: msg.role,
-        content: msg.content,
-        sessionId: msg.sessionId,
-        timestamp: msg.timestamp,
-      });
-      if (storedFingerprints.has(fp)) return false;
-      storedFingerprints.add(fp);
-      return true;
+    const { count } = await ingestChatMessages({
+      prismaUserId: user.id,
+      clerkId: user.clerkId,
+      source,
+      messages,
     });
 
-    if (netNewMessages.length === 0) {
+    if (count === 0) {
       return apiSuccess({
         message: 'No new messages to ingest',
         source,
         userId: user.id,
-        clerkId: userId,
+        clerkId: user.clerkId,
         count: 0,
       });
     }
 
-    // Batch insert chat messages
-    const result = await db.chatMessage.createMany({
-      data: netNewMessages.map((msg) => ({
-        userId: user!.id,
-        source,
-        role: msg.role,
-        content: msg.content,
-        sessionId: msg.sessionId || null,
-        timestamp: msg.timestamp ? new Date(msg.timestamp) : new Date(),
-      })),
-    });
-    writeFingerprints(userId, syncSource, storedFingerprints);
-
-    console.log(`[chat-history/ingest] Wrote ${result.count} messages to database`);
+    console.log(`[chat-history/ingest] Wrote ${count} messages to database`);
 
     return apiSuccess({
-      message: `Ingested ${result.count} messages`,
+      message: `Ingested ${count} messages`,
       source,
       userId: user.id,
-      clerkId: userId,
-      count: result.count,
+      clerkId: user.clerkId,
+      count,
     });
   } catch (error) {
     console.error('[chat-history/ingest] Error:', error);

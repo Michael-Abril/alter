@@ -6,29 +6,16 @@
  */
 
 import { NextRequest } from 'next/server';
-import { auth } from '@clerk/nextjs/server';
 import { apiSuccess, apiError } from '@/lib/utils';
 import db from '@/lib/db';
+import { tryAuthUser } from '@/lib/clerk-user';
 
 // GET: Fetch all actions for authenticated user
 export async function GET() {
-  const { userId } = await auth();
-  if (!userId) return apiError('Unauthorized', 401);
-
   try {
-    // Find user with auto-link fallback
-    let user = await db.user.findUnique({ where: { clerkId: userId } });
-    if (!user) {
-      const testUser = await db.user.findUnique({ where: { clerkId: 'user_test_123' } });
-      if (testUser) {
-        user = await db.user.update({
-          where: { id: testUser.id },
-          data: { clerkId: userId },
-        });
-      }
-    }
-
-    if (!user) return apiError('User not found', 404);
+    const authResult = await tryAuthUser();
+    if (!authResult.ok) return authResult.response;
+    const { user } = authResult;
 
     const actions = await db.action.findMany({
       where: { userId: user.id },
@@ -53,7 +40,10 @@ export async function GET() {
     });
   } catch (error) {
     console.error('[actions] GET error:', error);
-    return apiError('Failed to fetch actions', 500);
+    return apiError(
+      error instanceof Error ? error.message : 'Failed to fetch actions',
+      500
+    );
   }
 }
 

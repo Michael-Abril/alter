@@ -194,9 +194,12 @@ async function sendToApi(messages, resolvedUserId) {
     };
 
     try {
+      const headers = { 'Content-Type': 'application/json' };
+      const secret = process.env.OPENCLAW_WEBHOOK_SECRET;
+      if (secret) headers['x-openclaw-secret'] = secret;
       const res = await fetch(ingestUrl, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers,
         body: JSON.stringify(payload),
       });
 

@@ -8,9 +8,11 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import Sidebar from '@/components/layout/Sidebar';
 import Header from '@/components/layout/Header';
 import { CheckCircle2, XCircle, Edit3, Loader2 } from 'lucide-react';
+import { isUserNotFoundResponse } from '@/lib/dashboard-client-guard';
 
 interface Draft {
   id: string;
@@ -26,6 +28,7 @@ interface Draft {
 }
 
 export default function DraftsPage() {
+  const router = useRouter();
   const [drafts, setDrafts] = useState<Draft[]>([]);
   const [loading, setLoading] = useState(true);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -35,14 +38,18 @@ export default function DraftsPage() {
 
   useEffect(() => {
     fetchDrafts();
-  }, []);
+  }, [router]);
 
   async function fetchDrafts() {
     try {
       const res = await fetch('/api/drafts');
       const json = await res.json();
+      if (isUserNotFoundResponse(res, json)) {
+        router.replace('/onboarding');
+        return;
+      }
       if (json.success) {
-        setDrafts(json.data || []);
+        setDrafts(Array.isArray(json.data) ? json.data : []);
       }
     } catch (err) {
       console.error('Failed to fetch drafts:', err);
@@ -67,6 +74,10 @@ export default function DraftsPage() {
       });
 
       const json = await res.json();
+      if (isUserNotFoundResponse(res, json)) {
+        router.replace('/onboarding');
+        return;
+      }
       if (!res.ok) {
         throw new Error(json.error || 'Action failed');
       }

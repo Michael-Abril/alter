@@ -3,6 +3,10 @@
 @tailwind utilities;
 
 @layer base {
+  html {
+    color-scheme: dark;
+  }
+
   :root {
     --nightshift-navy: #0F3460;
     --nightshift-accent: #E94560;

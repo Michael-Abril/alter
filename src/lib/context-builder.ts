@@ -245,23 +245,22 @@ async function findRelatedEmails(
       ...(context?.keyTopics || []).map((t: string) => t.toLowerCase()),
     ];
 
-    // Search for emails that mention these keywords
+    // High-signal mail only (sent + Gmail Important), matched by project keywords
     const emails = await db.email.findMany({
       where: {
         userId: project.userId,
+        ingestChannel: { in: ['sent', 'important_inbox'] },
         OR: [
-          // Search in subject
-          ...keywords.map(keyword => ({
+          ...keywords.map((keyword) => ({
             subject: { contains: keyword, mode: 'insensitive' as const },
           })),
-          // Search in body
-          ...keywords.map(keyword => ({
+          ...keywords.map((keyword) => ({
             body: { contains: keyword, mode: 'insensitive' as const },
           })),
         ],
       },
       orderBy: { receivedAt: 'desc' },
-      take: 10, // Limit to 10 most recent relevant emails
+      take: 10,
     });
 
     // Calculate relevance score for each email
@@ -275,6 +274,9 @@ async function findRelatedEmails(
         relevanceScore += matches * 0.2;
       }
       
+      if (email.ingestChannel === 'important_inbox') relevanceScore += 0.15;
+      if (email.ingestChannel === 'sent') relevanceScore += 0.1;
+
       // Boost recent emails
       const daysSinceReceived = (Date.now() - email.receivedAt.getTime()) / (1000 * 60 * 60 * 24);
       if (daysSinceReceived < 7) relevanceScore += 0.3;

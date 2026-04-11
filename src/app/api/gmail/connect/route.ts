@@ -10,6 +10,7 @@ import { auth, clerkClient } from '@clerk/nextjs/server';
 import { getAuthUrl } from '@/lib/gmail';
 import { apiSuccess, apiError } from '@/lib/utils';
 import db from '@/lib/db';
+import { runOnboardingIntegrationSnapshot } from '@/lib/onboarding-integration-snapshot';
 
 // GET: Redirect to Google OAuth (for onboarding flow)
 export async function GET(req: NextRequest) {
@@ -84,6 +85,18 @@ export async function POST() {
     });
 
     console.log(`[gmail/connect] Connected Gmail for user ${userId} via Clerk token`);
+
+    const row = await db.user.findUnique({
+      where: { clerkId: userId },
+      select: { id: true },
+    });
+    if (row) {
+      void runOnboardingIntegrationSnapshot(row.id, userId, {
+        gmailSinceDays: 14,
+        calendarDaysAhead: 21,
+      }).catch((e) => console.warn('[gmail/connect] Background snapshot:', e));
+    }
+
     return apiSuccess({ connected: true });
   } catch (error: any) {
     console.error('[gmail/connect] Error:', error);

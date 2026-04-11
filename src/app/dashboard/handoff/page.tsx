@@ -8,11 +8,13 @@
 'use client';
 
 import { useState, useEffect, useRef, useCallback } from 'react';
+import { useRouter } from 'next/navigation';
 import Sidebar from '@/components/layout/Sidebar';
 import Header from '@/components/layout/Header';
 import UnfinishedWork from '@/components/handoff/UnfinishedWork';
 import HandoffButton from '@/components/handoff/HandoffButton';
 import type { HandoffTask } from '@/types';
+import { isUserNotFoundResponse } from '@/lib/dashboard-client-guard';
 
 interface ProjectFromAPI {
   id: string;
@@ -30,6 +32,7 @@ interface ProjectFromAPI {
 }
 
 export default function HandoffPage() {
+  const router = useRouter();
   const [tasks, setTasks] = useState<HandoffTask[]>([]);
   const [loading, setLoading] = useState(true);
   const [specialInstructions, setSpecialInstructions] = useState('');
@@ -44,6 +47,10 @@ export default function HandoffPage() {
     try {
       const res = await fetch('/api/handoff/status');
       const json = await res.json();
+      if (isUserNotFoundResponse(res, json)) {
+        router.replace('/onboarding');
+        return;
+      }
       const s = json.data;
       setRunStatus(s);
       if (s?.state === 'completed' || s?.state === 'error') {
@@ -58,13 +65,17 @@ export default function HandoffPage() {
       pollRef.current = setInterval(pollRunStatus, 5000);
     }
     return () => { if (pollRef.current) clearInterval(pollRef.current); };
-  }, [isActivated, pollRunStatus]);
+  }, [isActivated, pollRunStatus, router]);
 
   useEffect(() => {
     async function fetchProjects() {
       try {
         const res = await fetch('/api/projects');
         const json = await res.json();
+        if (isUserNotFoundResponse(res, json)) {
+          router.replace('/onboarding');
+          return;
+        }
         const projects: ProjectFromAPI[] = json.data?.projects || json.data || [];
 
         // Convert real projects into handoff tasks — only non-completed
@@ -88,7 +99,7 @@ export default function HandoffPage() {
       }
     }
     fetchProjects();
-  }, []);
+  }, [router]);
 
   const toggleTask = (taskId: string) => {
     setTasks((prev) =>
@@ -111,6 +122,10 @@ export default function HandoffPage() {
         }),
       });
       const json = await res.json();
+      if (isUserNotFoundResponse(res, json)) {
+        router.replace('/onboarding');
+        return;
+      }
       if (!res.ok) throw new Error(json.error || 'Failed to activate');
       setActivateResult(json.data);
       setIsActivated(true);

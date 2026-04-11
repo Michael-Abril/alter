@@ -8,9 +8,11 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import Sidebar from '@/components/layout/Sidebar';
 import Header from '@/components/layout/Header';
 import { Loader2, CheckCircle2 } from 'lucide-react';
+import { isUserNotFoundResponse } from '@/lib/dashboard-client-guard';
 
 interface Boundary {
   id: string;
@@ -31,6 +33,7 @@ const autonomyLabels = [
 ];
 
 export default function SettingsPage() {
+  const router = useRouter();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState(false);
@@ -46,33 +49,62 @@ export default function SettingsPage() {
   const [newRuleAction, setNewRuleAction] = useState<RuleAction>('flag');
   const [newRuleDescription, setNewRuleDescription] = useState('');
   const [disconnecting, setDisconnecting] = useState<'gmail' | 'github' | 'canvas' | null>(null);
+  const [canvasRefreshing, setCanvasRefreshing] = useState(false);
   const [needsScopeUpgrade, setNeedsScopeUpgrade] = useState(false);
 
   useEffect(() => {
     fetchSettings();
     fetch('/api/user/scope-check')
-      .then(r => r.json())
-      .then(j => { if (j.data?.needsUpgrade) setNeedsScopeUpgrade(true); })
+      .then(async (r) => {
+        const j = await r.json();
+        if (isUserNotFoundResponse(r, j)) {
+          router.replace('/onboarding');
+          return;
+        }
+        if (j.data?.needsUpgrade) setNeedsScopeUpgrade(true);
+      })
       .catch(() => {});
-  }, []);
+  }, [router]);
 
   async function fetchSettings() {
     try {
       const res = await fetch('/api/user/settings');
       const json = await res.json();
-      if (json.success) {
-        setAutonomyLevel(json.data.autonomyLevel);
-        setWakeTime(json.data.wakeTime);
+      if (isUserNotFoundResponse(res, json)) {
+        router.replace('/onboarding');
+        return;
+      }
+      if (json.success && json.data) {
+        setAutonomyLevel(json.data.autonomyLevel ?? 1);
+        setWakeTime(json.data.wakeTime ?? '07:00');
         setOutputDirectory(json.data.outputDirectory || '');
-        setGmailConnected(json.data.gmailConnected);
+        setGmailConnected(Boolean(json.data.gmailConnected));
         setGithubConnected(Boolean(json.data.githubConnected));
         setCanvasConnected(Boolean(json.data.canvasConnected));
-        setBoundaries(json.data.boundaries || []);
+        setBoundaries(Array.isArray(json.data.boundaries) ? json.data.boundaries : []);
       }
     } catch (err) {
       console.error('Failed to fetch settings:', err);
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function refreshCanvas() {
+    if (!canvasConnected) return;
+    setCanvasRefreshing(true);
+    try {
+      const res = await fetch('/api/canvas/sync', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ daysAhead: 21, daysBack: 14 }),
+      });
+      const j = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        console.error('Canvas refresh failed', j);
+      }
+    } finally {
+      setCanvasRefreshing(false);
     }
   }
 
@@ -92,6 +124,10 @@ export default function SettingsPage() {
         }),
       });
       const json = await res.json();
+      if (isUserNotFoundResponse(res, json)) {
+        router.replace('/onboarding');
+        return;
+      }
       if (!res.ok) {
         throw new Error(json.error || 'Failed to save settings');
       }
@@ -99,6 +135,10 @@ export default function SettingsPage() {
       // Roundtrip validation: refetch to confirm persistence
       const verify = await fetch('/api/user/settings');
       const vJson = await verify.json();
+      if (isUserNotFoundResponse(verify, vJson)) {
+        router.replace('/onboarding');
+        return;
+      }
       if (vJson.success) {
         const d = vJson.data;
         const mismatches: string[] = [];
@@ -261,13 +301,23 @@ export default function SettingsPage() {
                   <span className="text-nightshift-text-primary">Canvas</span>
                   <span className="text-sm text-nightshift-text-secondary">{canvasConnected ? 'Connected' : 'Not connected'}</span>
                   {canvasConnected ? (
-                    <button
-                      className="btn-ghost text-sm ml-auto"
-                      onClick={() => disconnectAccount('canvas')}
-                      disabled={disconnecting === 'canvas'}
-                    >
-                      {disconnecting === 'canvas' ? 'Disconnecting...' : 'Disconnect'}
-                    </button>
+                    <div className="ml-auto flex flex-wrap items-center gap-2">
+                      <button
+                        type="button"
+                        className="btn-ghost text-sm"
+                        onClick={() => void refreshCanvas()}
+                        disabled={canvasRefreshing}
+                      >
+                        {canvasRefreshing ? 'Refreshing…' : 'Refresh Canvas'}
+                      </button>
+                      <button
+                        className="btn-ghost text-sm"
+                        onClick={() => disconnectAccount('canvas')}
+                        disabled={disconnecting === 'canvas'}
+                      >
+                        {disconnecting === 'canvas' ? 'Disconnecting...' : 'Disconnect'}
+                      </button>
+                    </div>
                   ) : (
                     <button className="btn-primary ml-auto" onClick={() => { window.location.href = '/onboarding?step=canvas'; }}>
                       Connect

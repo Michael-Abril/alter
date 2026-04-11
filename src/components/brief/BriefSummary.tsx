@@ -2,7 +2,7 @@
  * OWNER: Person 4 (Voice/UI)
  * PURPOSE: Morning brief summary card — shows high-level overnight stats
  * DEPENDENCIES: None
- * STATUS: Scaffold — needs animation and real data
+ * STATUS: LIVE — reusable summary card (optional on other views)
  */
 
 interface BriefSummaryProps {

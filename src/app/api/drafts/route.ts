@@ -9,15 +9,14 @@ import { NextRequest } from 'next/server';
 import { auth } from '@clerk/nextjs/server';
 import { apiSuccess, apiError } from '@/lib/utils';
 import db from '@/lib/db';
+import { tryAuthUser, resolveUserForClerkId } from '@/lib/clerk-user';
 
 // GET: List all pending drafts for the authenticated user
 export async function GET() {
-  const { userId } = await auth();
-  if (!userId) return apiError('Unauthorized', 401);
-
   try {
-    const user = await db.user.findUnique({ where: { clerkId: userId } });
-    if (!user) return apiError('User not found', 404);
+    const authResult = await tryAuthUser();
+    if (!authResult.ok) return authResult.response;
+    const { user } = authResult;
 
     const drafts = await db.draft.findMany({
       where: { userId: user.id },
@@ -40,7 +39,10 @@ export async function GET() {
     );
   } catch (error) {
     console.error('[drafts] Error:', error);
-    return apiError('Failed to fetch drafts', 500);
+    return apiError(
+      error instanceof Error ? error.message : 'Failed to fetch drafts',
+      500
+    );
   }
 }
 
@@ -73,7 +75,7 @@ export async function POST(req: NextRequest) {
     }
 
     // Resolve user by auth first, then by provided userId (internal id or clerkId).
-    let user = clerkId ? await db.user.findUnique({ where: { clerkId } }) : null;
+    let user = clerkId ? await resolveUserForClerkId(clerkId) : null;
     if (!user && userId) {
       user = await db.user.findFirst({
         where: {
@@ -82,7 +84,9 @@ export async function POST(req: NextRequest) {
       });
     }
 
-    if (!user) return apiError('User not found', 404);
+    if (!user) {
+      return apiError('User not found', 404, { code: 'USER_NOT_FOUND' });
+    }
 
     const draft = await db.draft.create({
       data: {

@@ -35,6 +35,7 @@ const FAKE_EMAILS = [
     subject: 'Assignment Due Tomorrow',
     body: 'Hi, just a reminder that your final project proposal is due tomorrow at 11:59 PM. Please submit via Canvas.',
     direction: 'received',
+    ingestChannel: 'important_inbox',
     receivedAt: new Date(Date.now() - 24 * 60 * 60 * 1000),
   },
   {
@@ -43,6 +44,7 @@ const FAKE_EMAILS = [
     subject: 'Re: Assignment Due Tomorrow',
     body: 'Thank you for the reminder. I will submit it tonight.',
     direction: 'sent',
+    ingestChannel: 'sent',
     receivedAt: new Date(Date.now() - 23 * 60 * 60 * 1000),
   },
   {
@@ -51,6 +53,7 @@ const FAKE_EMAILS = [
     subject: 'Pitch Deck Review',
     body: 'We reviewed your pitch deck. The market analysis is strong, but we need more details on the go-to-market strategy.',
     direction: 'received',
+    ingestChannel: 'important_inbox',
     receivedAt: new Date(Date.now() - 12 * 60 * 60 * 1000),
   },
   {
@@ -59,6 +62,7 @@ const FAKE_EMAILS = [
     subject: 'Re: Pitch Deck Review',
     body: 'Thanks for the feedback. I will update the GTM section and send a revised version by Friday.',
     direction: 'sent',
+    ingestChannel: 'sent',
     receivedAt: new Date(Date.now() - 11 * 60 * 60 * 1000),
   },
   {
@@ -67,6 +71,7 @@ const FAKE_EMAILS = [
     subject: 'Website Redesign Project',
     body: 'Can we schedule a call to discuss the website redesign? We are targeting a launch in 3 weeks.',
     direction: 'received',
+    ingestChannel: 'important_inbox',
     receivedAt: new Date(Date.now() - 6 * 60 * 60 * 1000),
   },
   {

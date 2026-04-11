@@ -2,7 +2,7 @@
  * OWNER: Person 4 (Voice/UI) + Person 3 (Orchestration)
  * PURPOSE: Complete onboarding flow — dead simple, no terminal commands
  * DEPENDENCIES: @clerk/nextjs, Canvas API, Gmail OAuth, Claude/ChatGPT scrapers
- * STATUS: LIVE — full working onboarding with real integrations, NO AUTO-ADVANCE
+ * STATUS: LIVE — full working onboarding with real integrations
  */
 
 'use client';
@@ -10,7 +10,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { useUser } from '@clerk/nextjs';
-import { CheckCircle2, Loader2, Upload, AlertCircle } from 'lucide-react';
+import { CheckCircle2, Loader2, Upload, AlertCircle, Circle } from 'lucide-react';
 
 type OnboardingStep = 'welcome' | 'gmail' | 'github' | 'canvas' | 'import' | 'processing' | 'reveal';
 
@@ -22,12 +22,7 @@ interface Project {
   status: string;
 }
 
-interface ProcessingStatus {
-  stage: 'embedding' | 'profiling' | 'detecting' | 'complete';
-  messagesFound: number;
-  projectsFound: number;
-  progress: number;
-}
+type ParallelTaskStatus = 'pending' | 'running' | 'done' | 'failed';
 
 type ImportSource = 'claude' | 'chatgpt';
 type SyncState = 'idle' | 'running' | 'completed' | 'failed' | 'auth_required';
@@ -95,14 +90,28 @@ export default function OnboardingPage() {
   const [resettingTestState, setResettingTestState] = useState(false);
   const pollingIntervalRef = useRef<Partial<Record<ImportSource, NodeJS.Timeout>>>({});
   const autoResetDoneRef = useRef(false);
+  /** One post-OAuth server snapshot (Gmail + Calendar + Canvas) so users who click through fast still get data. */
+  const integrationPrefetchDoneRef = useRef(false);
+  /** Timestamp of last successful snapshot so processing can skip a duplicate run. */
+  const lastSnapshotTimeRef = useRef(0);
+
+  /** Demo: skip scrapers and use messages already in the DB */
+  type ImportStrategy = 'none' | 'scraper' | 'existing';
+  const [importStrategy, setImportStrategy] = useState<ImportStrategy>('none');
+  const [dbMessageTotal, setDbMessageTotal] = useState(0);
+  const [processingSummaryLine, setProcessingSummaryLine] = useState('');
   
   // Processing state
   const [processing, setProcessing] = useState(false);
-  const [processingStage, setProcessingStage] = useState<'embedding' | 'profiling' | 'detecting' | 'complete'>('embedding');
+  const [processingDone, setProcessingDone] = useState(false);
   const [embeddedCount, setEmbeddedCount] = useState(0);
   const [totalMessages, setTotalMessages] = useState(0);
   const [projectsDetected, setProjectsDetected] = useState(0);
   const [voiceProfileStatus, setVoiceProfileStatus] = useState('');
+  const [embedStatus, setEmbedStatus] = useState<ParallelTaskStatus>('pending');
+  const [profileStatus, setProfileStatus] = useState<ParallelTaskStatus>('pending');
+  const [detectStatus, setDetectStatus] = useState<ParallelTaskStatus>('pending');
+  const processingStartedRef = useRef(false);
   
   // Detected projects
   const [projects, setProjects] = useState<Project[]>([]);
@@ -126,12 +135,17 @@ export default function OnboardingPage() {
     checkGitHubStatus();
     checkMessageCounts();
     
-    // Gmail OAuth callback
+    // Gmail OAuth callback — stay on Gmail; user clicks Next when ready
     if (gmailParam === 'connected') {
       setGmailConnected(true);
-      setStep(resolvedStep ?? 'github');
+      setStep(resolvedStep ?? 'gmail');
+      if (!integrationPrefetchDoneRef.current) {
+        integrationPrefetchDoneRef.current = true;
+        lastSnapshotTimeRef.current = Date.now();
+        void fetch('/api/onboarding/integration-snapshot', { method: 'POST' }).catch(() => {});
+      }
     }
-    
+
     // GitHub OAuth callback
     if (githubParam === 'connected') {
       setGithubConnected(true);
@@ -170,11 +184,18 @@ export default function OnboardingPage() {
       setChatgptStatus('');
       setChatgptMessages(0);
       setProcessing(false);
-      setProcessingStage('embedding');
+      setProcessingDone(false);
+      setEmbedStatus('pending');
+      setProfileStatus('pending');
+      setDetectStatus('pending');
       setEmbeddedCount(0);
       setTotalMessages(0);
       setProjectsDetected(0);
       setProjects([]);
+      setImportStrategy('none');
+      setDbMessageTotal(0);
+      setProcessingSummaryLine('');
+      processingStartedRef.current = false;
       stopPolling();
 
       if (!silent) {
@@ -212,8 +233,8 @@ export default function OnboardingPage() {
       if (data.success) {
         setGmailConnected(true);
         setGmailLoading(false);
-        // Advance to the next step automatically
-        setStep('github');
+        lastSnapshotTimeRef.current = Date.now();
+        void fetch('/api/onboarding/integration-snapshot', { method: 'POST' }).catch(() => {});
       } else {
         // Fall back to full OAuth redirect — handles Drive + Calendar scopes too
         window.location.href = '/api/gmail/connect?onboarding=true';
@@ -353,6 +374,8 @@ export default function OnboardingPage() {
       if (data.success) {
         setCanvasConnected(true);
         setCanvasError('');
+        lastSnapshotTimeRef.current = Date.now();
+        void fetch('/api/onboarding/integration-snapshot', { method: 'POST' }).catch(() => {});
       } else {
         setCanvasError(data.error || 'Invalid token or domain');
       }
@@ -363,15 +386,41 @@ export default function OnboardingPage() {
     }
   }
   
+  function chooseUseExistingData() {
+    stopPolling();
+    setClaudeImporting(false);
+    setChatgptImporting(false);
+    setImportStrategy('existing');
+    setClaudeStatus('');
+    setChatgptStatus('');
+    void fetch('/api/chat-history/stats')
+      .then(async (res) => res.json())
+      .then((j) => {
+        const n = j.success ? (j.data?.total as number) ?? 0 : 0;
+        setDbMessageTotal(n);
+        setClaudeMessages(0);
+        setChatgptMessages(0);
+        setClaudeStatus(
+          n > 0
+            ? `Using ${n} messages already in NightShift — no scraper run.`
+            : 'No messages in the database yet. Import or add data before processing.'
+        );
+      })
+      .catch(() => {
+        setClaudeStatus('Could not load message counts. You can still continue to processing.');
+      });
+  }
+
   async function startImport(
     method: ImportSource,
     silent = false,
-    options?: { resetProfile?: boolean; chainChatGPT?: boolean }
+    options?: { resetProfile?: boolean }
   ) {
+    setImportStrategy('scraper');
     const setImporting = method === 'claude' ? setClaudeImporting : setChatgptImporting;
     const setStatus = method === 'claude' ? setClaudeStatus : setChatgptStatus;
     const setMessages = method === 'claude' ? setClaudeMessages : setChatgptMessages;
-    
+
     stopPolling(method);
     setImporting(true);
     setStatus(silent ? 'Syncing recent context in background...' : 'Starting scraper...');
@@ -392,7 +441,7 @@ export default function OnboardingPage() {
       
       if (data.success) {
         setStatus(`Syncing your last ${contextWindowDays} days in the background...`);
-        startPollingMessageCount(method, options?.chainChatGPT);
+        startPollingMessageCount(method);
       } else {
         setStatus('Failed to start scraper');
         setImporting(false);
@@ -404,20 +453,10 @@ export default function OnboardingPage() {
     }
   }
   
-  function startPollingMessageCount(method: ImportSource, chainChatGPT = false) {
+  function startPollingMessageCount(method: ImportSource) {
     const setMessages = method === 'claude' ? setClaudeMessages : setChatgptMessages;
     const setStatus = method === 'claude' ? setClaudeStatus : setChatgptStatus;
     const setImporting = method === 'claude' ? setClaudeImporting : setChatgptImporting;
-
-    // If chaining ChatGPT after Claude, delay its start so both browser windows
-    // don't open simultaneously and conflict on Windows.
-    if (chainChatGPT && method === 'claude') {
-      setTimeout(() => {
-        void startImport('chatgpt');
-      }, 40000); // 40s — Claude browser is past login and actively scraping
-      setChatgptStatus('Queued — starts after Claude browser is open...');
-      setChatgptImporting(true);
-    }
 
     pollingIntervalRef.current[method] = setInterval(async () => {
       try {
@@ -473,6 +512,25 @@ export default function OnboardingPage() {
   useEffect(() => {
     return () => stopPolling();
   }, []);
+
+  /** Fresh processing step when arriving from import (clears a prior "complete" in the same session). */
+  const goToProcessingStep = () => {
+    setProcessing(false);
+    setProcessingDone(false);
+    setProcessingSummaryLine('');
+    setEmbedStatus('pending');
+    setProfileStatus('pending');
+    setDetectStatus('pending');
+    processingStartedRef.current = false;
+    setStep('processing');
+  };
+
+  useEffect(() => {
+    if (step !== 'processing') return;
+    if (processingStartedRef.current || processingDone) return;
+    processingStartedRef.current = true;
+    void startProcessing();
+  }, [step]);
   
   async function handleChatGPTUpload(file: File) {
     setChatgptImporting(true);
@@ -503,62 +561,167 @@ export default function OnboardingPage() {
   
   async function startProcessing() {
     setProcessing(true);
-    setProcessingStage('embedding');
+    setProcessingDone(false);
     setEmbeddedCount(0);
     setProjectsDetected(0);
-    
+    setProcessingSummaryLine('');
+    setEmbedStatus('running');
+    setProfileStatus('running');
+    setDetectStatus('running');
+
+    const lookbackDays = importStrategy === 'existing' ? 365 : contextWindowDays;
+    let integrationSyncHint = '';
+
     try {
-      // Get total message count
-      const statsRes = await fetch(`/api/chat-history/stats?sinceDays=${contextWindowDays}`);
-      const statsData = await statsRes.json();
-      setTotalMessages(statsData.data?.total || 0);
-      
-      // Start embedding
-      const embedRes = await fetch(`/api/onboarding/embed?sinceDays=${contextWindowDays}`, {
-        method: 'POST',
-      });
-      const embedData = await embedRes.json();
-      
-      if (embedData.success) {
-        setEmbeddedCount(embedData.data?.messagesEmbedded || 0);
-        setProcessingStage('profiling');
-        setVoiceProfileStatus('Learning your writing style...');
-
-        const voiceRes = await fetch('/api/onboarding/build-profile', { method: 'POST' });
-        const voiceData = await voiceRes.json();
-        if (voiceData.success) {
-          setVoiceProfileStatus('Voice profile created — NightShift will write like you.');
-        } else {
-          setVoiceProfileStatus('Could not build voice profile yet. Continuing with default style.');
-        }
-
-        setProcessingStage('detecting');
-        
-        // Run project detection
-        const detectRes = await fetch(`/api/onboarding/detect-projects?sinceDays=${contextWindowDays}`, {
-          method: 'POST',
-        });
-        const detectData = await detectRes.json();
-        
-        if (detectData.success) {
-          setProjectsDetected(detectData.data?.projectsDetected || 0);
-          
-          // Fetch detected projects
-          const projectsRes = await fetch('/api/projects');
-          const projectsData = await projectsRes.json();
-          
-          if (projectsData.success) {
-            setProjects(projectsData.data?.projects || []);
+      // ── Snapshot: skip if one already ran recently (OAuth callback or Canvas validate) ──
+      const snapshotAge = Date.now() - (lastSnapshotTimeRef.current || 0);
+      if (snapshotAge > 90_000) {
+        const ac = new AbortController();
+        const t = setTimeout(() => ac.abort(), 25000);
+        try {
+          const snapRes = await fetch('/api/onboarding/integration-snapshot', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ gmailSinceDays: 14, calendarDaysAhead: 21 }),
+            signal: ac.signal,
+          });
+          if (snapRes.ok) {
+            const snapJson = await snapRes.json();
+            const d = snapJson?.data as Record<string, { ok?: boolean; skipped?: boolean; newEmails?: number; synced?: number; ingested?: number }> | undefined;
+            if (d && typeof d === 'object') {
+              const parts = (['gmail', 'calendar', 'canvas'] as const)
+                .map((key) => {
+                  const block = d[key];
+                  if (!block || block.skipped) return null;
+                  if (!block.ok) return null;
+                  if (key === 'gmail' && typeof block.newEmails === 'number')
+                    return `Gmail +${block.newEmails}`;
+                  if (key === 'calendar' && typeof block.synced === 'number')
+                    return `Calendar ${block.synced} events`;
+                  if (key === 'canvas' && typeof block.ingested === 'number')
+                    return `Canvas +${block.ingested}`;
+                  return null;
+                })
+                .filter(Boolean) as string[];
+              if (parts.length) integrationSyncHint = `Synced ${parts.join(' · ')}. `;
+            }
           }
-          
-          setProcessingStage('complete');
-          setProcessing(false);
+          lastSnapshotTimeRef.current = Date.now();
+        } catch {
+          /* non-fatal */
+        } finally {
+          clearTimeout(t);
         }
+      } else {
+        integrationSyncHint = 'Integrations synced earlier. ';
       }
+
+      // ── Parallel: embed + profile + detect ──
+      const embedQuery =
+        importStrategy === 'existing'
+          ? 'fullHistory=1'
+          : `sinceDays=${contextWindowDays}`;
+
+      const embedPromise = fetch(`/api/onboarding/embed?${embedQuery}`, { method: 'POST' })
+        .then((r) => r.json())
+        .then((data) => {
+          const ok = Boolean(data.success);
+          setEmbedStatus(ok ? 'done' : 'failed');
+          if (ok) setEmbeddedCount(data.data?.messagesEmbedded || 0);
+          return { ok, data };
+        })
+        .catch(() => { setEmbedStatus('failed'); return { ok: false, data: null }; });
+
+      const profilePromise = fetch('/api/onboarding/build-profile', { method: 'POST' })
+        .then((r) => r.json())
+        .then((data) => {
+          const ok = Boolean(data.success);
+          setProfileStatus(ok ? 'done' : 'failed');
+          setVoiceProfileStatus(
+            ok
+              ? 'Voice profile created — NightShift will write like you.'
+              : 'Could not build voice profile yet. Continuing with default style.'
+          );
+          return { ok, data };
+        })
+        .catch(() => { setProfileStatus('failed'); return { ok: false, data: null }; });
+
+      const detectPromise = fetch(`/api/onboarding/detect-projects?sinceDays=${lookbackDays}`, { method: 'POST' })
+        .then((r) => r.json())
+        .then((data) => {
+          const ok = Boolean(data.success);
+          setDetectStatus(ok ? 'done' : 'failed');
+          if (ok) {
+            const n = (data.data?.projectsDetected as number) ?? 0;
+            setProjectsDetected(n);
+          }
+          return { ok, data };
+        })
+        .catch(() => { setDetectStatus('failed'); return { ok: false, data: null }; });
+
+      const [embedResult, profileResult] = await Promise.all([
+        embedPromise,
+        profilePromise,
+        detectPromise,
+      ]);
+
+      // ── Final fetch: projects list + stats (parallel) ──
+      const [projectsData, statsData] = await Promise.all([
+        fetch('/api/projects').then((r) => r.json()),
+        fetch('/api/chat-history/stats').then((r) => r.json()),
+      ]);
+
+      const list = projectsData.success ? (projectsData.data?.projects as Project[]) ?? [] : [];
+      setProjects(list);
+
+      const finalTotal = statsData.success ? (statsData.data?.total as number) ?? 0 : 0;
+      setTotalMessages(finalTotal);
+      setDbMessageTotal(finalTotal);
+
+      setProcessingSummaryLine(
+        `${integrationSyncHint}Found ${finalTotal} messages, detected ${list.length} projects, ${
+          profileResult.ok ? 'built voice profile.' : 'voice profile not saved yet.'
+        }`
+      );
+
+      setProcessingDone(true);
+      setProcessing(false);
     } catch (err) {
       console.error('Processing failed:', err);
       setProcessing(false);
     }
+  }
+
+  async function finishOnboarding() {
+    try {
+      const res = await fetch('/api/onboarding/complete', { method: 'POST' });
+      const data = await res.json();
+      if (!data.success) {
+        console.error('[onboarding] complete failed', data);
+      }
+    } catch (e) {
+      console.error('[onboarding] complete', e);
+    }
+    router.replace('/dashboard');
+  }
+
+  function TaskRow({ label, status, detail }: { label: string; status: ParallelTaskStatus; detail?: string }) {
+    return (
+      <div className="flex items-center gap-3">
+        {status === 'done' && <CheckCircle2 className="h-5 w-5 shrink-0 text-green-500" />}
+        {status === 'running' && <Loader2 className="h-5 w-5 shrink-0 animate-spin text-nightshift-accent" />}
+        {status === 'pending' && <Circle className="h-5 w-5 shrink-0 text-nightshift-border" />}
+        {status === 'failed' && <AlertCircle className="h-5 w-5 shrink-0 text-red-500" />}
+        <div className="flex-1">
+          <span className={status === 'done' ? 'text-green-500' : status === 'failed' ? 'text-red-500' : 'text-nightshift-text-primary'}>
+            {label}
+          </span>
+          {detail && status === 'done' && (
+            <span className="ml-2 text-xs text-nightshift-text-muted">{detail}</span>
+          )}
+        </div>
+      </div>
+    );
   }
 
   const steps: OnboardingStep[] = ['welcome', 'gmail', 'github', 'canvas', 'import', 'processing', 'reveal'];
@@ -607,9 +770,18 @@ export default function OnboardingPage() {
             <p className="text-lg text-nightshift-text-secondary mb-8 max-w-md mx-auto">
               NightShift learns how you work and continues your work while you sleep.
             </p>
-            <button className="btn-primary w-full max-w-xs mx-auto" onClick={() => setStep('gmail')}>
-              Get Started
-            </button>
+            <div className="flex flex-col gap-2 max-w-xs mx-auto w-full sm:flex-row sm:max-w-lg">
+              <button type="button" className="btn-primary flex-1" onClick={() => setStep('gmail')}>
+                Next →
+              </button>
+              <button
+                type="button"
+                className="btn-ghost flex-1"
+                onClick={() => setStep('import')}
+              >
+                Skip to import
+              </button>
+            </div>
           </div>
         )}
 
@@ -618,7 +790,8 @@ export default function OnboardingPage() {
           <div className="card">
             <h2 className="text-2xl font-bold mb-3">Connect Google</h2>
             <p className="text-nightshift-text-secondary mb-6">
-              Enables Gmail drafts, saving documents to Google Drive, and pulling Calendar deadlines into your context.
+              One connection pulls Gmail, Calendar, and (on the processing step) Canvas together into your context — we
+              sync in parallel and keep ranges short so setup stays quick.
             </p>
             
             {gmailConnected ? (
@@ -626,7 +799,9 @@ export default function OnboardingPage() {
                 <CheckCircle2 className="w-6 h-6 text-green-500" />
                 <div>
                   <span className="text-green-500 font-medium">Google Connected</span>
-                  <p className="text-xs text-nightshift-text-muted mt-0.5">Gmail, Drive, and Calendar access granted</p>
+                  <p className="text-xs text-nightshift-text-muted mt-0.5">
+                    Gmail + Calendar sync runs in the background; Drive stays available for saving docs.
+                  </p>
                 </div>
               </div>
             ) : (
@@ -653,27 +828,16 @@ export default function OnboardingPage() {
               </>
             )}
             
-            <div className="flex gap-2 mt-2">
-              <button
-                className="btn-ghost"
-                onClick={() => setStep('welcome')}
-              >
+            <div className="mt-2 flex flex-wrap gap-2">
+              <button type="button" className="btn-ghost" onClick={() => setStep('welcome')}>
                 ← Back
               </button>
-              <button
-                className="btn-ghost flex-1"
-                onClick={() => setStep('github')}
-              >
-                Skip for Now
+              <button type="button" className="btn-ghost min-w-[120px] flex-1" onClick={() => setStep('github')}>
+                Skip
               </button>
-              {gmailConnected && (
-                <button
-                  className="btn-primary flex-1"
-                  onClick={() => setStep('github')}
-                >
-                  Next →
-                </button>
-              )}
+              <button type="button" className="btn-primary min-w-[120px] flex-1" onClick={() => setStep('github')}>
+                Next →
+              </button>
             </div>
           </div>
         )}
@@ -762,30 +926,25 @@ export default function OnboardingPage() {
               </>
             )}
             
-            <div className="flex gap-2 mt-2">
-              <button
-                className="btn-ghost"
-                onClick={() => setStep('gmail')}
-              >
+            <div className="mt-2 flex flex-wrap gap-2">
+              <button type="button" className="btn-ghost" onClick={() => setStep('gmail')}>
                 ← Back
               </button>
-              <button
-                className="btn-ghost flex-1"
-                onClick={() => setStep('canvas')}
-              >
+              <button type="button" className="btn-ghost min-w-[120px] flex-1" onClick={() => setStep('canvas')}>
                 Skip
               </button>
-              {githubConnected && selectedRepo && (
-                <button
-                  className="btn-primary flex-1"
-                  onClick={async () => {
+              <button
+                type="button"
+                className="btn-primary min-w-[120px] flex-1"
+                onClick={async () => {
+                  if (githubConnected && selectedRepo) {
                     await saveGitHubRepo();
-                    setStep('canvas');
-                  }}
-                >
-                  Confirm & Next →
-                </button>
-              )}
+                  }
+                  setStep('canvas');
+                }}
+              >
+                Next →
+              </button>
             </div>
           </div>
         )}
@@ -880,27 +1039,16 @@ export default function OnboardingPage() {
               </>
             )}
             
-            <div className="flex gap-2 mt-2">
-              <button
-                className="btn-ghost"
-                onClick={() => setStep('github')}
-              >
+            <div className="mt-2 flex flex-wrap gap-2">
+              <button type="button" className="btn-ghost" onClick={() => setStep('github')}>
                 ← Back
               </button>
-              <button
-                className="btn-ghost flex-1"
-                onClick={() => setStep('import')}
-              >
+              <button type="button" className="btn-ghost min-w-[120px] flex-1" onClick={() => setStep('import')}>
                 Skip
               </button>
-              {canvasConnected && (
-                <button
-                  className="btn-primary flex-1"
-                  onClick={() => setStep('import')}
-                >
-                  Next →
-                </button>
-              )}
+              <button type="button" className="btn-primary min-w-[120px] flex-1" onClick={() => setStep('import')}>
+                Next →
+              </button>
             </div>
           </div>
         )}
@@ -914,7 +1062,7 @@ export default function OnboardingPage() {
             </p>
             <div className="mb-4 rounded-lg border border-nightshift-border p-3">
               <label className="mb-2 block text-xs uppercase tracking-wide text-nightshift-text-secondary">
-                Context Window
+                Context Window (live scraper)
               </label>
               <select
                 value={contextWindowDays}
@@ -926,21 +1074,32 @@ export default function OnboardingPage() {
                 <option value={14}>Last 14 days</option>
               </select>
               <p className="mt-2 text-xs text-nightshift-text-secondary">
-                Start lightweight, then expand context only when needed.
+                Used when you run the Claude or ChatGPT browser import below.
               </p>
             </div>
-            
-            {/* Import Both button — chains scrapers so browser windows don't conflict */}
-            {!claudeImporting && !chatgptImporting && (
-              <button
-                className="btn-primary w-full mb-4 py-3"
-                onClick={() => void startImport('claude', false, { chainChatGPT: true })}
-              >
-                Import Both (Claude + ChatGPT)
-              </button>
-            )}
 
-            <div className="space-y-3 mb-4">
+            <div className="mb-4 rounded-lg border border-nightshift-accent/40 bg-nightshift-accent/5 p-4">
+              <h3 className="mb-1 text-sm font-semibold text-nightshift-text-primary">Demo: use existing data</h3>
+              <p className="mb-3 text-xs text-nightshift-text-secondary">
+                Skip the live scraper and use whatever chat messages are already in this account. Best for
+                demos when the database is already loaded.
+              </p>
+              <button
+                type="button"
+                className="btn-primary w-full py-2"
+                onClick={() => chooseUseExistingData()}
+                disabled={claudeImporting || chatgptImporting}
+              >
+                Use existing data
+              </button>
+              {importStrategy === 'existing' && dbMessageTotal > 0 && (
+                <p className="mt-2 text-center text-xs text-green-400">
+                  Ready — {dbMessageTotal} message{dbMessageTotal === 1 ? '' : 's'} in the database.
+                </p>
+              )}
+            </div>
+
+            <div className="mb-4 space-y-3">
               {/* Claude Import */}
               <div className={`p-4 rounded-lg border transition-colors ${
                 claudeMessages > 0 && !claudeImporting ? 'border-green-500/50' :
@@ -1082,83 +1241,62 @@ export default function OnboardingPage() {
               </div>
             </div>
             
-            <div className="flex gap-2 mt-2">
-              <button
-                className="btn-ghost"
-                onClick={() => setStep('canvas')}
-                disabled={claudeImporting || chatgptImporting}
-              >
+            <div className="mt-2 flex flex-wrap gap-2">
+              <button type="button" className="btn-ghost" onClick={() => setStep('canvas')}>
                 ← Back
               </button>
-              <button
-                className="btn-ghost flex-1"
-                onClick={() => setStep('processing')}
-                disabled={claudeImporting || chatgptImporting}
-              >
-                {claudeMessages > 0 || chatgptMessages > 0 ? 'Skip additional imports' : 'Skip'}
+              <button type="button" className="btn-ghost min-w-[120px] flex-1" onClick={goToProcessingStep}>
+                Skip
               </button>
-              {!claudeImporting && !chatgptImporting && (
-                <button
-                  className="btn-primary flex-1"
-                  onClick={() => setStep('processing')}
-                >
-                  {claudeMessages > 0 || chatgptMessages > 0 ? 'Next →' : 'Continue with existing data →'}
-                </button>
-              )}
+              <button type="button" className="btn-primary min-w-[120px] flex-1" onClick={goToProcessingStep}>
+                Next →
+              </button>
             </div>
-            <p className="text-xs text-nightshift-text-muted text-center mt-2">
-              If you have previously imported data, you can proceed directly.
+            <p className="mt-2 text-center text-xs text-nightshift-text-muted">
+              Next / Skip always continue — use &quot;Use existing data&quot; to skip the scraper for a quick demo.
             </p>
           </div>
         )}
 
-        {/* Step 6: Processing */}
+        {/* Step 6: Processing (auto-starts, parallel tasks) */}
         {step === 'processing' && (
           <div className="card text-center">
-            {!processing && processingStage !== 'complete' ? (
+            {processingDone ? (
               <>
-                <h2 className="text-2xl font-bold mb-3">Ready to Process</h2>
-                <p className="text-nightshift-text-secondary mb-6">
-                  We'll analyze your conversations and detect your projects. This takes about 30 seconds.
+                <CheckCircle2 className="mx-auto mb-4 h-16 w-16 text-green-500" />
+                <h2 className="mb-3 text-2xl font-bold">Processing complete</h2>
+                <p className="mx-auto mb-6 max-w-lg text-nightshift-text-secondary">
+                  {processingSummaryLine ||
+                    `Embedded ${embeddedCount} message(s) in this run. Open the next step for your project list.`}
                 </p>
-                <button
-                  className="btn-primary w-full max-w-xs mx-auto"
-                  onClick={startProcessing}
-                >
-                  Start Processing
-                </button>
-              </>
-            ) : processingStage === 'complete' ? (
-              <>
-                <CheckCircle2 className="w-16 h-16 text-green-500 mx-auto mb-4" />
-                <h2 className="text-2xl font-bold mb-3">Processing Complete!</h2>
-                <p className="text-nightshift-text-secondary mb-6">
-                  Embedded {embeddedCount} messages and detected {projectsDetected} projects
-                </p>
-                <button
-                  className="btn-primary w-full max-w-xs mx-auto"
-                  onClick={() => setStep('reveal')}
-                >
-                  See What We Found
-                </button>
+                <div className="mx-auto flex max-w-md flex-col gap-2 sm:flex-row">
+                  <button type="button" className="btn-ghost flex-1" onClick={() => setStep('import')}>
+                    ← Back
+                  </button>
+                  <button type="button" className="btn-ghost flex-1" onClick={() => setStep('reveal')}>
+                    Skip
+                  </button>
+                  <button type="button" className="btn-primary flex-1" onClick={() => setStep('reveal')}>
+                    Next →
+                  </button>
+                </div>
               </>
             ) : (
               <>
                 <div className="mb-6">
-                  <Loader2 className="w-16 h-16 animate-spin text-nightshift-accent mx-auto" />
+                  <Loader2 className="mx-auto h-16 w-16 animate-spin text-nightshift-accent" />
                 </div>
-                
-                <h2 className="text-2xl font-bold mb-3">
-                  {processingStage === 'embedding' && 'Embedding your messages...'}
-                  {processingStage === 'profiling' && 'Learning your writing style...'}
-                  {processingStage === 'detecting' && 'Detecting projects...'}
-                </h2>
-                
-                <p className="text-nightshift-text-secondary mb-6">
-                  {processingStage === 'embedding' && `${embeddedCount} of ${totalMessages} messages embedded`}
-                  {processingStage === 'profiling' && (voiceProfileStatus || 'Learning your writing style...')}
-                  {processingStage === 'detecting' && `Found ${projectsDetected} projects`}
+
+                <h2 className="mb-3 text-2xl font-bold">Analyzing your data</h2>
+                <p className="mb-6 text-nightshift-text-secondary">
+                  Running three tasks in parallel — this takes about 10 seconds.
                 </p>
+
+                <div className="mx-auto max-w-sm space-y-3 text-left">
+                  <TaskRow label="Embedding messages" status={embedStatus} detail={embeddedCount > 0 ? `${embeddedCount} embedded` : undefined} />
+                  <TaskRow label="Building voice profile" status={profileStatus} detail={voiceProfileStatus || undefined} />
+                  <TaskRow label="Detecting projects" status={detectStatus} detail={projectsDetected > 0 ? `${projectsDetected} found` : undefined} />
+                </div>
               </>
             )}
           </div>
@@ -1217,12 +1355,17 @@ export default function OnboardingPage() {
               </div>
             )}
             
-            <button
-              className="btn-primary w-full"
-              onClick={() => router.push('/dashboard')}
-            >
-              Looks right, let&apos;s go
-            </button>
+            <div className="flex flex-col gap-2 sm:flex-row">
+              <button type="button" className="btn-ghost flex-1" onClick={() => setStep('processing')}>
+                ← Back
+              </button>
+              <button type="button" className="btn-ghost flex-1" onClick={() => void finishOnboarding()}>
+                Skip
+              </button>
+              <button type="button" className="btn-primary flex-1" onClick={() => void finishOnboarding()}>
+                Looks right, let&apos;s go
+              </button>
+            </div>
           </div>
         )}
       </div>

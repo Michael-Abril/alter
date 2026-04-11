@@ -94,7 +94,11 @@ export async function draftEmailReply(incomingEmail, userId, options = {}) {
     .map(block => block.text)
     .join('\n\n');
 
-  const tokensUsed = response.usage.input_tokens + response.usage.output_tokens;
+  const usage = {
+    input_tokens: response.usage?.input_tokens ?? 0,
+    output_tokens: response.usage?.output_tokens ?? 0,
+  };
+  const tokensUsed = usage.input_tokens + usage.output_tokens;
   console.log(`   ✅ Generated draft (${draft.length} chars, ${tokensUsed} tokens)`);
   console.log('');
 
@@ -134,6 +138,7 @@ export async function draftEmailReply(incomingEmail, userId, options = {}) {
     draftId: draftResult.draftId,
     actionId: actionResult.actionId,
     tokensUsed,
+    usage,
   };
 }
 

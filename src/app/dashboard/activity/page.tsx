@@ -8,6 +8,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import Sidebar from '@/components/layout/Sidebar';
 import Header from '@/components/layout/Header';
 import ConfidenceBadge from '@/components/shared/ConfidenceBadge';
@@ -15,8 +16,10 @@ import AppIcon from '@/components/shared/AppIcon';
 import { timeAgo } from '@/lib/utils';
 import type { Action } from '@/types';
 import { Loader2 } from 'lucide-react';
+import { isUserNotFoundResponse } from '@/lib/dashboard-client-guard';
 
 export default function ActivityPage() {
+  const router = useRouter();
   const [actions, setActions] = useState<Action[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<'all' | 'completed' | 'flagged' | 'failed'>('all');
@@ -26,8 +29,12 @@ export default function ActivityPage() {
       try {
         const res = await fetch('/api/actions');
         const json = await res.json();
+        if (isUserNotFoundResponse(res, json)) {
+          router.replace('/onboarding');
+          return;
+        }
         if (json.success) {
-          setActions(json.data.actions || []);
+          setActions(Array.isArray(json.data?.actions) ? json.data.actions : []);
         }
       } catch (err) {
         console.error('Failed to fetch actions:', err);
@@ -36,7 +43,7 @@ export default function ActivityPage() {
       }
     }
     fetchActions();
-  }, []);
+  }, [router]);
 
   const filteredActions = actions.filter(action => {
     if (filter === 'all') return true;

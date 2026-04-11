@@ -1,7 +1,7 @@
-import { auth } from '@clerk/nextjs/server';
 import { apiSuccess, apiError } from '@/lib/utils';
 import fs from 'fs';
 import path from 'path';
+import { tryAuthUser } from '@/lib/clerk-user';
 
 const STATUS_DIR = path.join(process.cwd(), 'data');
 
@@ -16,15 +16,17 @@ function readRunStatus(userId: string) {
 }
 
 export async function GET() {
-  const { userId: clerkId } = await auth();
-  if (!clerkId) return apiError('Unauthorized', 401);
+  try {
+    const authResult = await tryAuthUser();
+    if (!authResult.ok) return authResult.response;
 
-  const db = (await import('@/lib/db')).default;
-  const user = await db.user.findUnique({ where: { clerkId }, select: { id: true } });
-  if (!user) return apiSuccess({ state: 'idle' });
+    const db = (await import('@/lib/db')).default;
+    const status = readRunStatus(authResult.user.id);
+    if (!status) return apiSuccess({ state: 'idle' });
 
-  const status = readRunStatus(user.id);
-  if (!status) return apiSuccess({ state: 'idle' });
-
-  return apiSuccess(status);
+    return apiSuccess(status);
+  } catch (e) {
+    console.error('[handoff/status]', e);
+    return apiError(e instanceof Error ? e.message : 'Failed to read handoff status', 500);
+  }
 }

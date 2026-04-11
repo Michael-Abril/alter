@@ -53,3 +53,12 @@ data/vectors/
 
 # continuations (now saved to user's Desktop/Documents/NightShift)
 data/continuations/
+
+# sensitive config with tokens
+data/canvas-config.json
+data/github-config.json
+
+# user data / debug artifacts
+data/scraped-sessions.json
+data/debug-screenshots/
+data/onboarding-sync/

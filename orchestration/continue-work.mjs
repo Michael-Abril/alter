@@ -27,7 +27,7 @@ const __dirname = path.dirname(__filename);
 const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY;
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000';
 const DEFAULT_MODEL = 'claude-sonnet-4-20250514';
-const DEFAULT_MAX_TOKENS = 2000; // ~500 words for cost optimization
+const DEFAULT_MAX_TOKENS = 4096;
 
 // ─── Main Function ───────────────────────────────────────────────────────────
 
@@ -48,44 +48,149 @@ const DEFAULT_MAX_TOKENS = 2000; // ~500 words for cost optimization
  * @param {boolean} options.dryRun - If true, don't save output or log action
  * @returns {Promise<Object>} - { success, outputPath, content, tokensUsed }
  */
+function normalizeProjectContext(project) {
+  const raw = project.context;
+  if (!raw) return {};
+  if (typeof raw === 'object') return { ...raw };
+  try {
+    return JSON.parse(raw);
+  } catch {
+    return {};
+  }
+}
+
+/**
+ * Save + log only (after multi-iteration merge in overnight loop).
+ */
+export async function persistContinuationOutput(project, content, tokensUsed, options = {}) {
+  const apiKey = options.apiKey || ANTHROPIC_API_KEY;
+  const apiUrl = options.apiUrl || API_BASE_URL;
+  const dryRun = options.dryRun || false;
+  if (dryRun) {
+    return { success: true, content, tokensUsed, dryRun: true };
+  }
+  const resolvedUserId = await resolveInternalUserId(project.userId);
+  const normalizedProject = { ...project, userId: resolvedUserId, context: normalizeProjectContext(project) };
+
+  const classification = normalizedProject.context?.classification || 'other';
+  const githubConfig = loadGitHubConfig(normalizedProject.userId);
+  const useGitHub = classification === 'code_build' && githubConfig && githubConfig.token && githubConfig.defaultRepo;
+
+  let outputPath;
+  let prUrl = null;
+  let prSkipReason = null;
+
+  if (useGitHub) {
+    const safeName = project.name
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-|-$/g, '');
+    let extension = '.js';
+    const lowerContent = content.toLowerCase();
+    if (lowerContent.includes('import react') || lowerContent.includes('export default')) {
+      extension = '.tsx';
+    } else if (lowerContent.includes('def ') || lowerContent.includes('import ')) {
+      extension = '.py';
+    }
+    const filePath = `src/nightshift/${safeName}${extension}`;
+    const commitMessage = `feat: Continue work on ${normalizedProject.name}\n\nNightShift merged continuation.\n`;
+    const prTitle = `NightShift: Continued work on ${normalizedProject.name}`;
+    const prBody = generatePRBody(
+      normalizedProject.name,
+      normalizedProject.description,
+      normalizedProject.context?.nextStep || 'Continue development',
+      tokensUsed
+    );
+    try {
+      const pushResult = await pushToGitHub({
+        userId: normalizedProject.userId,
+        projectName: normalizedProject.name,
+        filePath,
+        content,
+        commitMessage,
+        prTitle,
+        prBody,
+        dryRun: false,
+      });
+      outputPath = `GitHub PR: ${pushResult.branchName}`;
+      prUrl = pushResult.prUrl;
+    } catch (error) {
+      prSkipReason = `push_failed: ${error.message}`;
+      outputPath = await saveContinuation(normalizedProject, content);
+    }
+  } else {
+    outputPath = await saveContinuation(normalizedProject, content);
+    if (classification === 'code_build' && !useGitHub) {
+      if (!githubConfig || !githubConfig.token) prSkipReason = 'missing_token';
+      else if (!githubConfig.defaultRepo) prSkipReason = 'missing_default_repo';
+    }
+  }
+
+  await logAction(normalizedProject, outputPath, tokensUsed, apiUrl, prUrl, prSkipReason, options.logMetadata);
+  return { success: true, outputPath, content, tokensUsed, prUrl };
+}
+
 export async function continueWork(project, options = {}) {
   const apiKey = options.apiKey || ANTHROPIC_API_KEY;
   const apiUrl = options.apiUrl || API_BASE_URL;
   const dryRun = options.dryRun || false;
   const model = options.model || DEFAULT_MODEL;
   const maxTokens = options.maxTokens || DEFAULT_MAX_TOKENS;
+  const deferPersist = Boolean(options.deferPersist);
+  const continuationOf =
+    typeof options.continuationOf === 'string' && options.continuationOf.trim().length > 0
+      ? options.continuationOf.trim()
+      : null;
+  const minWordsTarget =
+    typeof options.minWordsTarget === 'number' && options.minWordsTarget > 0
+      ? options.minWordsTarget
+      : 500;
 
   if (!apiKey) {
     throw new Error('ANTHROPIC_API_KEY is not set');
   }
 
   const resolvedUserId = await resolveInternalUserId(project.userId);
-  const normalizedProject = { ...project, userId: resolvedUserId };
+  const normalizedProject = {
+    ...project,
+    userId: resolvedUserId,
+    context: normalizeProjectContext(project),
+  };
 
-  console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-  console.log('🌙 NightShift Work Continuation Agent');
-  console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-  console.log(`📋 Project: ${normalizedProject.name}`);
-  console.log(`📊 Progress: ${normalizedProject.progress}%`);
-  console.log(`🎯 Next Step: ${normalizedProject.context?.nextStep || 'Not specified'}`);
-  console.log('');
+  if (!options.quietLog) {
+    console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+    console.log('🌙 NightShift Work Continuation Agent');
+    console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+    console.log(`📋 Project: ${normalizedProject.name}`);
+    console.log(`📊 Progress: ${normalizedProject.progress}%`);
+    console.log(`🎯 Next Step: ${normalizedProject.context?.nextStep || 'Not specified'}`);
+    if (continuationOf) console.log('🔁 Continuation pass (prior output appended)');
+    console.log('');
+  }
 
   // Step 1: Build comprehensive context using context-builder
-  console.log('🔍 Step 1: Building comprehensive project context...');
+  if (!options.quietLog) console.log('🔍 Step 1: Building comprehensive project context...');
   const contextPackage = await buildProjectContext(normalizedProject.id, apiUrl);
-  console.log(`   ✅ Context built: ${contextPackage.relevantConversations.length} conversations, ${contextPackage.relatedEmails.length} emails`);
-  console.log(`   📊 Context quality: ${contextPackage.contextQuality}`);
-  console.log('');
+  if (!options.quietLog) {
+    console.log(`   ✅ Context built: ${contextPackage.relevantConversations.length} conversations, ${contextPackage.relatedEmails.length} emails`);
+    console.log(`   📊 Context quality: ${contextPackage.contextQuality}`);
+    console.log('');
+  }
 
   // Step 2: Build the continuation prompt
-  console.log('🧠 Step 2: Building continuation prompt...');
+  if (!options.quietLog) console.log('🧠 Step 2: Building continuation prompt...');
   const voiceProfile = await loadVoiceProfile(normalizedProject.userId, apiUrl);
-  const prompt = buildContinuationPrompt(normalizedProject, contextPackage, voiceProfile);
-  console.log(`   ✅ Prompt built (${prompt.system.length + prompt.user.length} chars)`);
-  console.log('');
+  const prompt = buildContinuationPrompt(normalizedProject, contextPackage, voiceProfile, {
+    continuationOf,
+    minWordsTarget,
+  });
+  if (!options.quietLog) {
+    console.log(`   ✅ Prompt built (${prompt.system.length + prompt.user.length} chars)`);
+    console.log('');
+  }
 
   // Step 3: Call Claude API
-  console.log('🤖 Step 3: Calling Claude API to continue work...');
+  if (!options.quietLog) console.log('🤖 Step 3: Calling Claude API to continue work...');
   const anthropic = new Anthropic({ apiKey });
   
   const response = await anthropic.messages.create({
@@ -100,9 +205,15 @@ export async function continueWork(project, options = {}) {
     .map(block => block.text)
     .join('\n\n');
 
-  const tokensUsed = response.usage.input_tokens + response.usage.output_tokens;
-  console.log(`   ✅ Generated ${content.length} chars (${tokensUsed} tokens)`);
-  console.log('');
+  const usage = {
+    input_tokens: response.usage?.input_tokens ?? 0,
+    output_tokens: response.usage?.output_tokens ?? 0,
+  };
+  const tokensUsed = usage.input_tokens + usage.output_tokens;
+  if (!options.quietLog) {
+    console.log(`   ✅ Generated ${content.length} chars (${tokensUsed} tokens)`);
+    console.log('');
+  }
 
   if (dryRun) {
     console.log('🏃 Dry run mode — skipping save and action log');
@@ -110,105 +221,39 @@ export async function continueWork(project, options = {}) {
     console.log('─── Generated Content Preview ───');
     console.log(content.slice(0, 500) + (content.length > 500 ? '...' : ''));
     console.log('─────────────────────────────────');
-    return { success: true, content, tokensUsed, dryRun: true };
+    return { success: true, content, tokensUsed, usage, dryRun: true };
   }
 
-  // Step 4: Save output (GitHub PR for code, local file for documents)
-  const classification = normalizedProject.context?.classification || 'other';
-  const githubConfig = loadGitHubConfig(normalizedProject.userId);
-  const useGitHub = classification === 'code_build' && githubConfig && githubConfig.token && githubConfig.defaultRepo;
-
-  let outputPath;
-  let prUrl = null;
-  let prSkipReason = null;
-
-  if (useGitHub) {
-    console.log('💾 Step 4: Pushing code to GitHub...');
-    
-    // Determine file path and extension
-    const safeName = project.name
-      .toLowerCase()
-      .replace(/[^a-z0-9]+/g, '-')
-      .replace(/^-|-$/g, '');
-    
-    // Detect file extension from content
-    let extension = '.js';
-    const lowerContent = content.toLowerCase();
-    if (lowerContent.includes('import react') || lowerContent.includes('export default')) {
-      extension = '.tsx';
-    } else if (lowerContent.includes('def ') || lowerContent.includes('import ')) {
-      extension = '.py';
-    }
-    
-    const filePath = `src/nightshift/${safeName}${extension}`;
-    
-    // Generate commit message and PR details
-    const commitMessage = `feat: Continue work on ${normalizedProject.name}\n\nGenerated by NightShift AI continuation agent.\nProgress: ${normalizedProject.progress}%\nNext step: ${normalizedProject.context?.nextStep || 'Continue development'}`;
-    const prTitle = `NightShift: Continued work on ${normalizedProject.name}`;
-    const prBody = generatePRBody(
-      normalizedProject.name,
-      normalizedProject.description,
-      normalizedProject.context?.nextStep || 'Continue development',
-      tokensUsed
-    );
-    
-    try {
-      const pushResult = await pushToGitHub({
-        userId: normalizedProject.userId,
-        projectName: normalizedProject.name,
-        filePath,
-        content,
-        commitMessage,
-        prTitle,
-        prBody,
-        dryRun: false,
-      });
-      
-      outputPath = `GitHub PR: ${pushResult.branchName}`;
-      prUrl = pushResult.prUrl;
-      
-      console.log(`   ✅ Pushed to GitHub: ${pushResult.branchName}`);
-      console.log(`   🔗 Pull Request: ${prUrl}`);
-    } catch (error) {
-      console.warn(`   ⚠️  GitHub push failed: ${error.message}`);
-      console.log('   📁 Falling back to local file save...');
-      prSkipReason = `push_failed: ${error.message}`;
-      outputPath = await saveContinuation(normalizedProject, content);
-      console.log(`   ✅ Saved locally: ${outputPath}`);
-    }
-  } else {
-    console.log('💾 Step 4: Saving continuation output...');
-    outputPath = await saveContinuation(normalizedProject, content);
-    console.log(`   ✅ Saved to: ${outputPath}`);
-    
-    if (classification === 'code_build' && !useGitHub) {
-      if (!githubConfig || !githubConfig.token) {
-        prSkipReason = 'missing_token';
-        console.log('   💡 Tip: Connect GitHub to push code directly to PRs');
-      } else if (!githubConfig.defaultRepo) {
-        prSkipReason = 'missing_default_repo';
-        console.log('   💡 Tip: Set a default repo to enable GitHub push');
-      }
-    }
+  if (deferPersist) {
+    return { success: true, content, tokensUsed, usage, deferred: true };
   }
-  console.log('');
 
-  // Step 5: Log action to backend
-  console.log('📝 Step 5: Logging action to backend...');
-  await logAction(normalizedProject, outputPath, tokensUsed, apiUrl, prUrl, prSkipReason);
-  console.log('   ✅ Action logged');
+  console.log('💾 Step 4–5: Saving & logging...');
+  const persisted = await persistContinuationOutput(normalizedProject, content, tokensUsed, {
+    apiKey,
+    apiUrl,
+    dryRun: false,
+  });
+  console.log(`   ✅ ${persisted.outputPath}`);
   console.log('');
 
   console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
   console.log('✅ Work continuation complete!');
-  if (prUrl) {
-    console.log(`� Pull Request: ${prUrl}`);
+  if (persisted.prUrl) {
+    console.log(`🔗 Pull Request: ${persisted.prUrl}`);
   } else {
-    console.log(`�📄 Output: ${outputPath}`);
+    console.log(`📄 Output: ${persisted.outputPath}`);
   }
   console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
 
-  return { success: true, outputPath, content, tokensUsed, prUrl };
+  return {
+    success: true,
+    outputPath: persisted.outputPath,
+    content,
+    tokensUsed,
+    prUrl: persisted.prUrl,
+    usage,
+  };
 }
 
 // ─── Helper Functions ────────────────────────────────────────────────────────
@@ -255,7 +300,18 @@ async function buildProjectContext(projectId, apiUrl) {
 /**
  * Build the continuation prompt for Claude using the comprehensive context package.
  */
-function buildContinuationPrompt(project, contextPackage, voiceProfile = null) {
+function buildContinuationPrompt(project, contextPackage, voiceProfile = null, opts = {}) {
+  const continuationOf =
+    typeof opts.continuationOf === 'string' && opts.continuationOf.trim().length > 0
+      ? opts.continuationOf.trim()
+      : null;
+  const minWordsTarget = typeof opts.minWordsTarget === 'number' && opts.minWordsTarget > 0 ? opts.minWordsTarget : 500;
+  const tail = continuationOf
+    ? continuationOf.length > 12000
+      ? continuationOf.slice(-12000)
+      : continuationOf
+    : '';
+
   const classification = project.context?.classification || 'other';
   
   // Build classification-specific system prompts
@@ -309,7 +365,7 @@ function buildContinuationPrompt(project, contextPackage, voiceProfile = null) {
     '- Analyze what was being built and where they stopped',
     '- Continue the work in the same style and direction',
     '- Produce a meaningful next chunk of work',
-    '- Focus on the most important next step, not the entire project',
+    '- Prioritize the most important unfinished thread (length targets below may require a large single response)',
     '- Reference specific context from their history when relevant',
     '- Be thorough and produce usable output',
   ].join('\n');
@@ -358,6 +414,30 @@ function buildContinuationPrompt(project, contextPackage, voiceProfile = null) {
       ].join('\n')
     : '';
 
+  const continuationSection = continuationOf
+    ? [
+        '## Prior output (continue from the end — do not repeat this verbatim)',
+        '',
+        '```output-so-far',
+        tail,
+        '```',
+        '',
+        'Continue exactly where this leaves off. Close open lists, sections, proofs, or code blocks.',
+        '',
+      ].join('\n')
+    : '';
+
+  const lengthGuidance =
+    minWordsTarget >= 2000
+      ? [
+          '**DELIVERABLE LENGTH (deadline-critical):** Produce at least 2000 words of substantive work in this response.',
+          'Aim for the most complete next installment possible (full sections, finished arguments, or completed code paths).',
+        ].join('\n')
+      : [
+          `**Target length:** At least ${minWordsTarget} words of substantive output in this response.`,
+          'Stop at a natural section boundary when possible.',
+        ].join('\n');
+
   const user = [
     '# Project to Continue',
     '',
@@ -381,10 +461,11 @@ function buildContinuationPrompt(project, contextPackage, voiceProfile = null) {
     '',
     stepsSection,
     '',
+    continuationSection,
     '---',
     '',
     '**Your task:** Continue this work. Produce the next meaningful chunk of progress.',
-    '**IMPORTANT:** Keep your output to a maximum of 500 words. Focus on the single most important next step.',
+    lengthGuidance,
     'Output should be complete, usable, and ready for the user to review when they wake up.',
   ].join('\n');
 
@@ -488,7 +569,7 @@ async function saveContinuation(project, content) {
 /**
  * Log the action to the backend.
  */
-async function logAction(project, outputPath, tokensUsed, apiUrl, prUrl = null, prSkipReason = null) {
+async function logAction(project, outputPath, tokensUsed, apiUrl, prUrl = null, prSkipReason = null, extraMeta = null) {
   try {
     const metadata = {
       projectId: project.id,
@@ -497,6 +578,7 @@ async function logAction(project, outputPath, tokensUsed, apiUrl, prUrl = null, 
       filePath: outputPath,
       tokensUsed,
       timestamp: new Date().toISOString(),
+      ...(extraMeta && typeof extraMeta === 'object' ? extraMeta : {}),
     };
 
     if (prUrl) {

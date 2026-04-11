@@ -6,29 +6,23 @@
  */
 
 import { NextRequest } from 'next/server';
-import { auth } from '@clerk/nextjs/server';
 import { apiSuccess, apiError } from '@/lib/utils';
 import { generateEmbedding, getEmbeddingBackend } from '@/lib/embeddings';
 import { queryVectors, getNamespaceStats } from '@/lib/pinecone';
-import db from '@/lib/db';
+import { tryAuthUser } from '@/lib/clerk-user';
 
 // POST: Query vector DB for similar context
 export async function POST(req: NextRequest) {
-  const { userId: clerkId } = await auth();
-  if (!clerkId) return apiError('Unauthorized', 401);
-
   try {
+    const authResult = await tryAuthUser();
+    if (!authResult.ok) return authResult.response;
+    const { user } = authResult;
+
     const body = await req.json();
     const { query, topK = 5, filter } = body;
 
     if (!query) {
       return apiError('Missing required field: query', 400);
-    }
-
-    // Find the user's internal ID
-    const user = await db.user.findUnique({ where: { clerkId } });
-    if (!user) {
-      return apiError('User not found', 404);
     }
 
     // Check if user has any vectors
@@ -59,6 +53,9 @@ export async function POST(req: NextRequest) {
     });
   } catch (error) {
     console.error('[embeddings/query] Error:', error);
-    return apiError('Failed to query embeddings', 500);
+    return apiError(
+      error instanceof Error ? error.message : 'Failed to query embeddings',
+      500
+    );
   }
 }
