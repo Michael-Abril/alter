@@ -1,6 +1,6 @@
 /**
  * OWNER: Person 4 (Voice/UI)
- * PURPOSE: Draft review component — approve, edit, or reject a NightShift-generated draft
+ * PURPOSE: Draft review — approve, edit, or reject an Alter-generated draft
  * DEPENDENCIES: @/types, @/components/shared/*
  * STATUS: Scaffold — needs real draft data and action handlers
  */

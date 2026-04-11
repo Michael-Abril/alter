@@ -12,6 +12,7 @@ import fs from 'fs';
 import path from 'path';
 import db from '@/lib/db';
 import { tryAuthUser } from '@/lib/clerk-user';
+import { getOvernightLoopScriptPath } from '@/lib/overnight-loop-path';
 
 // GET: Return unfinished tasks detected for the user
 export async function GET() {
@@ -45,7 +46,7 @@ export async function GET() {
   }
 }
 
-// POST: Submit handoff selections — activate NightShift for tonight
+// POST: Submit handoff selections — activate overnight run
 export async function POST(req: NextRequest) {
   try {
     const authResult = await tryAuthUser();
@@ -64,7 +65,7 @@ export async function POST(req: NextRequest) {
     const { spawn } = await import('child_process');
     const pathMod = await import('path');
     const fsMod = await import('fs');
-    const scriptPath = pathMod.join(process.cwd(), 'orchestration', 'overnight-loop.mjs');
+    const scriptPath = getOvernightLoopScriptPath();
 
     const runStatusPath = pathMod.join(process.cwd(), 'data', `handoff-run-${user.id}.json`);
     const statusDir = pathMod.dirname(runStatusPath);
@@ -106,7 +107,7 @@ export async function POST(req: NextRequest) {
 
     return apiSuccess({
       success: true,
-      message: 'NightShift overnight loop activated',
+      message: 'Overnight run activated',
       projectsQueued: projectIds.length,
       processId: child.pid,
       estimatedCompletion: 'Check morning brief for results',
@@ -114,7 +115,7 @@ export async function POST(req: NextRequest) {
   } catch (error) {
     console.error('[handoff] Fatal error:', error);
     return apiError(
-      error instanceof Error ? error.message : 'Failed to activate NightShift',
+      error instanceof Error ? error.message : 'Failed to activate overnight run',
       500
     );
   }
@@ -141,7 +142,7 @@ async function queryVectorContext(project: any, context: any) {
 
 function buildPrompt(project: any, context: any, contextResults: any[], instructions?: string) {
   const system = [
-    'You are NightShift AI, an autonomous work continuation agent.',
+    'You are Alter, an autonomous work continuation agent operating in the user\'s voice.',
     'Your job is to pick up where the user left off and continue their work.',
     'Be thorough and complete — produce real, usable output.',
     instructions ? `Special instructions: ${instructions}` : '',
@@ -203,7 +204,7 @@ async function saveContinuationFile(project: any, continuation: any) {
   const filepath = path.join(continuationsDir, filename);
 
   const output = [
-    '# NightShift Work Continuation',
+    '# Alter — work continuation',
     '',
     `**Project:** ${project.name}`,
     `**Generated:** ${new Date().toISOString()}`,

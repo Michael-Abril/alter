@@ -28,26 +28,26 @@ export default function DaemonStatus() {
   }, [refresh]);
 
   const isLive = running === true;
-  const label = running === null ? 'Checking…' : isLive ? 'Active — Monitoring' : 'Sleeping';
+  const label = running === null ? 'Checking…' : isLive ? 'Active — monitoring' : 'Idle';
 
   return (
     <div
-      className="flex items-center gap-2 rounded-full border border-nightshift-border bg-nightshift-bg-card px-3 py-1.5"
-      title="NightShift background daemon"
+      className="flex items-center gap-2 rounded-full border border-nightshift-border bg-nightshift-bg-card px-3 py-1.5 shadow-sm"
+      title="Alter background daemon"
     >
       <span
         className={`inline-block h-2 w-2 shrink-0 rounded-full ${
           running === null
             ? 'bg-nightshift-text-muted'
             : isLive
-              ? 'bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.6)]'
+              ? 'bg-nightshift-success shadow-[0_0_8px_rgba(16,185,129,0.55)]'
               : 'bg-nightshift-text-muted'
         } ${isLive ? 'animate-pulse' : ''}`}
         aria-hidden
       />
       <span
         className={`text-xs font-medium ${
-          isLive ? 'text-emerald-400' : 'text-nightshift-text-muted'
+          isLive ? 'text-nightshift-success' : 'text-nightshift-text-muted'
         }`}
       >
         {label}

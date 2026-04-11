@@ -1,6 +1,6 @@
 /**
  * OWNER: Person 4 (Voice/UI)
- * PURPOSE: Draft review page — morning review screen for NightShift's overnight drafts
+ * PURPOSE: Draft review — overnight drafts from Alter
  * DEPENDENCIES: @clerk/nextjs, components/layout/*
  * STATUS: LIVE — real draft review with approve/edit/reject actions
  */
@@ -11,7 +11,19 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Sidebar from '@/components/layout/Sidebar';
 import Header from '@/components/layout/Header';
-import { CheckCircle2, XCircle, Edit3, Loader2 } from 'lucide-react';
+import {
+  BookOpen,
+  CheckCircle2,
+  Code,
+  Edit3,
+  FileEdit,
+  FileText,
+  Hash,
+  Lightbulb,
+  Loader2,
+  Mail,
+  XCircle,
+} from 'lucide-react';
 import { isUserNotFoundResponse } from '@/lib/dashboard-client-guard';
 
 interface Draft {
@@ -113,6 +125,22 @@ export default function DraftsPage() {
     setEditedContent('');
   }
 
+  function DraftTypeIcon({ type }: { type: string }) {
+    const cls = 'h-5 w-5 shrink-0 text-nightshift-highlight';
+    switch (type) {
+      case 'email':
+        return <Mail className={cls} strokeWidth={1.75} aria-hidden />;
+      case 'doc':
+        return <FileText className={cls} strokeWidth={1.75} aria-hidden />;
+      case 'code':
+        return <Code className={cls} strokeWidth={1.75} aria-hidden />;
+      case 'task':
+        return <CheckCircle2 className={cls} strokeWidth={1.75} aria-hidden />;
+      default:
+        return <FileEdit className={cls} strokeWidth={1.75} aria-hidden />;
+    }
+  }
+
   function getConfidenceBadge(score: number) {
     const percentage = Math.round(score * 100);
     let colorClass = 'bg-nightshift-error/20 text-nightshift-error';
@@ -127,16 +155,6 @@ export default function DraftsPage() {
         {percentage}% confidence
       </span>
     );
-  }
-
-  function getTypeIcon(type: string) {
-    const icons: Record<string, string> = {
-      email: '📧',
-      doc: '📄',
-      code: '💻',
-      task: '✅',
-    };
-    return icons[type] || '📝';
   }
 
   if (loading) {
@@ -165,9 +183,11 @@ export default function DraftsPage() {
         <main className="flex-1 overflow-y-auto p-6">
           <div className="mx-auto max-w-5xl space-y-6">
             <div>
-              <h1 className="text-2xl font-bold">Draft Review</h1>
-              <p className="mt-1 text-nightshift-text-secondary">
-                Review and approve drafts created by NightShift overnight.
+              <h1 className="font-display text-2xl font-bold tracking-tight text-nightshift-text-primary">
+                Draft review
+              </h1>
+              <p className="mt-1 text-sm text-nightshift-text-secondary">
+                Review and approve drafts Alter created for you — often after a handoff run.
               </p>
             </div>
 
@@ -192,13 +212,15 @@ export default function DraftsPage() {
             )}
 
             {drafts.length === 0 ? (
-              <div className="card text-center py-12">
-                <div className="text-4xl mb-4">🌙</div>
+              <div className="card py-12 text-center">
+                <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl border border-nightshift-border bg-nightshift-bg-light text-nightshift-highlight">
+                  <FileEdit className="h-7 w-7" strokeWidth={1.5} aria-hidden />
+                </div>
                 <h2 className="text-lg font-semibold text-nightshift-text-primary">
                   No drafts yet
                 </h2>
                 <p className="mt-2 text-nightshift-text-secondary">
-                  Activate NightShift from the Handoff page and check back in the morning.
+                  Run Handoff from the Handoff page, then check Draft review or Activity.
                 </p>
               </div>
             ) : (
@@ -212,7 +234,7 @@ export default function DraftsPage() {
                       {/* Header */}
                       <div className="flex items-start justify-between mb-4">
                         <div className="flex items-center gap-3">
-                          <span className="text-2xl">{getTypeIcon(draft.type)}</span>
+                          <DraftTypeIcon type={draft.type} />
                           <div>
                             <h3 className="font-semibold text-nightshift-text-primary">
                               {draft.title}
@@ -249,16 +271,23 @@ export default function DraftsPage() {
 
                       {/* Context Info */}
                       {draft.context && (
-                        <div className="text-xs text-nightshift-text-muted mb-4 flex items-center gap-3">
+                        <div className="mb-4 flex flex-wrap items-center gap-3 text-xs text-nightshift-text-muted">
                           {draft.context.retrievedSources > 0 && (
-                            <span>📚 {draft.context.retrievedSources} sources</span>
+                            <span className="inline-flex items-center gap-1">
+                              <BookOpen className="h-3.5 w-3.5 text-nightshift-text-muted" strokeWidth={1.75} aria-hidden />
+                              {draft.context.retrievedSources} sources
+                            </span>
                           )}
                           {draft.context.tokensUsed && (
-                            <span>🔢 {draft.context.tokensUsed} tokens</span>
+                            <span className="inline-flex items-center gap-1">
+                              <Hash className="h-3.5 w-3.5 text-nightshift-text-muted" strokeWidth={1.75} aria-hidden />
+                              {draft.context.tokensUsed} tokens
+                            </span>
                           )}
                           {draft.context.recommendation && (
-                            <span className="capitalize">
-                              💡 {draft.context.recommendation.replace(/_/g, ' ')}
+                            <span className="inline-flex items-center gap-1 capitalize">
+                              <Lightbulb className="h-3.5 w-3.5 text-nightshift-text-muted" strokeWidth={1.75} aria-hidden />
+                              {draft.context.recommendation.replace(/_/g, ' ')}
                             </span>
                           )}
                         </div>

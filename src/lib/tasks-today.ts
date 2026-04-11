@@ -299,7 +299,7 @@ export async function buildTodayTasks(userId: string): Promise<TodayTask[]> {
       description: `From ${e.from}: ${e.body.replace(/\s+/g, ' ').trim().slice(0, 200)}`,
       dueDate: null,
       suggestedAction:
-        'Open your inbox and draft a reply, or review when NightShift generates a draft.',
+        'Open your inbox and draft a reply, or review when Alter generates a draft.',
       receivedAtMs: e.receivedAt.getTime(),
     });
   }

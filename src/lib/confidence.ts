@@ -1,6 +1,6 @@
 /**
  * OWNER: Person 4 (Voice/UI)
- * PURPOSE: Confidence scoring logic — determines whether NightShift should auto-execute,
+ * PURPOSE: Confidence scoring logic — determines whether Alter should auto-execute,
  * draft for review, or flag for user attention
  * DEPENDENCIES: @/types
  * STATUS: Scaffold — needs real implementation

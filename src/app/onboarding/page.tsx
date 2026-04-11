@@ -10,7 +10,8 @@
 import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { useUser } from '@clerk/nextjs';
-import { CheckCircle2, Loader2, Upload, AlertCircle, Circle } from 'lucide-react';
+import { CheckCircle2, Loader2, Upload, AlertCircle, Circle, Bot, MessageSquare } from 'lucide-react';
+import { AlterLogo } from '@/components/brand/AlterLogo';
 
 type OnboardingStep = 'welcome' | 'gmail' | 'github' | 'canvas' | 'import' | 'processing' | 'reveal';
 
@@ -402,7 +403,7 @@ export default function OnboardingPage() {
         setChatgptMessages(0);
         setClaudeStatus(
           n > 0
-            ? `Using ${n} messages already in NightShift — no scraper run.`
+            ? `Using ${n} messages already in Alter — no scraper run.`
             : 'No messages in the database yet. Import or add data before processing.'
         );
       })
@@ -639,7 +640,7 @@ export default function OnboardingPage() {
           setProfileStatus(ok ? 'done' : 'failed');
           setVoiceProfileStatus(
             ok
-              ? 'Voice profile created — NightShift will write like you.'
+              ? 'Voice profile created — Alter will write like you.'
               : 'Could not build voice profile yet. Continuing with default style.'
           );
           return { ok, data };
@@ -765,10 +766,13 @@ export default function OnboardingPage() {
         {/* Step 1: Welcome */}
         {step === 'welcome' && (
           <div className="card text-center">
-            <div className="text-6xl mb-6">🌙</div>
-            <h1 className="text-3xl font-bold mb-4">Welcome to NightShift</h1>
-            <p className="text-lg text-nightshift-text-secondary mb-8 max-w-md mx-auto">
-              NightShift learns how you work and continues your work while you sleep.
+            <div className="mb-6 flex justify-center">
+              <AlterLogo className="h-20 w-20" />
+            </div>
+            <h1 className="mb-4 font-display text-3xl font-bold">Welcome to Alter</h1>
+            <p className="mx-auto mb-8 max-w-md text-lg leading-relaxed text-nightshift-text-secondary">
+              A digital twin of how you think and write — so Alter can act for you with your judgment, not generic
+              defaults.
             </p>
             <div className="flex flex-col gap-2 max-w-xs mx-auto w-full sm:flex-row sm:max-w-lg">
               <button type="button" className="btn-primary flex-1" onClick={() => setStep('gmail')}>
@@ -872,7 +876,7 @@ export default function OnboardingPage() {
                       ))}
                     </select>
                     <p className="text-xs text-nightshift-text-secondary mt-2">
-                      NightShift will create PRs in this repository
+                      Alter will create PRs in this repository
                     </p>
                   </div>
                 ) : (
@@ -954,7 +958,7 @@ export default function OnboardingPage() {
           <div className="card">
             <h2 className="text-2xl font-bold mb-3">Connect Canvas (Optional)</h2>
             <p className="text-nightshift-text-secondary mb-6">
-              NightShift can track your assignments and deadlines from Canvas LMS.
+              Alter can track your assignments and deadlines from Canvas LMS.
             </p>
             
             {canvasConnected ? (
@@ -970,7 +974,7 @@ export default function OnboardingPage() {
                     <li>Open Canvas → Account → Settings</li>
                     <li>Scroll to "Approved Integrations"</li>
                     <li>Click "+ New Access Token"</li>
-                    <li>Give it a name (e.g., "NightShift") and click "Generate Token"</li>
+                    <li>Give it a name (e.g., &quot;Alter&quot;) and click &quot;Generate Token&quot;</li>
                     <li>Copy the token and paste it below</li>
                   </ol>
                 </div>
@@ -1045,7 +1049,7 @@ export default function OnboardingPage() {
           <div className="card">
             <h2 className="text-2xl font-bold mb-3">Import AI Chat History</h2>
             <p className="text-nightshift-text-secondary mb-6">
-              NightShift learns from your conversations with AI assistants. You can import from both Claude and ChatGPT.
+              Alter learns from your conversations with AI assistants. You can import from both Claude and ChatGPT.
             </p>
             <div className="mb-4 rounded-lg border border-nightshift-border p-3">
               <label className="mb-2 block text-xs uppercase tracking-wide text-nightshift-text-secondary">
@@ -1095,8 +1099,8 @@ export default function OnboardingPage() {
                 'border-nightshift-border'
               }`}>
                 <div className="flex items-center gap-3 mb-3">
-                  <div className="w-10 h-10 rounded-lg bg-nightshift-accent/10 flex items-center justify-center">
-                    <span className="text-xl">🤖</span>
+                  <div className="flex h-10 w-10 items-center justify-center rounded-lg border border-nightshift-border bg-nightshift-bg-light">
+                    <Bot className="h-5 w-5 text-nightshift-highlight" strokeWidth={1.75} aria-hidden />
                   </div>
                   <div className="flex-1">
                     <div className="font-medium">Claude</div>
@@ -1150,8 +1154,8 @@ export default function OnboardingPage() {
                 'border-nightshift-border'
               }`}>
                 <div className="flex items-center gap-3 mb-3">
-                  <div className="w-10 h-10 rounded-lg bg-nightshift-accent/10 flex items-center justify-center">
-                    <span className="text-xl">💬</span>
+                  <div className="flex h-10 w-10 items-center justify-center rounded-lg border border-nightshift-border bg-nightshift-bg-light">
+                    <MessageSquare className="h-5 w-5 text-nightshift-highlight" strokeWidth={1.75} aria-hidden />
                   </div>
                   <div className="flex-1">
                     <div className="font-medium">ChatGPT</div>
@@ -1296,7 +1300,7 @@ export default function OnboardingPage() {
               <div className="text-5xl mb-4">✨</div>
               <h2 className="text-2xl font-bold mb-2">Here&apos;s what we found you&apos;re working on</h2>
               <p className="text-nightshift-text-secondary">
-                NightShift detected {projects.length} active projects from your conversations
+                Alter detected {projects.length} active projects from your conversations
               </p>
             </div>
             
@@ -1337,7 +1341,7 @@ export default function OnboardingPage() {
             ) : (
               <div className="text-center py-8 mb-6">
                 <p className="text-nightshift-text-secondary">
-                  No projects detected yet. Start chatting with AI assistants and NightShift will learn what you&apos;re working on!
+                  No projects detected yet. Start chatting with AI assistants and Alter will learn what you&apos;re working on!
                 </p>
               </div>
             )}

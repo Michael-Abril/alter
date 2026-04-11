@@ -43,7 +43,7 @@ export function buildMorningBriefLead(opts: {
   sentences.push(`Good morning, ${firstName}.`);
 
   if (projectsContinued === 0 && emailDraftsOvernight === 0) {
-    sentences.push(`NightShift has not recorded new project continuations or email drafts in the last day.`);
+    sentences.push(`Alter has not recorded new project continuations or email drafts in the last day.`);
   } else {
     const p =
       projectsContinued === 0
@@ -58,9 +58,9 @@ export function buildMorningBriefLead(opts: {
           ? 'drafted 1 email reply'
           : `drafted ${emailDraftsOvernight} email replies`;
 
-    if (p && e) sentences.push(`NightShift ${p} and ${e} while you slept.`);
-    else if (p) sentences.push(`NightShift ${p} while you slept.`);
-    else sentences.push(`NightShift ${e} while you slept.`);
+    if (p && e) sentences.push(`Alter ${p} and ${e} while you slept.`);
+    else if (p) sentences.push(`Alter ${p} while you slept.`);
+    else sentences.push(`Alter ${e} while you slept.`);
   }
 
   if (topCanvas?.title) {
@@ -68,7 +68,7 @@ export function buildMorningBriefLead(opts: {
       ? ` is due ${dueRelativePhrase(topCanvas.dueDate)}`
       : ' is coming up';
     const tail = hasDocOrAcademicInProgress
-      ? ' — study materials and continuations are in your NightShift output folder (see Settings for path).'
+      ? ' — study materials and continuations are in your Alter output folder (see Settings for path).'
       : ' — open Canvas to review details.';
     sentences.push(`Your ${topCanvas.title}${dueBit}${tail}`);
   }

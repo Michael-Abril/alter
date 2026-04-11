@@ -2,7 +2,7 @@ import fs from 'fs';
 import path from 'path';
 
 /**
- * Resolves the NightShift repo root even when Next/Turbopack runs with cwd above
+ * Resolves the app repo root even when Next/Turbopack runs with cwd above
  * the project (e.g. parent folder with another lockfile).
  */
 export function resolveNightshiftProjectRoot(): string {

@@ -1,6 +1,6 @@
 /**
  * OWNER: Person 3 (Royce/OpenClaw)
- * PURPOSE: Output directory management — configurable location for NightShift outputs
+ * PURPOSE: Output directory management — configurable location for Alter outputs
  * DEPENDENCIES: fs, path, os
  * STATUS: LIVE — manages user-facing output directory
  */
@@ -23,11 +23,11 @@ export function getDefaultOutputDirectory(): string {
   const username = os.userInfo().username;
   
   if (process.platform === 'win32') {
-    return path.join('C:', 'Users', username, 'Documents', 'NightShift');
+    return path.join('C:', 'Users', username, 'Documents', 'Alter');
   } else if (process.platform === 'darwin') {
-    return path.join(homeDir, 'Documents', 'NightShift');
+    return path.join(homeDir, 'Documents', 'Alter');
   } else {
-    return path.join(homeDir, 'Documents', 'NightShift');
+    return path.join(homeDir, 'Documents', 'Alter');
   }
 }
 

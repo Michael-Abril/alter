@@ -278,7 +278,7 @@ function parseMarkdownToParagraphs(markdown: string): Paragraph[] {
 // ─── Document Generation ─────────────────────────────────────────────────────
 
 export async function generateDocx(options: DocxOptions): Promise<Buffer> {
-  const { title, content, author = 'NightShift AI', subject } = options;
+  const { title, content, author = 'Alter', subject } = options;
 
   const cleaned = normalizeContent(content);
   const segments = splitIntoSegments(cleaned);

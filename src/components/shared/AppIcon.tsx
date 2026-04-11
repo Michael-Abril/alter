@@ -1,18 +1,27 @@
 /**
- * OWNER: Person 4 (Voice/UI)
- * PURPOSE: Icons for Gmail, Docs, Notion, GitHub, etc.
- * DEPENDENCIES: None
- * STATUS: Ready to use — add more app icons as needed
+ * App source icons — Lucide only (no emoji), consistent with Alter shell.
  */
 
-const APP_ICONS: Record<string, { emoji: string; bg: string }> = {
-  gmail: { emoji: '📧', bg: 'bg-red-500/10' },
-  gdocs: { emoji: '📄', bg: 'bg-blue-500/10' },
-  github: { emoji: '💻', bg: 'bg-gray-500/10' },
-  notion: { emoji: '📝', bg: 'bg-white/10' },
-  slack: { emoji: '💬', bg: 'bg-purple-500/10' },
-  claude: { emoji: '🤖', bg: 'bg-orange-500/10' },
-  chatgpt: { emoji: '🧠', bg: 'bg-green-500/10' },
+import type { LucideIcon } from 'lucide-react';
+import {
+  Bot,
+  Brain,
+  FileText,
+  GitBranch,
+  Mail,
+  MessageSquare,
+  Paperclip,
+  StickyNote,
+} from 'lucide-react';
+
+const APP_ICONS: Record<string, { Icon: LucideIcon; bg: string; iconClass: string }> = {
+  gmail: { Icon: Mail, bg: 'bg-red-500/10', iconClass: 'text-red-300' },
+  gdocs: { Icon: FileText, bg: 'bg-blue-500/10', iconClass: 'text-blue-300' },
+  github: { Icon: GitBranch, bg: 'bg-zinc-500/10', iconClass: 'text-zinc-300' },
+  notion: { Icon: StickyNote, bg: 'bg-white/5', iconClass: 'text-zinc-200' },
+  slack: { Icon: MessageSquare, bg: 'bg-purple-500/10', iconClass: 'text-purple-300' },
+  claude: { Icon: Bot, bg: 'bg-orange-500/10', iconClass: 'text-orange-300' },
+  chatgpt: { Icon: Brain, bg: 'bg-emerald-500/10', iconClass: 'text-emerald-300' },
 };
 
 interface AppIconProps {
@@ -21,15 +30,21 @@ interface AppIconProps {
 }
 
 export default function AppIcon({ app, size = 'md' }: AppIconProps) {
-  const icon = APP_ICONS[app] || { emoji: '📎', bg: 'bg-nightshift-bg-light' };
-  const sizeClasses = size === 'sm' ? 'h-6 w-6 text-sm' : 'h-8 w-8 text-lg';
+  const meta = APP_ICONS[app] || {
+    Icon: Paperclip,
+    bg: 'bg-nightshift-bg-light',
+    iconClass: 'text-nightshift-text-secondary',
+  };
+  const { Icon } = meta;
+  const sizeClasses = size === 'sm' ? 'h-7 w-7' : 'h-9 w-9';
+  const iconSize = size === 'sm' ? 'h-3.5 w-3.5' : 'h-4 w-4';
 
   return (
     <div
-      className={`flex items-center justify-center rounded-lg ${icon.bg} ${sizeClasses} flex-shrink-0`}
+      className={`flex flex-shrink-0 items-center justify-center rounded-lg ${meta.bg} ${sizeClasses}`}
       title={app}
     >
-      {icon.emoji}
+      <Icon className={`${iconSize} ${meta.iconClass}`} strokeWidth={1.75} aria-hidden />
     </div>
   );
 }

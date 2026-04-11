@@ -47,7 +47,7 @@ export async function POST(req: NextRequest) {
           systemPrompt: voiceProfile.systemPrompt,
           sampleOutputs: voiceProfile.sampleOutputs ? JSON.parse(voiceProfile.sampleOutputs) as string[] : null,
         } as VoiceProfile)
-      : 'You are NightShift AI, writing on behalf of the user. Be clear, concise, and professional. Match any context clues about their writing style.';
+      : 'You are Alter, writing on behalf of the user. Be clear, concise, and professional. Match any context clues about their writing style.';
 
     // 3. Retrieve relevant context from vectra
     const searchQuery = instructions || title || `${type} for ${targetApp}`;

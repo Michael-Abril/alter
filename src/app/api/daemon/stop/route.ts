@@ -1,6 +1,6 @@
 /**
  * OWNER: Person 3 (Orchestration)
- * PURPOSE: POST: stop the NightShift daemon
+ * PURPOSE: POST: stop the Alter background daemon
  * DEPENDENCIES: None
  * STATUS: LIVE
  */

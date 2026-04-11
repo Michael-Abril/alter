@@ -26,10 +26,10 @@ type RuleCategory = 'email' | 'docs' | 'code' | 'general';
 type RuleAction = 'auto' | 'draft' | 'flag' | 'never';
 
 const autonomyLabels = [
-  { level: 0, name: 'Observe Only', description: 'NightShift watches and learns, but takes no action.' },
-  { level: 1, name: 'Draft Mode', description: 'Creates drafts for everything. You approve before anything is sent.' },
-  { level: 2, name: 'Smart Auto', description: 'Auto-executes high-confidence actions. Drafts everything else.' },
-  { level: 3, name: 'Full Autonomy', description: 'NightShift handles most tasks automatically. Flags only low-confidence items.' },
+  { level: 0, name: 'Observe only', description: 'Alter watches and learns, but takes no action.' },
+  { level: 1, name: 'Draft mode', description: 'Creates drafts for everything. You approve before anything is sent.' },
+  { level: 2, name: 'Smart auto', description: 'Auto-executes high-confidence actions. Drafts everything else.' },
+  { level: 3, name: 'Full autonomy', description: 'Alter handles most tasks automatically. Flags only low-confidence items.' },
 ];
 
 export default function SettingsPage() {
@@ -215,7 +215,7 @@ export default function SettingsPage() {
         <main className="flex-1 overflow-y-auto p-6">
           <div className="mx-auto max-w-3xl space-y-8">
             <div className="flex items-center justify-between">
-              <h1 className="text-2xl font-bold">Settings</h1>
+              <h1 className="font-display text-2xl font-bold text-nightshift-text-primary">Settings</h1>
               {saveSuccess && (
                 <div className="flex items-center gap-2 text-nightshift-success">
                   <CheckCircle2 className="h-5 w-5" />
@@ -246,7 +246,7 @@ export default function SettingsPage() {
                 <div className="mb-4 rounded-lg border border-nightshift-warning/50 bg-nightshift-warning/10 p-3">
                   <p className="text-sm text-nightshift-warning font-medium">Permissions upgrade available</p>
                   <p className="text-xs text-nightshift-text-secondary mt-1">
-                    NightShift now supports Google Drive and Calendar. Reconnect Google to enable these features.
+                    Alter now supports Google Drive and Calendar. Reconnect Google to enable these features.
                   </p>
                   <button
                     className="btn-primary text-xs mt-2"
@@ -370,7 +370,7 @@ export default function SettingsPage() {
             <section className="card">
               <h2 className="text-lg font-semibold mb-2">Wake Time</h2>
               <p className="text-sm text-nightshift-text-secondary mb-4">
-                NightShift will have your Morning Brief ready by this time.
+                Alter will have your morning brief ready by this time.
               </p>
               <input
                 type="time"
@@ -384,13 +384,13 @@ export default function SettingsPage() {
             <section className="card">
               <h2 className="text-lg font-semibold mb-2">Output Directory</h2>
               <p className="text-sm text-nightshift-text-secondary mb-4">
-                NightShift saves generated .docx files in this folder.
+                Alter saves generated .docx files in this folder.
               </p>
               <input
                 type="text"
                 value={outputDirectory}
                 onChange={(e) => setOutputDirectory(e.target.value)}
-                placeholder="Documents/NightShift"
+                placeholder="Documents/Alter"
                 className="input"
               />
             </section>
@@ -399,7 +399,7 @@ export default function SettingsPage() {
             <section className="card">
               <h2 className="text-lg font-semibold mb-4">Boundary Rules</h2>
               <p className="text-sm text-nightshift-text-secondary mb-4">
-                Set rules for what NightShift can and cannot do.
+                Set rules for what Alter can and cannot do.
               </p>
               <div className="space-y-3">
                 {boundaries.map((boundary) => (

@@ -5,27 +5,21 @@
  * STATUS: Ready to use
  */
 
-import { Suspense } from 'react';
-import { SignIn } from '@clerk/nextjs';
-import { ClerkAuthFallback } from '@/components/auth/ClerkAuthFallback';
+import { SignInPanel } from '@/components/auth/SignInPanel';
 
 export default function SignInPage() {
   return (
-    <Suspense fallback={<ClerkAuthFallback />}>
-      <div className="flex min-h-screen items-center justify-center bg-nightshift-bg">
-        <div className="text-center">
-          <h1 className="text-2xl font-bold text-nightshift-text-primary mb-4">Sign In to NightShift</h1>
-          <p className="text-nightshift-text-secondary mb-8">Your AI work engine awaits</p>
-          <SignIn
-            appearance={{
-              elements: {
-                rootBox: 'mx-auto',
-                card: 'bg-nightshift-bg-card border border-nightshift-border',
-              },
-            }}
-          />
-        </div>
+    <div className="flex min-h-screen items-center justify-center bg-nightshift-bg px-4">
+      <div className="w-full max-w-md text-center">
+        <p className="mb-2 font-display text-sm font-semibold uppercase tracking-[0.2em] text-nightshift-highlight">
+          Alter
+        </p>
+        <h1 className="mb-2 font-display text-2xl font-bold text-nightshift-text-primary">Sign in</h1>
+        <p className="mb-8 text-nightshift-text-secondary">
+          Portable AI identity — local-first, model-agnostic.
+        </p>
+        <SignInPanel />
       </div>
-    </Suspense>
+    </div>
   );
 }

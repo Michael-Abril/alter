@@ -1,6 +1,6 @@
 /**
  * OWNER: Person 3 (Orchestration)
- * PURPOSE: Decide whether a detected "project" is worth NightShift continuation vs noise.
+ * PURPOSE: Decide whether a detected "project" is worth Alter continuation vs noise.
  * Used by detect-projects, dashboard APIs, and orchestration (via tsx import).
  */
 
