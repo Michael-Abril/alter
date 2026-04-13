@@ -2,7 +2,7 @@
  * OWNER: Person 2 (Vectors)
  * PURPOSE: GET: return detected active projects for a user
  * DEPENDENCIES: Prisma, @clerk/nextjs
- * STATUS: LIVE — returns real detected projects from DB, falls back to mock when empty
+ * STATUS: LIVE — returns real detected projects from DB
  */
 
 import { apiSuccess, apiError } from '@/lib/utils';

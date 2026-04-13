@@ -2,7 +2,7 @@
  * OWNER: Person 3 (Royce/OpenClaw)
  * PURPOSE: GET: unfinished tasks, POST: submit handoff selections
  * DEPENDENCIES: Prisma, @clerk/nextjs
- * STATUS: Scaffold — returns mock data, needs real implementation
+ * STATUS: LIVE — returns real projects, triggers overnight loop
  */
 
 import { NextRequest } from 'next/server';

@@ -12,7 +12,7 @@ build/
 dist/
 
 # env files
-# .env - COMMITTED TO REPO (user request)
+.env
 .env.local
 .env.development.local
 .env.test.local

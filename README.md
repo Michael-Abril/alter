@@ -1,8 +1,20 @@
-# NightShift AI
+# NightShift AI / Alter
 
-> **Work While You Sleep** — NightShift learns how you work, then continues your work while you sleep.
+> **Work While You Sleep** — Alter is your AI digital twin that learns how you work, then continues your work while you sleep.
 
-NightShift AI connects to your Gmail and chat history, builds a voice profile of how you write, detects unfinished work, and autonomously completes tasks overnight — all in your voice and style.
+Alter connects to your Gmail and chat history (Claude, ChatGPT), builds a voice profile of how you write, detects unfinished work, and autonomously completes tasks overnight — all in your voice and style.
+
+---
+
+## Documentation
+
+| Document | Purpose |
+|----------|---------|
+| [Architecture Overview](ARCHITECTURE.md) | System design, data flow, troubleshooting |
+| [AI Context](CLAUDE.md) | Quick reference for AI assistants |
+| [Daemon Guide](docs/DAEMON.md) | Autonomous daemon setup |
+| [OpenClaw Integration](docs/PERSON3_OPENCLAW.md) | OpenClaw API integration (Royce) |
+| [Gmail Setup](docs/GMAIL_SETUP.md) | Gmail OAuth configuration |
 
 ---
 
@@ -10,10 +22,13 @@ NightShift AI connects to your Gmail and chat history, builds a voice profile of
 
 ### Prerequisites
 - Node.js 18+
-- PostgreSQL database (local or hosted)
-- Pinecone account (free tier works)
-- Clerk account (free tier works)
-- API keys: Anthropic (Claude), OpenAI
+- Clerk account (free tier works) — [dashboard.clerk.com](https://dashboard.clerk.com)
+- Anthropic API key — [console.anthropic.com](https://console.anthropic.com)
+
+**Optional:**
+- PostgreSQL (SQLite works locally)
+- OpenAI API key (for ChatGPT history import)
+- OpenClaw credentials (ask Royce)
 
 ### 1. Clone and Install
 
@@ -29,14 +44,16 @@ npm install
 cp .env.example .env
 ```
 
-Fill in all values in `.env`. See `.env.example` for the full list.
+Fill in all values in `.env`. See `.env.example` for the full list with descriptions.
 
 **Required for local dev:**
-- `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` + `CLERK_SECRET_KEY` — from [Clerk Dashboard](https://dashboard.clerk.com)
-- `DATABASE_URL` — PostgreSQL connection string
-- `ANTHROPIC_API_KEY` — from [Anthropic Console](https://console.anthropic.com)
-- `OPENAI_API_KEY` — from [OpenAI Platform](https://platform.openai.com)
-- `PINECONE_API_KEY` — from [Pinecone Console](https://app.pinecone.io)
+- `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` + `CLERK_SECRET_KEY` — from Clerk Dashboard
+- `ANTHROPIC_API_KEY` — from Anthropic Console
+
+**Optional:**
+- `DATABASE_URL` — defaults to SQLite (`file:./dev.db`)
+- `OPENAI_API_KEY` — for ChatGPT history import
+- `OPENCLAW_API_URL` + `OPENCLAW_GATEWAY_PASSWORD` — for OpenClaw integration
 
 ### 3. Database Setup
 
@@ -59,13 +76,13 @@ Open [http://localhost:3000](http://localhost:3000).
 
 | Layer | Technology |
 |-------|-----------|
-| Framework | Next.js 14 (App Router) |
+| Framework | Next.js 16.2.1 (App Router) |
 | Auth | Clerk |
-| Database | PostgreSQL + Prisma ORM |
-| Vector DB | Pinecone |
-| LLM | Claude API (Anthropic) |
-| Embeddings | OpenAI text-embedding-3-small |
-| Orchestration | OpenClaw (external) |
+| Database | SQLite (dev) / PostgreSQL (prod) + Prisma ORM |
+| Vector DB | Vectra (local file-based) |
+| LLM | Claude API (Anthropic) or OpenClaw |
+| Embeddings | Anthropic / OpenAI |
+| Orchestration | Node.js daemon + OpenClaw (optional) |
 | Styling | Tailwind CSS |
 | Deployment | Vercel (frontend) + Railway (backend/DB) |
 
@@ -75,36 +92,31 @@ Open [http://localhost:3000](http://localhost:3000).
 
 ```
 nightshift-ai/
-├── prisma/schema.prisma          # Database schema
 ├── src/
-│   ├── app/                      # Next.js App Router pages + API routes
-│   │   ├── api/                  # All API endpoints
-│   │   ├── dashboard/            # Dashboard pages (brief, handoff, activity, settings)
-│   │   ├── onboarding/           # Post-signup onboarding flow
-│   │   ├── sign-in/              # Clerk sign-in
-│   │   └── sign-up/              # Clerk sign-up
+│   ├── app/                      # Next.js App Router
+│   │   ├── api/                  # API routes
+│   │   ├── dashboard/            # Main dashboard (brief, handoff, drafts, settings)
+│   │   └── (auth)/               # Auth pages (sign-in, sign-up)
 │   ├── components/               # React components
-│   │   ├── layout/               # Sidebar, Header
-│   │   ├── brief/                # Morning brief components
-│   │   ├── handoff/              # Handoff components
-│   │   ├── drafts/               # Draft review components
-│   │   └── shared/               # Shared UI components
-│   ├── lib/                      # Core business logic
+│   ├── lib/                      # Core utilities
 │   │   ├── db.ts                 # Prisma client
-│   │   ├── pinecone.ts           # Vector DB client
-│   │   ├── claude.ts             # Claude API wrapper
-│   │   ├── embeddings.ts         # Embedding generation
-│   │   ├── gmail.ts              # Gmail API helpers
-│   │   ├── confidence.ts         # Confidence scoring
-│   │   ├── persona.ts            # Voice profile builder
-│   │   └── utils.ts              # Shared utilities
-│   └── types/index.ts            # TypeScript type definitions
-└── docs/                         # Per-person build instructions
-    ├── PERSON1_BACKEND.md
-    ├── PERSON2_VECTORS.md
-    ├── PERSON3_OPENCLAW.md
-    └── PERSON4_VOICE_UI.md
+│   │   ├── openclaw-client.ts    # OpenClaw API (with Anthropic fallback)
+│   │   └── voice-profile-builder.ts  # Voice profile extraction
+│   └── types/                    # TypeScript types
+├── orchestration/                # Background processing
+│   ├── lib/ai-client.mjs         # Shared AI client
+│   ├── overnight-loop.mjs        # Main overnight processing
+│   ├── continue-work.mjs         # Work continuation
+│   ├── draft-email.mjs           # Email drafting
+│   └── nightshift-daemon.mjs     # Autonomous daemon
+├── prisma/schema.prisma          # Database schema
+├── docs/                         # Detailed documentation
+│   ├── DAEMON.md                 # Daemon guide
+│   └── PERSON*.md                # Team-specific guides
+└── data/                         # Runtime data (briefs, logs)
 ```
+
+See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for detailed architecture documentation.
 
 ---
 

@@ -9,7 +9,7 @@
  * the user left off. The output is saved as a continuation file.
  */
 
-// OpenClaw replaces direct Anthropic SDK - AI Digital Twin integration
+// Uses shared AI client with OpenClaw -> Anthropic fallback
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
@@ -18,6 +18,7 @@ import { loadGitHubConfig } from '../src/lib/github.ts';
 import { getOutputPath } from '../src/lib/output.ts';
 import { saveDocx } from '../src/lib/docx-generator.ts';
 import { resolveInternalUserId } from './user-resolver.mjs';
+import { callAI } from './lib/ai-client.mjs';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -189,39 +190,28 @@ export async function continueWork(project, options = {}) {
     console.log('');
   }
 
-  // Step 3: Call OpenClaw API (AI Digital Twin)
-  if (!options.quietLog) console.log('🤖 Step 3: Calling OpenClaw to continue work...');
+  // Step 3: Call AI (OpenClaw with Anthropic fallback)
+  if (!options.quietLog) console.log('🤖 Step 3: Calling AI to continue work...');
 
-  const openclawUrl = process.env.OPENCLAW_API_URL;
-  const openclawPassword = process.env.OPENCLAW_GATEWAY_PASSWORD;
+  const aiResult = await callAI({
+    system: prompt.system,
+    user: prompt.user,
+    maxTokens,
+  });
 
-  const response = await fetch(`${openclawUrl}/v1/chat/completions`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${openclawPassword}`,
-    },
-    body: JSON.stringify({
-      model: 'openclaw',
-      messages: [
-        { role: 'system', content: prompt.system },
-        { role: 'user', content: prompt.user },
-      ],
-      max_tokens: maxTokens,
-    }),
-  }).then(r => r.json());
+  const content = aiResult.content;
+  const tokensUsed = aiResult.tokensUsed || 0;
 
-  const content = response.choices?.[0]?.message?.content || '';
-
-  const usage = {
-    input_tokens: response.usage?.prompt_tokens ?? 0,
-    output_tokens: response.usage?.completion_tokens ?? 0,
-  };
-  const tokensUsed = usage.input_tokens + usage.output_tokens;
   if (!options.quietLog) {
-    console.log(`   ✅ Generated ${content.length} chars (${tokensUsed} tokens)`);
+    console.log(`   ✅ Generated ${content.length} chars via ${aiResult.source} (${tokensUsed} tokens)`);
     console.log('');
   }
+
+  // Compatibility: create usage object for downstream consumers
+  const usage = {
+    input_tokens: Math.floor(tokensUsed * 0.3), // Estimate
+    output_tokens: Math.floor(tokensUsed * 0.7), // Estimate
+  };
 
   if (dryRun) {
     console.log('🏃 Dry run mode — skipping save and action log');

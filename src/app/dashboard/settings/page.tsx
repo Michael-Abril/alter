@@ -52,8 +52,17 @@ export default function SettingsPage() {
   const [canvasRefreshing, setCanvasRefreshing] = useState(false);
   const [needsScopeUpgrade, setNeedsScopeUpgrade] = useState(false);
 
+  // Personality Sources (Claude & ChatGPT)
+  const [claudeMessages, setClaudeMessages] = useState(0);
+  const [chatgptMessages, setChatgptMessages] = useState(0);
+  const [claudeImporting, setClaudeImporting] = useState(false);
+  const [chatgptImporting, setChatgptImporting] = useState(false);
+  const [lastClaudeSync, setLastClaudeSync] = useState<string | null>(null);
+  const [lastChatgptSync, setLastChatgptSync] = useState<string | null>(null);
+
   useEffect(() => {
     fetchSettings();
+    fetchChatStats();
     fetch('/api/user/scope-check')
       .then(async (r) => {
         const j = await r.json();
@@ -65,6 +74,53 @@ export default function SettingsPage() {
       })
       .catch(() => {});
   }, [router]);
+
+  async function fetchChatStats() {
+    try {
+      const res = await fetch('/api/chat-history/stats');
+      const json = await res.json();
+      if (json.success && json.data) {
+        setClaudeMessages(json.data.sources?.claude || 0);
+        setChatgptMessages(json.data.sources?.chatgpt || 0);
+        if (json.data.latestMessage?.source === 'claude') {
+          setLastClaudeSync(json.data.latestMessage.timestamp);
+        }
+        if (json.data.latestMessage?.source === 'chatgpt') {
+          setLastChatgptSync(json.data.latestMessage.timestamp);
+        }
+      }
+    } catch (err) {
+      console.error('Failed to fetch chat stats:', err);
+    }
+  }
+
+  async function importChatHistory(source: 'claude' | 'chatgpt') {
+    if (source === 'claude') setClaudeImporting(true);
+    else setChatgptImporting(true);
+
+    try {
+      const res = await fetch(`/api/onboarding/import-${source}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ lookbackDays: 7, headless: false }),
+      });
+      const json = await res.json();
+
+      if (!res.ok) {
+        throw new Error(json.error || `Failed to import ${source} history`);
+      }
+
+      // Refresh stats after import
+      await fetchChatStats();
+      setSaveSuccess(true);
+      setTimeout(() => setSaveSuccess(false), 3000);
+    } catch (err: any) {
+      setError(err.message || `Failed to import ${source} history`);
+    } finally {
+      if (source === 'claude') setClaudeImporting(false);
+      else setChatgptImporting(false);
+    }
+  }
 
   async function fetchSettings() {
     try {
@@ -325,6 +381,70 @@ export default function SettingsPage() {
                   )}
                 </div>
               </div>
+            </section>
+
+            {/* Personality Sources - Claude & ChatGPT */}
+            <section className="card">
+              <h2 className="text-lg font-semibold mb-2">Personality Sources</h2>
+              <p className="text-sm text-nightshift-text-secondary mb-4">
+                Alter learns your voice and style from your AI chat history. Import conversations to build your digital twin.
+              </p>
+
+              <div className="space-y-3">
+                {/* Claude */}
+                <div className="flex items-center gap-3 p-3 rounded-lg bg-nightshift-bg-light">
+                  <div className="flex items-center gap-3 flex-1">
+                    <span className={`h-3 w-3 rounded-full ${claudeMessages > 0 ? 'bg-nightshift-success' : 'bg-nightshift-text-muted'}`} />
+                    <div>
+                      <span className="text-nightshift-text-primary font-medium">Claude</span>
+                      <span className="text-sm text-nightshift-text-secondary ml-2">
+                        {claudeMessages > 0 ? `${claudeMessages.toLocaleString()} messages` : 'Not imported'}
+                      </span>
+                    </div>
+                  </div>
+                  <button
+                    className={claudeMessages > 0 ? 'btn-ghost text-sm' : 'btn-primary text-sm'}
+                    onClick={() => importChatHistory('claude')}
+                    disabled={claudeImporting}
+                  >
+                    {claudeImporting ? (
+                      <span className="flex items-center gap-2">
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                        Importing...
+                      </span>
+                    ) : claudeMessages > 0 ? 'Sync More' : 'Import'}
+                  </button>
+                </div>
+
+                {/* ChatGPT */}
+                <div className="flex items-center gap-3 p-3 rounded-lg bg-nightshift-bg-light">
+                  <div className="flex items-center gap-3 flex-1">
+                    <span className={`h-3 w-3 rounded-full ${chatgptMessages > 0 ? 'bg-nightshift-success' : 'bg-nightshift-text-muted'}`} />
+                    <div>
+                      <span className="text-nightshift-text-primary font-medium">ChatGPT</span>
+                      <span className="text-sm text-nightshift-text-secondary ml-2">
+                        {chatgptMessages > 0 ? `${chatgptMessages.toLocaleString()} messages` : 'Not imported'}
+                      </span>
+                    </div>
+                  </div>
+                  <button
+                    className={chatgptMessages > 0 ? 'btn-ghost text-sm' : 'btn-primary text-sm'}
+                    onClick={() => importChatHistory('chatgpt')}
+                    disabled={chatgptImporting}
+                  >
+                    {chatgptImporting ? (
+                      <span className="flex items-center gap-2">
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                        Importing...
+                      </span>
+                    ) : chatgptMessages > 0 ? 'Sync More' : 'Import'}
+                  </button>
+                </div>
+              </div>
+
+              <p className="text-xs text-nightshift-text-muted mt-4">
+                When you click Import, a browser window will open. Log in to Claude or ChatGPT if prompted, then Alter will automatically extract your conversation history.
+              </p>
             </section>
 
             {/* Autonomy Level */}

@@ -112,7 +112,7 @@ export async function buildVoiceProfileForUser(input: BuildVoiceProfileInput) {
   let response;
   try {
     response = await anthropic.messages.create({
-      model: 'claude-3-5-haiku-20241022',
+      model: 'claude-3-haiku-20240307',
       max_tokens: 1200,
       system:
         'You are a writing-style analyzer. Return strict JSON only, no markdown, no explanation.',

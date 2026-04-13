@@ -259,7 +259,8 @@ export async function runOvernightLoop(config, options = {}) {
     results.errors.push({ type: 'project_fetch', error: `HTTP ${projectResponse.status}` });
   } else {
     const projectsData = await projectResponse.json();
-    const allProjects = projectsData.data?.projects || [];
+    // API returns { success: true, data: { projects: [...] } } via apiSuccess()
+    const allProjects = projectsData.data?.projects || projectsData.projects || [];
     const byId = new Map(allProjects.map(p => [p.id, p]));
     let queue = projectIds.map(id => byId.get(id)).filter(Boolean);
     queue = sortProjectsForOvernight(queue).slice(0, MAX_PROJECTS_PER_RUN);

@@ -2,7 +2,7 @@
  * OWNER: Person 4 (Voice/UI)
  * PURPOSE: GET: list all pending drafts for a user, POST: create new draft
  * DEPENDENCIES: Prisma, @clerk/nextjs
- * STATUS: LIVE — GET returns mock data, POST creates real drafts
+ * STATUS: LIVE — GET and POST use real database
  */
 
 import { NextRequest } from 'next/server';

@@ -8,11 +8,12 @@
  * and asks Claude to draft a reply that matches the user's style.
  */
 
-// OpenClaw replaces direct Anthropic SDK - AI Digital Twin integration
+// Uses shared AI client with OpenClaw -> Anthropic fallback
 import dotenv from 'dotenv';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { resolveInternalUserId } from './user-resolver.mjs';
+import { callAI } from './lib/ai-client.mjs';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -78,36 +79,24 @@ export async function draftEmailReply(incomingEmail, userId, options = {}) {
   console.log('   ✅ Prompt built');
   console.log('');
 
-  // Step 3: Call OpenClaw API (AI Digital Twin)
-  console.log('🤖 Step 3: Calling OpenClaw to generate draft...');
+  // Step 3: Call AI (OpenClaw with Anthropic fallback)
+  console.log('🤖 Step 3: Calling AI to generate draft...');
 
-  const openclawUrl = process.env.OPENCLAW_API_URL;
-  const openclawPassword = process.env.OPENCLAW_GATEWAY_PASSWORD;
+  const aiResult = await callAI({
+    system: prompt.system,
+    user: prompt.user,
+    maxTokens: MAX_TOKENS,
+  });
 
-  const response = await fetch(`${openclawUrl}/v1/chat/completions`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${openclawPassword}`,
-    },
-    body: JSON.stringify({
-      model: 'openclaw',
-      messages: [
-        { role: 'system', content: prompt.system },
-        { role: 'user', content: prompt.user },
-      ],
-      max_tokens: MAX_TOKENS,
-    }),
-  }).then(r => r.json());
+  const draft = aiResult.content;
+  const tokensUsed = aiResult.tokensUsed || 0;
 
-  const draft = response.choices?.[0]?.message?.content || '';
-
+  // Compatibility: create usage object for downstream consumers
   const usage = {
-    input_tokens: response.usage?.prompt_tokens ?? 0,
-    output_tokens: response.usage?.completion_tokens ?? 0,
+    input_tokens: Math.floor(tokensUsed * 0.3),
+    output_tokens: Math.floor(tokensUsed * 0.7),
   };
-  const tokensUsed = usage.input_tokens + usage.output_tokens;
-  console.log(`   ✅ Generated draft (${draft.length} chars, ${tokensUsed} tokens)`);
+  console.log(`   ✅ Generated draft via ${aiResult.source} (${draft.length} chars, ${tokensUsed} tokens)`);
   console.log('');
 
   // Step 4: Save draft to database
