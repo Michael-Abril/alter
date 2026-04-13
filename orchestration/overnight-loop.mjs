@@ -28,6 +28,7 @@ dotenv.config({ path: path.join(__dirname, '..', '.env') });
 
 import { continueWork, persistContinuationOutput } from './continue-work.mjs';
 import { draftEmailReply } from './draft-email.mjs';
+import { actionsPostHeaders } from './lib/openclaw-headers.mjs';
 import { resolveInternalUserId } from './user-resolver.mjs';
 
 // ─── Config ──────────────────────────────────────────────────────────────────
@@ -132,7 +133,7 @@ async function postOvernightSummaryAction(apiUrl, userId, stats) {
   try {
     const res = await fetch(`${apiUrl}/api/actions`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: actionsPostHeaders(),
       body: JSON.stringify({
         userId,
         type: 'overnight_run_summary',
@@ -145,7 +146,8 @@ async function postOvernightSummaryAction(apiUrl, userId, stats) {
       }),
     });
     if (!res.ok) {
-      console.warn(`   ⚠️  overnight_run_summary action failed (${res.status})`);
+      const t = await res.text().catch(() => '');
+      console.warn(`   ⚠️  overnight_run_summary action failed (${res.status})${t ? `: ${t.slice(0, 400)}` : ''}`);
     }
   } catch (e) {
     console.warn('   ⚠️  Could not post overnight_run_summary action:', e.message);

@@ -19,10 +19,20 @@ export async function GET(req: NextRequest) {
       return apiError('Missing userId parameter', 400);
     }
 
+    const user = await db.user.findFirst({
+      where: { OR: [{ id: userId }, { clerkId: userId }] },
+      select: { id: true },
+    });
+    if (!user) {
+      return apiSuccess({ emails: [], count: 0, totalReceived: 0 });
+    }
+
+    const internalUserId = user.id;
+
     // Get all received emails
     const receivedEmails = await db.email.findMany({
       where: {
-        userId,
+        userId: internalUserId,
         direction: 'received',
       },
       orderBy: { receivedAt: 'desc' },
@@ -32,7 +42,7 @@ export async function GET(req: NextRequest) {
     // Get all drafts to check which emails already have drafts
     const drafts = await db.draft.findMany({
       where: {
-        userId,
+        userId: internalUserId,
         type: 'email',
       },
       select: { context: true },

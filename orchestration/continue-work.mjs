@@ -19,6 +19,7 @@ import { getOutputPath } from '../src/lib/output.ts';
 import { saveDocx } from '../src/lib/docx-generator.ts';
 import { resolveInternalUserId } from './user-resolver.mjs';
 import { callAI } from './lib/ai-client.mjs';
+import { actionsPostHeaders } from './lib/openclaw-headers.mjs';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -591,7 +592,7 @@ async function logAction(project, outputPath, tokensUsed, apiUrl, prUrl = null, 
     
     const response = await fetch(`${apiUrl}/api/actions`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: actionsPostHeaders(),
       body: JSON.stringify({
         userId: project.userId,
         type: 'work_continued',
@@ -607,7 +608,10 @@ async function logAction(project, outputPath, tokensUsed, apiUrl, prUrl = null, 
     });
 
     if (!response.ok) {
-      console.warn(`   ⚠️  Action log failed (${response.status}), but work was saved`);
+      const errText = await response.text().catch(() => '');
+      console.warn(
+        `   ⚠️  Action log failed (${response.status}), but work was saved${errText ? `: ${errText.slice(0, 500)}` : ''}`
+      );
     }
   } catch (err) {
     console.warn(`   ⚠️  Action log error: ${err.message}, but work was saved`);

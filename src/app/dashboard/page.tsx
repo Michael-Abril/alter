@@ -17,6 +17,7 @@ import SuggestedAutomations from '@/components/dashboard/SuggestedAutomations';
 import OtherActiveWork from '@/components/dashboard/OtherActiveWork';
 import MorningBriefCard from '@/components/dashboard/MorningBriefCard';
 import DashboardCompletionBanner from '@/components/dashboard/DashboardCompletionBanner';
+import RecentAlterActions from '@/components/dashboard/RecentAlterActions';
 import db from '@/lib/db';
 import { getCachedDashboardUser } from '@/lib/clerk-user';
 import { displayFirstName } from '@/lib/display-name';
@@ -209,6 +210,48 @@ export default async function DashboardPage() {
     (p) => p.updatedAt >= sevenDaysAgo
   );
 
+  let recentAlterActions: {
+    id: string;
+    title: string;
+    description: string | null;
+    app: string;
+    type: string;
+    createdAt: Date;
+  }[] = [];
+  let actionsThisWeek = 0;
+  try {
+    [recentAlterActions, actionsThisWeek] = await Promise.all([
+      db.action.findMany({
+        where: { userId: user.id },
+        orderBy: { createdAt: 'desc' },
+        take: 12,
+        select: {
+          id: true,
+          title: true,
+          description: true,
+          app: true,
+          type: true,
+          createdAt: true,
+        },
+      }),
+      db.action.count({
+        where: { userId: user.id, createdAt: { gte: sevenDaysAgo } },
+      }),
+    ]);
+  } catch {
+    recentAlterActions = [];
+    actionsThisWeek = 0;
+  }
+
+  const showCompletionBanner =
+    recentlyFinishedDeliverables.length > 0 || actionsThisWeek > 0;
+  const completionBannerMessage =
+    recentlyFinishedDeliverables.length > 0 && actionsThisWeek > 0
+      ? `Alter continued ${recentlyFinishedDeliverables.length} deliverable${recentlyFinishedDeliverables.length !== 1 ? 's' : ''} and recorded ${actionsThisWeek} action${actionsThisWeek !== 1 ? 's' : ''} this week.`
+      : recentlyFinishedDeliverables.length > 0
+        ? `Alter continued ${recentlyFinishedDeliverables.length} deliverable${recentlyFinishedDeliverables.length !== 1 ? 's' : ''} while you were away.`
+        : `Alter recorded ${actionsThisWeek} action${actionsThisWeek !== 1 ? 's' : ''} this week — see Activity for drafts, continuations, and overnight runs.`;
+
   const completedActions = completedDeliverables.map((p) => {
     const ctx = parseProjectContext(p.context);
     const nextStep = typeof ctx.nextStep === 'string' ? ctx.nextStep : null;
@@ -238,8 +281,7 @@ export default async function DashboardPage() {
     return h > 0 && h <= 168;
   }).length;
 
-  const bannerCount = recentlyFinishedDeliverables.length;
-  const bannerId = `done-${user.id}-${bannerCount}-${sevenDaysAgo.toISOString().slice(0, 10)}`;
+  const bannerId = `done-${user.id}-${recentlyFinishedDeliverables.length}-${actionsThisWeek}-${sevenDaysAgo.toISOString().slice(0, 10)}`;
 
   // Build flagged items from stalled projects
   const flaggedItems = stalled.map((p) => {
@@ -267,14 +309,20 @@ export default async function DashboardPage() {
         <Header />
         <main className="flex-1 overflow-y-auto bg-[radial-gradient(ellipse_120%_80%_at_50%_-20%,rgba(124,58,237,0.07),transparent_50%),radial-gradient(ellipse_80%_50%_at_100%_20%,rgba(6,182,212,0.05),transparent_45%)] px-5 py-10 sm:px-8 md:px-12">
           <div className="mx-auto w-full max-w-[800px] space-y-10">
-            {bannerCount > 0 && (
-              <DashboardCompletionBanner
-                bannerId={bannerId}
-                message={`Alter continued ${bannerCount} deliverable${bannerCount !== 1 ? 's' : ''} while you were away.`}
-              />
+            {showCompletionBanner && (
+              <DashboardCompletionBanner bannerId={bannerId} message={completionBannerMessage} />
             )}
 
             <MorningBriefCard welcomeLine={welcomeLine} narrative={narrative} />
+
+            {recentAlterActions.length > 0 && (
+              <RecentAlterActions
+                actions={recentAlterActions.map((a) => ({
+                  ...a,
+                  createdAt: a.createdAt.toISOString(),
+                }))}
+              />
+            )}
 
             <TodaysFocus items={focusDashboard.focusItems} />
 
@@ -391,7 +439,9 @@ export default async function DashboardPage() {
                   </p>
                   <h2 className="mt-1 font-display text-xl font-bold text-nightshift-text-primary">Deliverables</h2>
                   <p className="mt-2 text-sm text-nightshift-text-muted">
-                    No completed deliverables yet — finished academic, code, or doc work shows here.
+                    {recentAlterActions.length > 0
+                      ? 'No completed deliverable projects yet — Alter activity from the overnight loop and drafts appears in Activity and above.'
+                      : 'No completed deliverables yet — finished academic, code, or doc work shows here.'}
                   </p>
                 </div>
               )}

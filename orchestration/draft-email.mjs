@@ -14,6 +14,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import { resolveInternalUserId } from './user-resolver.mjs';
 import { callAI } from './lib/ai-client.mjs';
+import { actionsPostHeaders } from './lib/openclaw-headers.mjs';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -288,7 +289,7 @@ async function logAction(userId, incomingEmail, draftId, confidence, apiUrl) {
   try {
     const response = await fetch(`${apiUrl}/api/actions`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: actionsPostHeaders(),
       body: JSON.stringify({
         userId,
         type: 'email_drafted',

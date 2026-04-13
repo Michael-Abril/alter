@@ -76,13 +76,32 @@ export async function PATCH(
 
     // Handle rejection
     if (status === 'rejected') {
+      const prevCtx = draft.context ? JSON.parse(draft.context) : {};
       await db.draft.update({
         where: { id },
         data: {
           status: 'rejected',
           context: rejectionReason
-            ? JSON.stringify({ ...JSON.parse(draft.context || '{}'), rejectionReason })
+            ? JSON.stringify({ ...prevCtx, rejectionReason })
             : draft.context,
+        },
+      });
+
+      await db.action.create({
+        data: {
+          userId: user.id,
+          type: 'draft_rejected',
+          title: `Rejected draft: ${draft.title}`,
+          description: rejectionReason || 'User rejected this draft',
+          app: draft.targetApp,
+          confidence: draft.confidenceScore,
+          status: 'completed',
+          metadata: JSON.stringify({
+            draftId: draft.id,
+            draftType: draft.type,
+            rejectionReason: rejectionReason || null,
+            feedbackKind: 'rejected',
+          }),
         },
       });
 
@@ -107,6 +126,9 @@ export async function PATCH(
           },
         });
 
+        const finalContent = content ?? draft.content;
+        const userEdited =
+          typeof content === 'string' && content.trim() !== (draft.content || '').trim();
         await db.action.create({
           data: {
             userId: user.id,
@@ -119,6 +141,14 @@ export async function PATCH(
             metadata: JSON.stringify({
               draftId: draft.id,
               draftType: draft.type,
+              feedbackKind: 'approved',
+              userEdited,
+              voiceProfileFeedback: userEdited
+                ? {
+                    originalSnippet: (draft.content || '').slice(0, 4000),
+                    approvedSnippet: finalContent.slice(0, 4000),
+                  }
+                : undefined,
             }),
           },
         });
@@ -188,6 +218,9 @@ export async function PATCH(
           },
         });
 
+        const finalBody = content || draft.content;
+        const userEditedEmail =
+          typeof content === 'string' && content.trim() !== (draft.content || '').trim();
         await db.action.create({
           data: {
             userId: user.id,
@@ -203,6 +236,14 @@ export async function PATCH(
               gmailDraftId: result.draftId,
               gmailDraftUrl: result.draftUrl,
               draftId: draft.id,
+              feedbackKind: 'approved',
+              userEdited: userEditedEmail,
+              voiceProfileFeedback: userEditedEmail
+                ? {
+                    originalSnippet: (draft.content || '').slice(0, 4000),
+                    approvedSnippet: finalBody.slice(0, 4000),
+                  }
+                : undefined,
             }),
           },
         });

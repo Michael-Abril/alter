@@ -19,8 +19,16 @@ export async function GET(req: NextRequest) {
   }
 
   try {
+    const user = await db.user.findFirst({
+      where: { OR: [{ id: userId }, { clerkId: userId }] },
+      select: { id: true },
+    });
+    if (!user) {
+      return apiSuccess({ projects: [], count: 0 });
+    }
+
     const projects = await db.project.findMany({
-      where: { userId },
+      where: { userId: user.id },
       orderBy: { lastActive: 'desc' },
       select: {
         id: true,
