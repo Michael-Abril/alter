@@ -1,25 +1,22 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import { SignIn } from '@clerk/nextjs';
+import dynamic from 'next/dynamic';
 import { ClerkAuthFallback } from '@/components/auth/ClerkAuthFallback';
 
 /**
- * Clerk must mount only on the client. Using <Suspense> around <SignIn> was leaving
- * some users stuck on the loading fallback (Google OAuth never appeared to finish).
- * Redirect URLs come from NEXT_PUBLIC_CLERK_AFTER_SIGN_IN_URL (see .env).
+ * Client-only: `next/dynamic` + `ssr: false` loads Clerk after hydration without relying on
+ * useEffect (which could leave the page stuck on the spinner if hydration was delayed).
+ * Redirect URLs: NEXT_PUBLIC_CLERK_AFTER_SIGN_IN_URL (see .env).
  */
-export function SignInPanel() {
-  const [mounted, setMounted] = useState(false);
-
-  useEffect(() => {
-    setMounted(true);
-  }, []);
-
-  if (!mounted) {
-    return <ClerkAuthFallback />;
+const SignIn = dynamic(
+  () => import('@clerk/nextjs').then((mod) => mod.SignIn),
+  {
+    ssr: false,
+    loading: () => <ClerkAuthFallback />,
   }
+);
 
+export function SignInPanel() {
   return (
     <SignIn
       routing="path"
