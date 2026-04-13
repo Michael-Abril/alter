@@ -16,21 +16,19 @@ interface UserConfig {
 }
 
 /**
- * Get the default output directory based on OS
+ * Get the default output directory based on OS (user Documents)
  */
 export function getDefaultOutputDirectory(): string {
   try {
     const homeDir = os.homedir();
-    // Use homedir instead of userInfo to avoid permission issues
-    if (process.platform === 'win32') {
-      return path.join(homeDir, 'Documents', 'Alter');
-    } else {
-      return path.join(homeDir, 'Documents', 'Alter');
-    }
+    return path.join(homeDir, 'Documents', 'Alter');
   } catch {
-    // Fallback for build-time or restricted environments
     return path.join(process.cwd(), 'data', 'output');
   }
+}
+
+function repoFallbackOutput(): string {
+  return path.join(process.cwd(), 'data', 'output');
 }
 
 /**
@@ -45,8 +43,8 @@ function loadConfig(): UserConfig {
   } catch (err) {
     console.warn('[output] Failed to load config:', err);
   }
-  
-  return { outputDirectory: getDefaultOutputDirectory() };
+
+  return { outputDirectory: 'data/output' };
 }
 
 /**
@@ -64,28 +62,64 @@ function saveConfig(config: UserConfig): void {
   }
 }
 
+/** Resolve a stored path — relative paths are under process.cwd() (repo root). */
+function resolveOutputPath(raw: string): string {
+  const t = (raw || '').trim();
+  if (!t) return repoFallbackOutput();
+  return path.isAbsolute(t) ? t : path.join(process.cwd(), t);
+}
+
 /**
- * Get the configured output directory, creating it if it doesn't exist
+ * Try to create dir and verify writable (orchestration / API only)
+ */
+function tryEnsureWritable(dir: string): boolean {
+  if (typeof window !== 'undefined') return false;
+  try {
+    fs.mkdirSync(dir, { recursive: true });
+    const probe = path.join(dir, '.nightshift-write-test');
+    fs.writeFileSync(probe, 'ok');
+    fs.unlinkSync(probe);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Get the configured output directory, creating it if it doesn't exist.
+ * Tries, in order: NIGHTSHIFT_OUTPUT_DIR → user-config → repo data/output → ~/Documents/Alter
  */
 export function getOutputDirectory(): string {
-  const config = loadConfig();
-  const outputDir = config.outputDirectory;
-
-  // Create directory if it doesn't exist (skip during build/SSR)
-  if (typeof window === 'undefined' && process.env.NODE_ENV !== 'production') {
-    try {
-      if (!fs.existsSync(outputDir)) {
-        fs.mkdirSync(outputDir, { recursive: true });
-        console.log(`[output] Created output directory: ${outputDir}`);
-      }
-    } catch (err) {
-      console.warn(`[output] Could not create output directory: ${outputDir}`, err);
-      // Return fallback directory
-      return path.join(process.cwd(), 'data', 'output');
-    }
+  if (typeof window !== 'undefined') {
+    return repoFallbackOutput();
   }
 
-  return outputDir;
+  const candidates: string[] = [];
+
+  if (process.env.NIGHTSHIFT_OUTPUT_DIR) {
+    candidates.push(resolveOutputPath(process.env.NIGHTSHIFT_OUTPUT_DIR));
+  }
+
+  const cfg = loadConfig();
+  candidates.push(resolveOutputPath(cfg.outputDirectory));
+  candidates.push(repoFallbackOutput());
+  candidates.push(getDefaultOutputDirectory());
+
+  const tried = new Set<string>();
+  for (const dir of candidates) {
+    const norm = path.normalize(dir);
+    if (tried.has(norm)) continue;
+    tried.add(norm);
+
+    if (tryEnsureWritable(norm)) {
+      return norm;
+    }
+    console.warn(`[output] Path not usable, trying next: ${norm}`);
+  }
+
+  throw new Error(
+    '[output] Could not create a writable output directory. Set NIGHTSHIFT_OUTPUT_DIR to a folder you can write to (e.g. data/output).'
+  );
 }
 
 /**
@@ -95,13 +129,13 @@ export function setOutputDirectory(directory: string): void {
   const config = loadConfig();
   config.outputDirectory = directory;
   saveConfig(config);
-  
-  // Create the directory
-  if (!fs.existsSync(directory)) {
-    fs.mkdirSync(directory, { recursive: true });
+
+  const resolved = resolveOutputPath(directory);
+  if (!fs.existsSync(resolved)) {
+    fs.mkdirSync(resolved, { recursive: true });
   }
-  
-  console.log(`[output] Output directory set to: ${directory}`);
+
+  console.log(`[output] Output directory set to: ${resolved}`);
 }
 
 /**
@@ -114,7 +148,7 @@ export function generateFilename(projectName: string, extension: string): string
     .replace(/[^a-z0-9]+/g, '-')
     .replace(/^-+|-+$/g, '')
     .slice(0, 50);
-  
+
   return `${safeName}-${timestamp}.${extension}`;
 }
 
