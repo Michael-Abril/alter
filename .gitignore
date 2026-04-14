@@ -57,6 +57,10 @@ data/continuations/
 # sensitive config with tokens
 data/canvas-config.json
 data/github-config.json
+data/github-oauth-config.json
+
+# Akash deploy file with secrets
+deploy.yaml
 
 # user data / debug artifacts
 data/scraped-sessions.json
