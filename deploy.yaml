@@ -1,0 +1,111 @@
+  ---
+  version: "2.0"
+
+  services:
+    alter-web:
+      image: node:20-alpine
+      env:
+        - NODE_ENV=production
+        - PORT=3000
+        - DATABASE_URL=postgresql://alter:alterpass123@postgres:5432/alterdb
+        - DIRECT_URL=postgresql://alter:alterpass123@postgres:5432/alterdb
+        - NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=pk_test_ZGl2aW5lLWx5bngtNTUuY2xlcmsuYWNjb3VudHMuZGV2JA
+        - CLERK_SECRET_KEY=YOUR_CLERK_SECRET_KEY_HERE
+        - AKASH_ML_API_KEY=YOUR_AKASH_ML_KEY_HERE
+        - AKASH_ML_ENDPOINT=https://chatapi.akash.network/api/v1
+        - OPENAI_API_KEY=YOUR_OPENAI_KEY_HERE
+        - NEXT_PUBLIC_API_URL=https://alter.akash.network
+      command:
+        - sh
+        - -c
+        - |
+          apk add --no-cache git
+          git clone https://github.com/roycemy/nightshift-ai.git /app
+          cd /app
+          npm install
+          npx prisma generate
+          npx prisma db push
+          npm run build
+          npm start
+      expose:
+        - port: 3000
+          as: 80
+          to:
+            - global: true
+      params:
+        storage:
+          data:
+            mount: /app/data
+            readOnly: false
+
+    postgres:
+      image: postgres:15-alpine
+      env:
+        - POSTGRES_USER=alter
+        - POSTGRES_PASSWORD=alterpass123
+        - POSTGRES_DB=alterdb
+        - PGDATA=/var/lib/postgresql/data/pgdata
+      expose:
+        - port: 5432
+          to:
+            - service: alter-web
+      params:
+        storage:
+          pgdata:
+            mount: /var/lib/postgresql/data
+            readOnly: false
+
+  profiles:
+    compute:
+      alter-web:
+        resources:
+          cpu:
+            units: 2
+          memory:
+            size: 2Gi
+          storage:
+            - size: 5Gi
+            - name: data
+              size: 10Gi
+              attributes:
+                persistent: true
+                class: beta3
+      postgres:
+        resources:
+          cpu:
+            units: 1
+          memory:
+            size: 1Gi
+          storage:
+            - size: 1Gi
+            - name: pgdata
+              size: 10Gi
+              attributes:
+                persistent: true
+                class: beta3
+
+    placement:
+      akash:
+        attributes:
+          host: akash
+        signedBy:
+          anyOf:
+            - akash1365ez2px9z2mdjy8k35yjp3cwqhqmz4qtqknhz
+            - akash18qa2a2ltfyvkyj0ggj3hkvuj6twzyumuaru9s4
+        pricing:
+          alter-web:
+            denom: uakt
+            amount: 10000
+          postgres:
+            denom: uakt
+            amount: 5000
+
+  deployment:
+    alter-web:
+      akash:
+        profile: alter-web
+        count: 1
+    postgres:
+      akash:
+        profile: postgres
+        count: 1
