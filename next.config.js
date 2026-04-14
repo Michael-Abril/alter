@@ -9,7 +9,12 @@ const nextConfig = {
     root: path.join(__dirname),
   },
   images: {
-    domains: ['images.clerk.accounts.dev'],
+    remotePatterns: [
+      {
+        protocol: 'https',
+        hostname: 'images.clerk.accounts.dev',
+      },
+    ],
   },
 };
 
