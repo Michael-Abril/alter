@@ -183,11 +183,7 @@ export async function POST(req: NextRequest) {
       return apiError('No file uploaded', 400);
     }
 
-    // Read the file content
-    const content = await file.text();
-    const chatData = JSON.parse(content);
-
-    // Find user
+    // Find user first
     const user = await db.user.findUnique({
       where: { clerkId: userId },
     });
@@ -196,17 +192,106 @@ export async function POST(req: NextRequest) {
       return apiError('User not found', 404);
     }
 
-    // Process ChatGPT export format
-    // ChatGPT exports are typically an array of conversations
+    // Handle ZIP files (Claude exports are ZIP)
+    let chatData: any;
+    let detectedSource: 'claude' | 'chatgpt' = 'chatgpt';
+
+    if (file.name.endsWith('.zip')) {
+      // Claude exports come as ZIP files containing conversations.json
+      const JSZip = (await import('jszip')).default;
+      const arrayBuffer = await file.arrayBuffer();
+      const zip = await JSZip.loadAsync(arrayBuffer);
+
+      // Look for conversations.json in the ZIP
+      const conversationsFile = zip.file('conversations.json');
+      if (conversationsFile) {
+        const content = await conversationsFile.async('string');
+        chatData = JSON.parse(content);
+        detectedSource = 'claude';
+        console.log(`[onboarding/import] Detected Claude export (ZIP with conversations.json)`);
+      } else {
+        // Try to find any JSON file
+        const jsonFiles = Object.keys(zip.files).filter(f => f.endsWith('.json'));
+        if (jsonFiles.length > 0) {
+          const content = await zip.file(jsonFiles[0])!.async('string');
+          chatData = JSON.parse(content);
+          // Detect format by content
+          if (Array.isArray(chatData) && chatData[0]?.chat_messages) {
+            detectedSource = 'claude';
+          }
+        } else {
+          return apiError('No JSON file found in ZIP', 400);
+        }
+      }
+    } else {
+      // Regular JSON file
+      const content = await file.text();
+      chatData = JSON.parse(content);
+
+      // Detect format: Claude has chat_messages array, ChatGPT has mapping object
+      if (Array.isArray(chatData) && chatData[0]?.chat_messages) {
+        detectedSource = 'claude';
+      } else if (Array.isArray(chatData) && chatData[0]?.mapping) {
+        detectedSource = 'chatgpt';
+      }
+    }
+
+    console.log(`[onboarding/import] Processing ${detectedSource} export format`);
+
     let messagesImported = 0;
-
     const cutoffDate = new Date();
-    cutoffDate.setDate(cutoffDate.getDate() - ONBOARDING_LOOKBACK_DAYS);
+    cutoffDate.setDate(cutoffDate.getDate() - 30); // Look back 30 days for file uploads
 
-    if (Array.isArray(chatData)) {
+    if (detectedSource === 'claude' && Array.isArray(chatData)) {
+      // Claude export format: array of conversations with chat_messages
       for (const conversation of chatData) {
+        const sessionId = conversation.uuid || conversation.name || `claude-${Date.now()}`;
+        const conversationName = conversation.name || 'Untitled';
+
+        if (Array.isArray(conversation.chat_messages)) {
+          for (const msg of conversation.chat_messages) {
+            const messageTimestamp = msg.created_at
+              ? new Date(msg.created_at)
+              : msg.updated_at
+                ? new Date(msg.updated_at)
+                : new Date();
+
+            // Get message content - Claude format has text directly or in content array
+            let content = '';
+            if (typeof msg.text === 'string') {
+              content = msg.text;
+            } else if (Array.isArray(msg.content)) {
+              content = msg.content
+                .filter((c: any) => c.type === 'text')
+                .map((c: any) => c.text)
+                .join('\n');
+            }
+
+            const role = msg.sender === 'human' ? 'user' : 'assistant';
+
+            if (content.trim() && messageTimestamp >= cutoffDate) {
+              await db.chatMessage.create({
+                data: {
+                  userId: user.id,
+                  source: 'claude',
+                  role,
+                  content,
+                  sessionId,
+                  timestamp: messageTimestamp,
+                  embedded: false,
+                },
+              });
+              messagesImported++;
+            }
+          }
+        }
+      }
+    } else if (detectedSource === 'chatgpt' && Array.isArray(chatData)) {
+      // ChatGPT export format with mapping
+      for (const conversation of chatData) {
+        const sessionId = conversation.id || conversation.title || `chatgpt-${Date.now()}`;
+
         if (conversation.mapping) {
-          // ChatGPT export format with mapping
           for (const [nodeId, node] of Object.entries(conversation.mapping as Record<string, any>)) {
             const message = node.message;
             if (message && message.content && message.content.parts) {
@@ -215,7 +300,7 @@ export async function POST(req: NextRequest) {
               const messageTimestamp = message.create_time
                 ? new Date(message.create_time * 1000)
                 : new Date();
-              
+
               if (content.trim() && messageTimestamp >= cutoffDate) {
                 await db.chatMessage.create({
                   data: {
@@ -223,6 +308,7 @@ export async function POST(req: NextRequest) {
                     source: 'chatgpt',
                     role: role === 'user' ? 'user' : 'assistant',
                     content,
+                    sessionId,
                     timestamp: messageTimestamp,
                     embedded: false,
                   },
@@ -235,11 +321,30 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    console.log(`[onboarding/import-chatgpt] Imported ${messagesImported} messages from file`);
+    console.log(`[onboarding/import] Imported ${messagesImported} messages from ${detectedSource} file`);
+
+    // Trigger embedding and project detection in background
+    if (messagesImported > 0) {
+      // Run embedding in background (don't await)
+      fetch(`${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/api/onboarding/embed`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ fullHistory: true }),
+      }).catch(err => console.error('[onboarding/import] Embed trigger failed:', err));
+
+      // Run project detection in background (don't await)
+      fetch(`${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/api/onboarding/detect-projects`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sinceDays: 30 }),
+      }).catch(err => console.error('[onboarding/import] Project detection trigger failed:', err));
+    }
 
     return apiSuccess({
       messagesImported,
+      source: detectedSource,
       status: 'complete',
+      message: `Imported ${messagesImported} messages from ${detectedSource}. Processing in background...`,
     });
   } catch (error: any) {
     console.error('[onboarding/import-chatgpt] Error:', error);
