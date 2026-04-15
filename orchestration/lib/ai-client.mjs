@@ -1,7 +1,10 @@
 /**
  * AI Client - Akash ML API Only
  * Simple, direct, no fallbacks.
+ * Includes 3-minute timeout to prevent hanging.
  */
+
+import { fetchWithTimeout, TIMEOUTS } from './fetch-with-timeout.mjs';
 
 const AKASH_ML_API_URL = 'https://api.akashml.com/v1';
 const DEFAULT_MODEL = 'meta-llama/Llama-3.3-70B-Instruct';
@@ -10,24 +13,28 @@ export async function callAI({ system, user, maxTokens = 4096, temperature = 0.7
   const apiKey = process.env.AKASH_ML_API_KEY;
   if (!apiKey) throw new Error('AKASH_ML_API_KEY not set');
 
-  console.log(`[ai-client] Calling Akash ML (${model})...`);
+  console.log(`[ai-client] Calling Akash ML (${model}) with ${TIMEOUTS.AI_CALL / 1000}s timeout...`);
 
-  const res = await fetch(`${AKASH_ML_API_URL}/chat/completions`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${apiKey}`,
+  const res = await fetchWithTimeout(
+    `${AKASH_ML_API_URL}/chat/completions`,
+    {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${apiKey}`,
+      },
+      body: JSON.stringify({
+        model,
+        messages: [
+          { role: 'system', content: system },
+          { role: 'user', content: user },
+        ],
+        temperature,
+        max_tokens: maxTokens,
+      }),
     },
-    body: JSON.stringify({
-      model,
-      messages: [
-        { role: 'system', content: system },
-        { role: 'user', content: user },
-      ],
-      temperature,
-      max_tokens: maxTokens,
-    }),
-  });
+    TIMEOUTS.AI_CALL // 3 minutes for AI calls
+  );
 
   if (!res.ok) {
     const err = await res.text();

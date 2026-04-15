@@ -29,6 +29,10 @@ dotenv.config({ path: path.join(__dirname, '..', '.env') });
 import { continueWork, persistContinuationOutput } from './continue-work.mjs';
 import { draftEmailReply } from './draft-email.mjs';
 import { resolveInternalUserId } from './user-resolver.mjs';
+import { fetchWithTimeout, TIMEOUTS } from './lib/fetch-with-timeout.mjs';
+
+// Wall-clock timeout for entire loop (60 minutes)
+const WALL_CLOCK_TIMEOUT_MS = 60 * 60 * 1000;
 
 // ─── Config ──────────────────────────────────────────────────────────────────
 
@@ -129,20 +133,24 @@ function scoreUndraftedEmail(e) {
 
 async function postOvernightSummaryAction(apiUrl, userId, stats) {
   try {
-    const res = await fetch(`${apiUrl}/api/actions`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        userId,
-        type: 'overnight_run_summary',
-        title: 'Overnight run — spend & output',
-        description: `$${stats.spentUsd.toFixed(4)} spent, ${stats.totalTokensUsed} tokens, ${stats.filesGenerated} files`,
-        app: 'nightshift',
-        confidence: 1,
-        status: 'completed',
-        metadata: JSON.stringify(stats),
-      }),
-    });
+    const res = await fetchWithTimeout(
+      `${apiUrl}/api/actions`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          userId,
+          type: 'overnight_run_summary',
+          title: 'Overnight run — spend & output',
+          description: `$${stats.spentUsd.toFixed(4)} spent, ${stats.totalTokensUsed} tokens, ${stats.filesGenerated} files`,
+          app: 'nightshift',
+          confidence: 1,
+          status: 'completed',
+          metadata: JSON.stringify(stats),
+        }),
+      },
+      TIMEOUTS.INTERNAL_API
+    );
     if (!res.ok) {
       console.warn(`   ⚠️  overnight_run_summary action failed (${res.status})`);
     }
@@ -228,11 +236,15 @@ export async function runOvernightLoop(config, options = {}) {
   for (const endpoint of syncEndpoints) {
     try {
       console.log(`   🔄 ${endpoint.name}...`);
-      const syncRes = await fetch(`${apiUrl}${endpoint.path}`, {
-        method: endpoint.method,
-        headers: { 'Content-Type': 'application/json' },
-        body: endpoint.body ? JSON.stringify(endpoint.body) : undefined,
-      });
+      const syncRes = await fetchWithTimeout(
+        `${apiUrl}${endpoint.path}`,
+        {
+          method: endpoint.method,
+          headers: { 'Content-Type': 'application/json' },
+          body: endpoint.body ? JSON.stringify(endpoint.body) : undefined,
+        },
+        TIMEOUTS.EXTERNAL_API // 60s for external APIs
+      );
       if (syncRes.ok) {
         const data = await syncRes.json();
         console.log(`   ✅ ${endpoint.name}: synced`);
@@ -252,7 +264,11 @@ export async function runOvernightLoop(config, options = {}) {
   console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
   console.log('');
 
-  const projectResponse = await fetch(`${apiUrl}/api/internal/projects?userId=${resolvedUserId}`);
+  const projectResponse = await fetchWithTimeout(
+    `${apiUrl}/api/internal/projects?userId=${resolvedUserId}`,
+    {},
+    TIMEOUTS.INTERNAL_API // 30s for internal APIs
+  );
   if (!projectResponse.ok) {
     console.error(`   ❌ Failed to fetch projects: ${projectResponse.status}`);
     results.errors.push({ type: 'project_fetch', error: `HTTP ${projectResponse.status}` });
@@ -265,6 +281,13 @@ export async function runOvernightLoop(config, options = {}) {
     queue = sortProjectsForOvernight(queue).slice(0, MAX_PROJECTS_PER_RUN);
 
     for (let i = 0; i < queue.length; i++) {
+      // Wall-clock timeout check
+      if (Date.now() - startTime > WALL_CLOCK_TIMEOUT_MS) {
+        console.log('   ⏰ Wall-clock timeout (60 min) — stopping to prevent hang.');
+        results.errors.push({ type: 'wall_clock_timeout', error: 'Loop exceeded 60 minutes' });
+        break;
+      }
+
       if (results.stats.spentUsd >= RUN_BUDGET_USD - 1e-9) {
         console.log('   💸 Run budget exhausted — stopping project continuation.');
         break;
@@ -443,7 +466,11 @@ export async function runOvernightLoop(config, options = {}) {
 
   try {
     // Fetch incoming emails that don't have drafts yet
-    const emailsResponse = await fetch(`${apiUrl}/api/internal/emails/undrafted?userId=${resolvedUserId}`);
+    const emailsResponse = await fetchWithTimeout(
+      `${apiUrl}/api/internal/emails/undrafted?userId=${resolvedUserId}`,
+      {},
+      TIMEOUTS.INTERNAL_API
+    );
     
     if (emailsResponse.ok) {
       const emailsData = await emailsResponse.json();
@@ -895,7 +922,11 @@ async function main() {
     const userId = await resolveInternalUserId(process.env.TEST_USER_ID);
 
     // Fetch in-progress projects
-    const projectsResponse = await fetch(`${API_BASE_URL}/api/internal/projects?userId=${userId}`);
+    const projectsResponse = await fetchWithTimeout(
+      `${API_BASE_URL}/api/internal/projects?userId=${userId}`,
+      {},
+      TIMEOUTS.INTERNAL_API
+    );
     const projectsData = await projectsResponse.json();
     const projects = projectsData.data?.projects || [];
     const inProgressProjects = projects.filter(p => p.status === 'in_progress');

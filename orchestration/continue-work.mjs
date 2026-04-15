@@ -19,6 +19,7 @@ import { getOutputPath } from '../src/lib/output.ts';
 import { saveDocx } from '../src/lib/docx-generator.ts';
 import { resolveInternalUserId } from './user-resolver.mjs';
 import { callAI } from './lib/ai-client.mjs';
+import { fetchWithTimeout, TIMEOUTS } from './lib/fetch-with-timeout.mjs';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -291,11 +292,15 @@ export async function continueWork(project, options = {}) {
  */
 async function buildProjectContext(projectId, apiUrl) {
   try {
-    const response = await fetch(`${apiUrl}/api/internal/context-build`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ projectId }),
-    });
+    const response = await fetchWithTimeout(
+      `${apiUrl}/api/internal/context-build`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ projectId }),
+      },
+      TIMEOUTS.INTERNAL_API
+    );
 
     if (!response.ok) {
       console.warn(`   ⚠️  Context builder unavailable (${response.status}), using minimal context`);
@@ -506,7 +511,11 @@ function buildContinuationPrompt(project, contextPackage, voiceProfile = null, o
 
 async function loadVoiceProfile(userId, apiUrl) {
   try {
-    const res = await fetch(`${apiUrl}/api/internal/voice-profile?userId=${encodeURIComponent(userId)}`);
+    const res = await fetchWithTimeout(
+      `${apiUrl}/api/internal/voice-profile?userId=${encodeURIComponent(userId)}`,
+      {},
+      TIMEOUTS.INTERNAL_API
+    );
     if (!res.ok) return null;
     const data = await res.json();
     if (!data.success) return null;
@@ -759,28 +768,32 @@ async function createDraft(project, content, outputPath, tokensUsed, apiUrl, con
       targetApp = 'academic';
     }
 
-    const response = await fetch(`${apiUrl}/api/drafts`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        userId: project.userId,
-        type: draftType,
-        title: project.name,
-        content: content,
-        targetApp: targetApp,
-        confidenceScore: confidenceScore,
-        status: 'pending',
-        context: JSON.stringify({
-          projectId: project.id,
-          projectName: project.name,
-          classification: classification,
-          outputPath: outputPath,
-          tokensUsed: tokensUsed,
-          generatedAt: new Date().toISOString(),
-          nextStep: project.context?.nextStep || null,
+    const response = await fetchWithTimeout(
+      `${apiUrl}/api/drafts`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          userId: project.userId,
+          type: draftType,
+          title: project.name,
+          content: content,
+          targetApp: targetApp,
+          confidenceScore: confidenceScore,
+          status: 'pending',
+          context: JSON.stringify({
+            projectId: project.id,
+            projectName: project.name,
+            classification: classification,
+            outputPath: outputPath,
+            tokensUsed: tokensUsed,
+            generatedAt: new Date().toISOString(),
+            nextStep: project.context?.nextStep || null,
+          }),
         }),
-      }),
-    });
+      },
+      TIMEOUTS.INTERNAL_API
+    );
 
     if (!response.ok) {
       console.warn(`   ⚠️  Draft creation failed (${response.status}), but work was saved to file`);
@@ -821,22 +834,26 @@ async function logAction(project, outputPath, tokensUsed, apiUrl, prUrl = null, 
       metadata.pushedToGitHub = false;
     }
     
-    const response = await fetch(`${apiUrl}/api/actions`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        userId: project.userId,
-        type: 'work_continued',
-        title: prUrl ? `Opened PR: ${project.name}` : `Continued work on ${project.name}`,
-        description: prUrl 
-          ? `Created GitHub pull request (${tokensUsed} tokens used)`
-          : `Generated continuation output (${tokensUsed} tokens used)`,
-        app: 'nightshift',
-        confidence: 0.8, // Base confidence for autonomous work
-        status: 'completed',
-        metadata: JSON.stringify(metadata),
-      }),
-    });
+    const response = await fetchWithTimeout(
+      `${apiUrl}/api/actions`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          userId: project.userId,
+          type: 'work_continued',
+          title: prUrl ? `Opened PR: ${project.name}` : `Continued work on ${project.name}`,
+          description: prUrl
+            ? `Created GitHub pull request (${tokensUsed} tokens used)`
+            : `Generated continuation output (${tokensUsed} tokens used)`,
+          app: 'nightshift',
+          confidence: 0.8, // Base confidence for autonomous work
+          status: 'completed',
+          metadata: JSON.stringify(metadata),
+        }),
+      },
+      TIMEOUTS.INTERNAL_API
+    );
 
     if (!response.ok) {
       console.warn(`   ⚠️  Action log failed (${response.status}), but work was saved`);
