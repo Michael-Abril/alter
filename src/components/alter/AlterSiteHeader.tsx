@@ -1,9 +1,14 @@
+'use client';
+
 import Link from 'next/link';
+import { motion } from 'framer-motion';
 import { AlterWordmark } from '@/components/brand/AlterLogo';
 
 export function AlterSiteHeader() {
   return (
-    <header className="sticky top-0 z-50 border-b border-alter-border/80 bg-alter-bg/80 backdrop-blur-xl">
+    <header
+      className="fixed top-0 z-50 w-full border-b border-alter-primary/20 bg-alter-bg/80 backdrop-blur-xl"
+    >
       <div className="alter-container flex h-14 items-center justify-between md:h-16">
         <Link
           href="/"
@@ -12,15 +17,24 @@ export function AlterSiteHeader() {
           <AlterWordmark tone="marketing" compact className="gap-2" />
         </Link>
         <nav className="flex shrink-0 items-center gap-4 text-sm">
-          <Link href="/sign-in" className="text-alter-text-secondary transition hover:text-alter-text">
+          <Link
+            href="/sign-in"
+            className="text-alter-text-secondary transition-colors duration-300 hover:text-alter-gold-light"
+          >
             Sign in
           </Link>
-          <Link
-            href="/sign-up"
-            className="rounded-lg bg-alter-primary px-3 py-1.5 font-medium text-white shadow-sm shadow-alter-primary/20 transition hover:bg-alter-primary/90"
+          <motion.div
+            whileHover={{ y: -1, scale: 1.04 }}
+            whileTap={{ scale: 0.96 }}
+            transition={{ type: 'spring', stiffness: 400, damping: 17 }}
           >
-            Early access
-          </Link>
+            <Link
+              href="/sign-up"
+              className="alter-btn-primary !px-4 !py-1.5 !text-sm"
+            >
+              Early access
+            </Link>
+          </motion.div>
         </nav>
       </div>
     </header>

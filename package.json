@@ -3,8 +3,8 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "node --max-old-space-size=8192 ./node_modules/next/dist/bin/next dev --webpack",
-    "dev:turbo": "node --max-old-space-size=8192 ./node_modules/next/dist/bin/next dev --turbopack",
+    "dev": "node --max-old-space-size=8192 ./node_modules/next/dist/bin/next dev --turbopack",
+    "dev:webpack": "node --max-old-space-size=8192 ./node_modules/next/dist/bin/next dev --webpack",
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
@@ -23,8 +23,11 @@
     "@clerk/themes": "^2.4.57",
     "@pinecone-database/pinecone": "^2.0.0",
     "@prisma/client": "^5.10.0",
+    "@react-three/drei": "^10.7.7",
+    "@react-three/fiber": "^9.6.0",
     "docx": "^9.6.1",
     "dotenv": "^17.3.1",
+    "framer-motion": "^12.38.0",
     "googleapis": "^131.0.0",
     "lucide-react": "^1.7.0",
     "next": "^16.2.1",
@@ -33,6 +36,7 @@
     "react": "^19.2.4",
     "react-dom": "^19.2.4",
     "svix": "^1.15.0",
+    "three": "^0.183.2",
     "vectra": "^0.12.3"
   },
   "devDependencies": {

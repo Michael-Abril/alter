@@ -10,7 +10,22 @@ const nextConfig = {
     root: path.join(__dirname),
   },
   images: {
-    domains: ['images.clerk.accounts.dev'],
+    remotePatterns: [
+      {
+        protocol: 'https',
+        hostname: 'images.clerk.accounts.dev',
+        pathname: '/**',
+      },
+    ],
+  },
+  // Webpack dev only (`npm run dev:webpack`): avoid ChunkLoadError when first compile of a
+  // client chunk exceeds the default script timeout (common with heavy root layouts).
+  webpack: (config, { dev }) => {
+    if (dev) {
+      config.output = config.output || {};
+      config.output.chunkLoadTimeout = 300000;
+    }
+    return config;
   },
 };
 

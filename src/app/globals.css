@@ -17,6 +17,10 @@
     --nightshift-text-secondary: #94a3b8;
     --nightshift-text-muted: #64748b;
     --nightshift-border: rgba(148, 163, 184, 0.14);
+
+    --alter-gold: #D4A744;
+    --alter-gold-light: #F5C952;
+    --alter-gold-dark: #96752F;
   }
 
   body {
@@ -26,6 +30,7 @@
 }
 
 @layer components {
+  /* ─── Dashboard (nightshift) ─── */
   .card {
     @apply rounded-xl border border-nightshift-border bg-nightshift-bg-card p-6 shadow-[0_1px_0_0_rgba(255,255,255,0.04)_inset,0_8px_28px_-12px_rgba(0,0,0,0.55)] transition-[transform,box-shadow,border-color] duration-200 hover:-translate-y-px hover:border-nightshift-border hover:shadow-[0_12px_36px_-16px_rgba(0,0,0,0.65)];
   }
@@ -50,42 +55,89 @@
     @apply rounded-lg border border-nightshift-border bg-nightshift-surface px-4 py-2 text-nightshift-text-primary placeholder:text-nightshift-text-muted transition-colors focus:border-nightshift-accent focus:outline-none focus:ring-2 focus:ring-nightshift-accent/35;
   }
 
-  /* Alter marketing surface — local-first identity platform */
+  /* ─── Alter marketing – premium dark + gold ─── */
   .alter-container {
     @apply mx-auto w-full max-w-6xl px-4 sm:px-6 lg:px-8;
   }
 
   .alter-section {
-    @apply py-20 md:py-28;
+    @apply relative flex min-h-screen w-full items-center py-20 md:py-28;
   }
 
   .alter-eyebrow {
-    @apply font-mono text-[11px] font-medium uppercase tracking-[0.2em] text-alter-cyan;
+    @apply font-mono text-[11px] font-medium uppercase tracking-[0.2em] text-alter-gold-light;
   }
 
   .alter-card {
-    @apply rounded-2xl border border-alter-border bg-alter-surface/80 shadow-alter-card backdrop-blur-sm transition-colors duration-300;
+    @apply rounded-2xl border border-alter-border bg-alter-surface/80 shadow-alter-card backdrop-blur-sm transition-all duration-300;
   }
 
   .alter-card-hover {
-    @apply rounded-2xl border border-alter-border bg-alter-surface/80 shadow-alter-card backdrop-blur-sm transition-colors duration-300 hover:border-alter-border-strong hover:shadow-alter-glow;
+    @apply rounded-2xl border border-alter-border bg-alter-surface/80 shadow-alter-card backdrop-blur-sm transition-all duration-300 hover:border-alter-border-strong hover:shadow-alter-glow;
   }
 
   .alter-btn-primary {
-    @apply inline-flex items-center justify-center rounded-xl bg-alter-primary px-6 py-3 text-sm font-semibold text-white shadow-lg shadow-alter-primary/25 transition hover:bg-alter-primary/90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-alter-cyan;
+    @apply inline-flex items-center justify-center rounded-xl bg-alter-primary px-6 py-3 text-sm font-semibold text-alter-bg shadow-lg shadow-alter-primary/25 transition-all duration-300 hover:bg-alter-gold-light hover:shadow-alter-gold-lg hover:-translate-y-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-alter-cyan active:scale-[0.97];
   }
 
   .alter-btn-secondary {
-    @apply inline-flex items-center justify-center rounded-xl border border-alter-border-strong bg-alter-surface px-6 py-3 text-sm font-semibold text-alter-text transition hover:border-alter-muted hover:bg-alter-surface-elevated/50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-alter-primary/50;
+    @apply inline-flex items-center justify-center rounded-xl border border-alter-border-strong bg-alter-surface px-6 py-3 text-sm font-semibold text-alter-text transition-all duration-300 hover:border-alter-primary/50 hover:bg-alter-surface-elevated/50 hover:shadow-alter-gold-sm hover:-translate-y-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-alter-primary/50 active:scale-[0.97];
+    background-size: 200% 100%;
   }
 
   .alter-text-gradient {
-    @apply bg-gradient-to-r from-alter-text via-white to-alter-cyan bg-clip-text text-transparent;
+    @apply bg-gradient-to-r from-alter-text via-alter-gold-light to-alter-primary bg-clip-text text-transparent;
   }
 
   .alter-animate-in {
-    animation: alter-fade-up 0.65s ease-out forwards;
+    animation: alter-fade-up 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards;
     opacity: 0;
+  }
+
+  /* 3D perspective wrapper for landing sections */
+  .alter-perspective {
+    perspective: 1200px;
+    transform-style: preserve-3d;
+  }
+
+  /* Smooth-scrolling landing container */
+  .alter-snap-container {
+    overflow-y: auto;
+    scroll-behavior: smooth;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .alter-snap-section {
+    min-height: 100vh;
+  }
+
+  /* Gold shimmer effect for borders */
+  .alter-shimmer-border {
+    position: relative;
+    overflow: hidden;
+  }
+
+  .alter-shimmer-border::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    padding: 1px;
+    background: linear-gradient(
+      90deg,
+      transparent,
+      rgba(212, 167, 68, 0.4),
+      rgba(245, 201, 82, 0.6),
+      rgba(212, 167, 68, 0.4),
+      transparent
+    );
+    background-size: 200% 100%;
+    animation: alter-border-shimmer 3s linear infinite;
+    -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+    mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+    -webkit-mask-composite: xor;
+    mask-composite: exclude;
+    pointer-events: none;
   }
 }
 
@@ -98,5 +150,19 @@
   }
   .delay-300 {
     animation-delay: 300ms;
+  }
+  .delay-400 {
+    animation-delay: 400ms;
+  }
+  .delay-500 {
+    animation-delay: 500ms;
+  }
+
+  .preserve-3d {
+    transform-style: preserve-3d;
+  }
+
+  .backface-hidden {
+    backface-visibility: hidden;
   }
 }
