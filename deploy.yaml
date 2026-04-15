@@ -1,0 +1,125 @@
+---
+# Alter AI - Akash Deployment SDL
+# Updated: 2026-04-15
+#
+# BEFORE DEPLOYING: Update these env variables with values from your friend:
+#   - CLERK_SECRET_KEY (get from Clerk dashboard)
+#   - NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY
+#   - AKASH_ML_API_KEY (get from Akash ML)
+#   - GMAIL_CLIENT_ID/SECRET (optional, for email sync)
+#   - ANTHROPIC_API_KEY (optional fallback)
+
+version: "2.0"
+
+services:
+  alter-web:
+    image: node:20-alpine
+    env:
+      - NODE_ENV=production
+      - PORT=3000
+      - NODE_OPTIONS=--max-old-space-size=6144
+      # Database (internal connection to postgres service)
+      - DATABASE_URL=postgresql://alter:alterpass123@postgres:5432/alterdb
+      - DIRECT_URL=postgresql://alter:alterpass123@postgres:5432/alterdb
+      # Clerk Auth - UPDATE THESE
+      - NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=pk_test_ZGl2aW5lLWx5bngtNTUuY2xlcmsuYWNjb3VudHMuZGV2JA
+      - CLERK_SECRET_KEY=sk_test_dYLf9bBGAOBhTO1BsKVDICREY1IvLHKfZA2XNzc0Gc
+      - NEXT_PUBLIC_CLERK_SIGN_IN_URL=/sign-in
+      - NEXT_PUBLIC_CLERK_SIGN_UP_URL=/sign-up
+      - NEXT_PUBLIC_CLERK_AFTER_SIGN_IN_URL=/dashboard
+      - NEXT_PUBLIC_CLERK_AFTER_SIGN_UP_URL=/onboarding
+      # AI - Akash ML (Primary)
+      - AKASH_ML_API_KEY=akml-CbSWyHejwIFMdEASKfZTOOPPvYWmPhZD
+      - AKASH_ML_API_URL=https://chatapi.akash.network/api/v1
+      # AI - Anthropic (Fallback) - OPTIONAL
+      - ANTHROPIC_API_KEY=
+      # Gmail OAuth - UPDATE THESE if using email sync
+      - GMAIL_CLIENT_ID=692514411006-p4cblgo2onul67q9n241ni4f1fvscpqh.apps.googleusercontent.com
+      - GMAIL_CLIENT_SECRET=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
+      # Public URLs - auto-set by Akash ingress
+      - NEXT_PUBLIC_APP_URL=http://js9armggh5a5h9pmk64i54v3ig.ingress.jjozzietech.com.au
+      - NEXT_PUBLIC_API_URL=http://js9armggh5a5h9pmk64i54v3ig.ingress.jjozzietech.com.au
+      - GMAIL_REDIRECT_URI=http://js9armggh5a5h9pmk64i54v3ig.ingress.jjozzietech.com.au/api/gmail/callback
+      - NEXT_PUBLIC_DEPLOYMENT_ENV=akash
+    command:
+      - sh
+      - -c
+      - |
+        set -e
+        echo "=== Installing system dependencies ==="
+        apk add --no-cache git openssl openssl-dev libc6-compat
+
+        echo "=== Cloning repository ==="
+        git clone https://github.com/Michael-Abril/alter.git /app
+        cd /app
+
+        echo "=== Installing npm dependencies ==="
+        npm install --include=dev
+
+        echo "=== Waiting for PostgreSQL ==="
+        sleep 15
+
+        echo "=== Setting up Prisma ==="
+        npx prisma generate
+        npx prisma db push
+
+        echo "=== Building Next.js app ==="
+        npm run build
+
+        echo "=== Starting server ==="
+        npm start
+    expose:
+      - port: 3000
+        as: 80
+        to:
+          - global: true
+
+  postgres:
+    image: postgres:15-alpine
+    env:
+      - POSTGRES_USER=alter
+      - POSTGRES_PASSWORD=alterpass123
+      - POSTGRES_DB=alterdb
+      - PGDATA=/var/lib/postgresql/data/pgdata
+    expose:
+      - port: 5432
+        to:
+          - service: alter-web
+
+profiles:
+  compute:
+    alter-web:
+      resources:
+        cpu:
+          units: 4
+        memory:
+          size: 8Gi
+        storage:
+          size: 10Gi
+    postgres:
+      resources:
+        cpu:
+          units: 1
+        memory:
+          size: 2Gi
+        storage:
+          size: 10Gi
+  placement:
+    akash:
+      pricing:
+        alter-web:
+          denom: uakt
+          amount: 10000
+        postgres:
+          denom: uakt
+          amount: 5000
+
+deployment:
+  alter-web:
+    akash:
+      profile: alter-web
+      count: 1
+  postgres:
+    akash:
+      profile: postgres
+      count: 1
