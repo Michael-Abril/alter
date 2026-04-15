@@ -101,9 +101,6 @@ export default function OnboardingPage() {
   const [importStrategy, setImportStrategy] = useState<ImportStrategy>('none');
   const [dbMessageTotal, setDbMessageTotal] = useState(0);
   const [processingSummaryLine, setProcessingSummaryLine] = useState('');
-
-  // Detect Akash deployment (no browser for Playwright scraping)
-  const isAkashDeployment = process.env.NEXT_PUBLIC_DEPLOYMENT_ENV === 'akash';
   
   // Processing state
   const [processing, setProcessing] = useState(false);
@@ -550,17 +547,15 @@ export default function OnboardingPage() {
       });
       
       const data = await res.json();
-
+      
       if (data.success) {
-        setChatgptStatus(`✓ Imported ${data.messagesImported || 0} messages from ${data.source || 'file'}`);
+        setChatgptStatus(`✓ Imported ${data.messagesImported || 0} messages`);
         setChatgptMessages(data.messagesImported || 0);
-      } else {
-        setChatgptStatus(data.error || 'Import failed - check file format');
+        setChatgptImporting(false);
       }
-      setChatgptImporting(false);
     } catch (err) {
       console.error('Upload failed:', err);
-      setChatgptStatus('Upload failed - network error');
+      setChatgptStatus('Upload failed');
       setChatgptImporting(false);
     }
   }
@@ -995,7 +990,8 @@ export default function OnboardingPage() {
                       className="w-full px-3 py-2 bg-nightshift-surface border border-nightshift-border rounded-lg focus:outline-none focus:ring-2 focus:ring-nightshift-accent"
                     />
                     <p className="text-xs text-nightshift-text-muted mt-1">
-                      Enter your school's Canvas domain (e.g., canvas.harvard.edu)
+                      Use the hostname from your Canvas tab (often yourschool.instructure.com). Vanity URLs like
+                      canvas.school.edu may not serve the API; we try both automatically.
                     </p>
                   </div>
                   
@@ -1056,39 +1052,6 @@ export default function OnboardingPage() {
             <p className="text-nightshift-text-secondary mb-6">
               Alter learns from your conversations with AI assistants. You can import from both Claude and ChatGPT.
             </p>
-
-            {/* Cloud deployment mode - show file upload instructions */}
-            {isAkashDeployment && (
-              <div className="mb-4 p-4 rounded-lg border border-blue-500/30 bg-blue-500/10">
-                <h3 className="font-medium text-blue-400 mb-2">Import Your AI History</h3>
-                <p className="text-sm text-nightshift-text-secondary mb-3">
-                  Export your conversations and upload below to train your Alter.
-                </p>
-                <div className="text-xs text-nightshift-text-muted space-y-3">
-                  <div>
-                    <p className="font-medium text-nightshift-text-secondary">Claude:</p>
-                    <ol className="list-decimal list-inside ml-2 space-y-0.5">
-                      <li>Go to claude.ai</li>
-                      <li>Click your name (bottom left) → Settings</li>
-                      <li>Click "Export Data"</li>
-                      <li>Upload the downloaded file below</li>
-                    </ol>
-                  </div>
-                  <div>
-                    <p className="font-medium text-nightshift-text-secondary">ChatGPT:</p>
-                    <ol className="list-decimal list-inside ml-2 space-y-0.5">
-                      <li>Go to chat.openai.com</li>
-                      <li>Settings → Data Controls → Export</li>
-                      <li>Wait for email with download link</li>
-                      <li>Upload conversations.json below</li>
-                    </ol>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* Live scraper options - only show when NOT on Akash */}
-            {!isAkashDeployment && (
             <div className="mb-4 rounded-lg border border-nightshift-border p-3">
               <label className="mb-2 block text-xs uppercase tracking-wide text-nightshift-text-secondary">
                 Context Window (live scraper)
@@ -1106,7 +1069,6 @@ export default function OnboardingPage() {
                 Used when you run the Claude or ChatGPT browser import below.
               </p>
             </div>
-            )}
 
             <div className="mb-4 rounded-lg border border-nightshift-accent/40 bg-nightshift-accent/5 p-4">
               <h3 className="mb-1 text-sm font-semibold text-nightshift-text-primary">Demo: use existing data</h3>
@@ -1130,8 +1092,7 @@ export default function OnboardingPage() {
             </div>
 
             <div className="mb-4 space-y-3">
-              {/* Claude Import - only show when NOT on Akash */}
-              {!isAkashDeployment && (
+              {/* Claude Import */}
               <div className={`p-4 rounded-lg border transition-colors ${
                 claudeMessages > 0 && !claudeImporting ? 'border-green-500/50' :
                 claudeStatus.includes('auth') || claudeStatus.includes('Sign in') ? 'border-yellow-500/50' :
@@ -1185,10 +1146,8 @@ export default function OnboardingPage() {
                   </div>
                 )}
               </div>
-              )}
 
-              {/* ChatGPT Import - only show when NOT on Akash */}
-              {!isAkashDeployment && (
+              {/* ChatGPT Import */}
               <div className={`p-4 rounded-lg border transition-colors ${
                 chatgptMessages > 0 && !chatgptImporting ? 'border-green-500/50' :
                 chatgptStatus.includes('auth') || chatgptStatus.includes('Sign in') ? 'border-yellow-500/50' :
@@ -1242,9 +1201,8 @@ export default function OnboardingPage() {
                   </div>
                 )}
               </div>
-              )}
 
-              {/* Upload Option - always visible */}
+              {/* Upload Option */}
               <div className="relative">
                 <input
                   type="file"
@@ -1265,7 +1223,7 @@ export default function OnboardingPage() {
                       <Upload className="w-5 h-5 text-nightshift-accent" />
                     </div>
                     <div className="flex-1">
-                      <div className="font-medium">{isAkashDeployment ? 'Upload Export File' : 'Or Upload Export File'}</div>
+                      <div className="font-medium">Or Upload Export File</div>
                       <div className="text-xs text-nightshift-text-secondary">
                         Upload ChatGPT or Claude JSON export
                       </div>

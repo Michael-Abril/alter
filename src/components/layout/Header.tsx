@@ -11,13 +11,13 @@ import AlterHeaderStatus from '@/components/layout/AlterHeaderStatus';
 
 export default function Header() {
   return (
-    <header className="flex items-center justify-between border-b border-nightshift-border bg-nightshift-bg/90 px-5 py-3 backdrop-blur-md md:px-6">
+    <header className="flex items-center justify-between border-b border-alter-border bg-alter-bg/90 px-5 py-3 backdrop-blur-md md:px-6">
       <div className="flex min-w-0 flex-1 items-center gap-4">
         <AlterHeaderStatus />
       </div>
       <div className="flex items-center gap-4 pl-2">
         <time
-          className="hidden text-sm text-nightshift-text-secondary sm:block"
+          className="hidden text-sm text-alter-text-secondary sm:block"
           dateTime={new Date().toISOString()}
         >
           {new Date().toLocaleDateString('en-US', {
@@ -29,7 +29,7 @@ export default function Header() {
         <UserButton
           appearance={{
             elements: {
-              avatarBox: 'h-9 w-9 ring-2 ring-nightshift-border shadow-md',
+              avatarBox: 'h-9 w-9 ring-2 ring-alter-border shadow-md',
             },
           }}
         />

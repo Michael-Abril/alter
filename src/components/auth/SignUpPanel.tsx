@@ -1,24 +1,17 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import { SignUp } from '@clerk/nextjs';
+import dynamic from 'next/dynamic';
 import { ClerkAuthFallback } from '@/components/auth/ClerkAuthFallback';
 
-/**
- * Client-only mount — same rationale as SignInPanel (avoid Suspense + OAuth hang).
- * Redirect after sign-up: NEXT_PUBLIC_CLERK_AFTER_SIGN_UP_URL (see .env).
- */
-export function SignUpPanel() {
-  const [mounted, setMounted] = useState(false);
-
-  useEffect(() => {
-    setMounted(true);
-  }, []);
-
-  if (!mounted) {
-    return <ClerkAuthFallback />;
+const SignUp = dynamic(
+  () => import('@clerk/nextjs').then((mod) => mod.SignUp),
+  {
+    ssr: false,
+    loading: () => <ClerkAuthFallback />,
   }
+);
 
+export function SignUpPanel() {
   return (
     <SignUp
       routing="path"

@@ -15,6 +15,7 @@ import ConfidenceBadge from '@/components/shared/ConfidenceBadge';
 import AppIcon from '@/components/shared/AppIcon';
 import { timeAgo } from '@/lib/utils';
 import type { Action } from '@/types';
+<<<<<<< HEAD
 import { Loader2, Clock, Zap } from 'lucide-react';
 import { isUserNotFoundResponse } from '@/lib/dashboard-client-guard';
 
@@ -26,11 +27,17 @@ interface HandoffStatus {
   projectsContinued?: number;
   currentProject?: string;
 }
+=======
+import { Loader2 } from 'lucide-react';
+import { isUserNotFoundResponse } from '@/lib/dashboard-client-guard';
+import { linkLabel, parseWorkMetadata } from '@/lib/work-destination';
+>>>>>>> origin/main
 
 export default function ActivityPage() {
   const router = useRouter();
   const [actions, setActions] = useState<Action[]>([]);
   const [loading, setLoading] = useState(true);
+<<<<<<< HEAD
   const [filter, setFilter] = useState<'active' | 'all' | 'completed' | 'flagged' | 'failed'>('all');
   const [handoffStatus, setHandoffStatus] = useState<HandoffStatus | null>(null);
 
@@ -58,10 +65,29 @@ export default function ActivityPage() {
         }
       } catch (err) {
         console.error('Failed to fetch data:', err);
+=======
+  const [filter, setFilter] = useState<'all' | 'completed' | 'flagged' | 'failed'>('all');
+
+  useEffect(() => {
+    async function fetchActions() {
+      try {
+        const res = await fetch('/api/actions');
+        const json = await res.json();
+        if (isUserNotFoundResponse(res, json)) {
+          router.replace('/onboarding');
+          return;
+        }
+        if (json.success) {
+          setActions(Array.isArray(json.data?.actions) ? json.data.actions : []);
+        }
+      } catch (err) {
+        console.error('Failed to fetch actions:', err);
+>>>>>>> origin/main
       } finally {
         setLoading(false);
       }
     }
+<<<<<<< HEAD
     fetchData();
 
     // Poll for status updates every 10 seconds when there's active work
@@ -78,6 +104,9 @@ export default function ActivityPage() {
     }, 10000);
 
     return () => clearInterval(interval);
+=======
+    fetchActions();
+>>>>>>> origin/main
   }, [router]);
 
   const filteredActions = actions.filter(action => {
@@ -94,7 +123,11 @@ export default function ActivityPage() {
           <main className="flex-1 overflow-y-auto p-6">
             <div className="mx-auto max-w-4xl">
               <div className="flex items-center justify-center py-12">
+<<<<<<< HEAD
                 <Loader2 className="h-8 w-8 animate-spin text-nightshift-accent" />
+=======
+                <Loader2 className="h-8 w-8 animate-spin text-alter-primary" />
+>>>>>>> origin/main
               </div>
             </div>
           </main>
@@ -111,16 +144,24 @@ export default function ActivityPage() {
         <main className="flex-1 overflow-y-auto p-6">
           <div className="mx-auto max-w-4xl space-y-6">
             <div>
+<<<<<<< HEAD
               <h1 className="font-display text-2xl font-bold tracking-tight text-nightshift-text-primary">
                 Activity
               </h1>
               <p className="mt-1 text-sm text-nightshift-text-secondary">
+=======
+              <h1 className="font-display text-2xl font-bold tracking-tight text-alter-text">
+                Activity
+              </h1>
+              <p className="mt-1 text-sm text-alter-text-secondary">
+>>>>>>> origin/main
                 Everything Alter has done on your behalf.
               </p>
             </div>
 
             {/* Filter Bar */}
             <div className="flex gap-2">
+<<<<<<< HEAD
               {[
                 {label: 'Active', value: 'active', showBadge: handoffStatus?.state === 'running'},
                 {label: 'All', value: 'all'},
@@ -144,10 +185,24 @@ export default function ActivityPage() {
                       <span className="relative inline-flex rounded-full h-2 w-2 bg-nightshift-accent"></span>
                     </span>
                   )}
+=======
+              {[{label: 'All', value: 'all'}, {label: 'Completed', value: 'completed'}, {label: 'Flagged', value: 'flagged'}, {label: 'Failed', value: 'failed'}].map((f) => (
+                <button
+                  key={f.value}
+                  onClick={() => setFilter(f.value as any)}
+                  className={`rounded-lg px-3 py-1.5 text-sm transition-colors ${
+                    filter === f.value
+                      ? 'bg-alter-primary/15 font-medium text-alter-text ring-1 ring-alter-primary/30'
+                      : 'text-alter-text-secondary hover:bg-alter-surface hover:text-alter-text'
+                  }`}
+                >
+                  {f.label}
+>>>>>>> origin/main
                 </button>
               ))}
             </div>
 
+<<<<<<< HEAD
             {/* Active Work Display */}
             {filter === 'active' && (
               <div className="space-y-3">
@@ -209,6 +264,13 @@ export default function ActivityPage() {
               {filteredActions.length === 0 ? (
                 <div className="card text-center py-12">
                   <p className="text-nightshift-text-secondary">
+=======
+            {/* Activity List */}
+            <div className="space-y-3">
+              {filteredActions.length === 0 ? (
+                <div className="card text-center py-12">
+                  <p className="text-alter-text-secondary">
+>>>>>>> origin/main
                     No {filter !== 'all' ? filter : ''} actions found.
                   </p>
                 </div>
@@ -216,14 +278,22 @@ export default function ActivityPage() {
                 filteredActions.map((action) => (
                 <div
                   key={action.id}
+<<<<<<< HEAD
                   className="card flex items-start gap-4 hover:border-nightshift-accent/20 transition-colors"
+=======
+                  className="card flex items-start gap-4 hover:border-alter-primary/20 transition-colors"
+>>>>>>> origin/main
                 >
                   <div className="mt-1">
                     <AppIcon app={action.app} />
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2">
+<<<<<<< HEAD
                       <h3 className="font-medium text-nightshift-text-primary truncate">
+=======
+                      <h3 className="font-medium text-alter-text truncate">
+>>>>>>> origin/main
                         {action.title}
                       </h3>
                       {action.confidence !== null && (
@@ -231,6 +301,7 @@ export default function ActivityPage() {
                       )}
                     </div>
                     {action.description && (
+<<<<<<< HEAD
                       <p className="mt-1 text-sm text-nightshift-text-secondary">
                         {action.description}
                       </p>
@@ -287,6 +358,82 @@ export default function ActivityPage() {
                       }
                     })()}
                     <div className="mt-2 flex items-center gap-3 text-xs text-nightshift-text-muted">
+=======
+                      <p className="mt-1 text-sm text-alter-text-secondary">
+                        {action.description}
+                      </p>
+                    )}
+                    {(() => {
+                      const meta = parseWorkMetadata(action.metadata);
+                      if (!meta) return null;
+                      const prSkip =
+                        typeof meta.prSkipReason === 'string' ? meta.prSkipReason : '';
+                      const outputFsPath =
+                        typeof meta.filePath === 'string'
+                          ? meta.filePath
+                          : typeof meta.outputPath === 'string'
+                            ? meta.outputPath
+                            : '';
+                      const destinationStatus =
+                        typeof meta.destinationStatus === 'string' ? meta.destinationStatus : '';
+                      const destinationNote =
+                        typeof meta.destinationNote === 'string' ? meta.destinationNote : '';
+                      return (
+                        <div className="mt-2 space-y-1">
+                          {meta.externalUrl ? (
+                            <a
+                              href={meta.externalUrl}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="inline-flex items-center gap-1 text-xs px-2 py-1 rounded bg-nightshift-success/10 text-nightshift-success hover:bg-nightshift-success/20 transition-colors"
+                            >
+                              🔗 {linkLabel(meta)}
+                            </a>
+                          ) : null}
+                          {typeof meta.submissionUrl === 'string' && meta.submissionUrl.length > 0 ? (
+                            <a
+                              href={meta.submissionUrl}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="inline-flex items-center gap-1 text-xs px-2 py-1 rounded bg-alter-primary/10 text-alter-primary hover:bg-alter-primary/20 transition-colors"
+                            >
+                              Open submission
+                            </a>
+                          ) : null}
+                          {prSkip ? (
+                            <div className="text-xs text-nightshift-warning">
+                              {prSkip === 'missing_token' && 'GitHub not connected — connect GitHub in Settings.'}
+                              {prSkip === 'missing_default_repo' && 'No default repo configured in Settings.'}
+                              {prSkip.startsWith('push_failed') &&
+                                `GitHub push failed: ${prSkip.replace('push_failed: ', '')}`}
+                            </div>
+                          ) : null}
+                          {outputFsPath ? (
+                            <div className="flex items-center gap-2">
+                              <button
+                                onClick={() => {
+                                  navigator.clipboard.writeText(outputFsPath);
+                                }}
+                                className="text-xs px-2 py-1 rounded bg-alter-primary/10 text-alter-primary hover:bg-alter-primary/20 transition-colors"
+                              >
+                                Copy File Path
+                              </button>
+                              <span className="text-xs text-alter-muted truncate max-w-md">
+                                {outputFsPath}
+                              </span>
+                            </div>
+                          ) : null}
+                          {destinationStatus === 'local_fallback' ? (
+                            <div className="text-xs text-alter-muted">
+                              Saved locally for this run. Connect/reconnect Google Drive to restore Open Document links.
+                              {destinationNote ? ` (${destinationNote})` : ''}
+                            </div>
+                          ) : null}
+                        </div>
+                      );
+                    })()}
+                    <div className="mt-2 flex items-center gap-3 text-xs text-alter-muted">
+>>>>>>> origin/main
                       <span>{timeAgo(action.createdAt)}</span>
                       <span
                         className={`capitalize ${
@@ -304,7 +451,10 @@ export default function ActivityPage() {
                 </div>
               )))}
             </div>
+<<<<<<< HEAD
             )}
+=======
+>>>>>>> origin/main
           </div>
         </main>
       </div>

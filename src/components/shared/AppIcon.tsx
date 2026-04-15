@@ -8,6 +8,7 @@ import {
   Brain,
   FileText,
   GitBranch,
+  GraduationCap,
   Mail,
   MessageSquare,
   Paperclip,
@@ -15,6 +16,7 @@ import {
 } from 'lucide-react';
 
 const APP_ICONS: Record<string, { Icon: LucideIcon; bg: string; iconClass: string }> = {
+  canvas: { Icon: GraduationCap, bg: 'bg-emerald-500/10', iconClass: 'text-emerald-300' },
   gmail: { Icon: Mail, bg: 'bg-red-500/10', iconClass: 'text-red-300' },
   gdocs: { Icon: FileText, bg: 'bg-blue-500/10', iconClass: 'text-blue-300' },
   github: { Icon: GitBranch, bg: 'bg-zinc-500/10', iconClass: 'text-zinc-300' },

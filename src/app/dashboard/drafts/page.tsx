@@ -15,7 +15,10 @@ import {
   BookOpen,
   CheckCircle2,
   Code,
+<<<<<<< HEAD
   Download,
+=======
+>>>>>>> origin/main
   Edit3,
   FileEdit,
   FileText,
@@ -25,7 +28,10 @@ import {
   Mail,
   XCircle,
 } from 'lucide-react';
+<<<<<<< HEAD
 import { DraftChat } from '@/components/drafts/DraftChat';
+=======
+>>>>>>> origin/main
 import { isUserNotFoundResponse } from '@/lib/dashboard-client-guard';
 
 interface Draft {
@@ -56,7 +62,11 @@ export default function DraftsPage() {
 
   async function fetchDrafts() {
     try {
+<<<<<<< HEAD
       const res = await fetch('/api/drafts');
+=======
+      const res = await fetch('/api/drafts?status=pending');
+>>>>>>> origin/main
       const json = await res.json();
       if (isUserNotFoundResponse(res, json)) {
         router.replace('/onboarding');
@@ -128,7 +138,11 @@ export default function DraftsPage() {
   }
 
   function DraftTypeIcon({ type }: { type: string }) {
+<<<<<<< HEAD
     const cls = 'h-5 w-5 shrink-0 text-nightshift-highlight';
+=======
+    const cls = 'h-5 w-5 shrink-0 text-alter-gold-light';
+>>>>>>> origin/main
     switch (type) {
       case 'email':
         return <Mail className={cls} strokeWidth={1.75} aria-hidden />;
@@ -168,7 +182,11 @@ export default function DraftsPage() {
           <main className="flex-1 overflow-y-auto p-6">
             <div className="mx-auto max-w-5xl">
               <div className="flex items-center justify-center py-12">
+<<<<<<< HEAD
                 <Loader2 className="h-8 w-8 animate-spin text-nightshift-accent" />
+=======
+                <Loader2 className="h-8 w-8 animate-spin text-alter-primary" />
+>>>>>>> origin/main
               </div>
             </div>
           </main>
@@ -185,10 +203,17 @@ export default function DraftsPage() {
         <main className="flex-1 overflow-y-auto p-6">
           <div className="mx-auto max-w-5xl space-y-6">
             <div>
+<<<<<<< HEAD
               <h1 className="font-display text-2xl font-bold tracking-tight text-nightshift-text-primary">
                 Draft review
               </h1>
               <p className="mt-1 text-sm text-nightshift-text-secondary">
+=======
+              <h1 className="font-display text-2xl font-bold tracking-tight text-alter-text">
+                Draft review
+              </h1>
+              <p className="mt-1 text-sm text-alter-text-secondary">
+>>>>>>> origin/main
                 Review and approve drafts Alter created for you — often after a handoff run.
               </p>
             </div>
@@ -202,7 +227,11 @@ export default function DraftsPage() {
                       href={error.split('Open in Gmail: ')[1]}
                       target="_blank"
                       rel="noopener noreferrer"
+<<<<<<< HEAD
                       className="underline hover:text-nightshift-accent transition-colors"
+=======
+                      className="underline hover:text-alter-primary transition-colors"
+>>>>>>> origin/main
                     >
                       Open in Gmail →
                     </a>
@@ -215,6 +244,7 @@ export default function DraftsPage() {
 
             {drafts.length === 0 ? (
               <div className="card py-12 text-center">
+<<<<<<< HEAD
                 <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl border border-nightshift-border bg-nightshift-bg-light text-nightshift-highlight">
                   <FileEdit className="h-7 w-7" strokeWidth={1.5} aria-hidden />
                 </div>
@@ -222,6 +252,15 @@ export default function DraftsPage() {
                   No drafts yet
                 </h2>
                 <p className="mt-2 text-nightshift-text-secondary">
+=======
+                <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl border border-alter-border bg-alter-surface text-alter-gold-light">
+                  <FileEdit className="h-7 w-7" strokeWidth={1.5} aria-hidden />
+                </div>
+                <h2 className="text-lg font-semibold text-alter-text">
+                  No drafts yet
+                </h2>
+                <p className="mt-2 text-alter-text-secondary">
+>>>>>>> origin/main
                   Run Handoff from the Handoff page, then check Draft review or Activity.
                 </p>
               </div>
@@ -238,6 +277,7 @@ export default function DraftsPage() {
                         <div className="flex items-center gap-3">
                           <DraftTypeIcon type={draft.type} />
                           <div>
+<<<<<<< HEAD
                             <h3 className="font-semibold text-nightshift-text-primary">
                               {draft.title}
                             </h3>
@@ -247,6 +287,17 @@ export default function DraftsPage() {
                               </span>
                               <span className="text-xs text-nightshift-text-muted">•</span>
                               <span className="text-xs text-nightshift-text-muted capitalize">
+=======
+                            <h3 className="font-semibold text-alter-text">
+                              {draft.title}
+                            </h3>
+                            <div className="flex items-center gap-2 mt-1">
+                              <span className="text-xs text-alter-muted">
+                                {new Date(draft.createdAt).toLocaleString()}
+                              </span>
+                              <span className="text-xs text-alter-muted">•</span>
+                              <span className="text-xs text-alter-muted capitalize">
+>>>>>>> origin/main
                                 {draft.type} for {draft.targetApp}
                               </span>
                             </div>
@@ -257,6 +308,7 @@ export default function DraftsPage() {
 
                       {/* Content */}
                       {isEditing ? (
+<<<<<<< HEAD
                         <>
                           <textarea
                             value={editedContent}
@@ -273,6 +325,17 @@ export default function DraftsPage() {
                       ) : (
                         <div className="bg-nightshift-bg-light rounded-lg p-4 mb-4">
                           <pre className="whitespace-pre-wrap text-sm text-nightshift-text-primary font-sans">
+=======
+                        <textarea
+                          value={editedContent}
+                          onChange={(e) => setEditedContent(e.target.value)}
+                          className="input w-full h-64 resize-none font-mono text-sm"
+                          disabled={isActionLoading}
+                        />
+                      ) : (
+                        <div className="bg-alter-surface rounded-lg p-4 mb-4">
+                          <pre className="whitespace-pre-wrap text-sm text-alter-text font-sans">
+>>>>>>> origin/main
                             {draft.content}
                           </pre>
                         </div>
@@ -280,22 +343,37 @@ export default function DraftsPage() {
 
                       {/* Context Info */}
                       {draft.context && (
+<<<<<<< HEAD
                         <div className="mb-4 flex flex-wrap items-center gap-3 text-xs text-nightshift-text-muted">
                           {draft.context.retrievedSources > 0 && (
                             <span className="inline-flex items-center gap-1">
                               <BookOpen className="h-3.5 w-3.5 text-nightshift-text-muted" strokeWidth={1.75} aria-hidden />
+=======
+                        <div className="mb-4 flex flex-wrap items-center gap-3 text-xs text-alter-muted">
+                          {draft.context.retrievedSources > 0 && (
+                            <span className="inline-flex items-center gap-1">
+                              <BookOpen className="h-3.5 w-3.5 text-alter-muted" strokeWidth={1.75} aria-hidden />
+>>>>>>> origin/main
                               {draft.context.retrievedSources} sources
                             </span>
                           )}
                           {draft.context.tokensUsed && (
                             <span className="inline-flex items-center gap-1">
+<<<<<<< HEAD
                               <Hash className="h-3.5 w-3.5 text-nightshift-text-muted" strokeWidth={1.75} aria-hidden />
+=======
+                              <Hash className="h-3.5 w-3.5 text-alter-muted" strokeWidth={1.75} aria-hidden />
+>>>>>>> origin/main
                               {draft.context.tokensUsed} tokens
                             </span>
                           )}
                           {draft.context.recommendation && (
                             <span className="inline-flex items-center gap-1 capitalize">
+<<<<<<< HEAD
                               <Lightbulb className="h-3.5 w-3.5 text-nightshift-text-muted" strokeWidth={1.75} aria-hidden />
+=======
+                              <Lightbulb className="h-3.5 w-3.5 text-alter-muted" strokeWidth={1.75} aria-hidden />
+>>>>>>> origin/main
                               {draft.context.recommendation.replace(/_/g, ' ')}
                             </span>
                           )}
@@ -356,6 +434,7 @@ export default function DraftsPage() {
                               <XCircle className="h-4 w-4" />
                               <span>Reject</span>
                             </button>
+<<<<<<< HEAD
                             <a
                               href={`/api/drafts/${draft.id}/download?format=docx`}
                               download
@@ -364,6 +443,8 @@ export default function DraftsPage() {
                               <Download className="h-4 w-4" />
                               <span>Download</span>
                             </a>
+=======
+>>>>>>> origin/main
                           </>
                         )}
                       </div>

@@ -17,15 +17,17 @@ import SuggestedAutomations from '@/components/dashboard/SuggestedAutomations';
 import OtherActiveWork from '@/components/dashboard/OtherActiveWork';
 import MorningBriefCard from '@/components/dashboard/MorningBriefCard';
 import DashboardCompletionBanner from '@/components/dashboard/DashboardCompletionBanner';
+import RecentAlterActions from '@/components/dashboard/RecentAlterActions';
+import DevConsistencyPanel from '@/components/dashboard/DevConsistencyPanel';
 import db from '@/lib/db';
 import { getCachedDashboardUser } from '@/lib/clerk-user';
 import { displayFirstName } from '@/lib/display-name';
-import { generateMorningBriefNarrative } from '@/lib/morning-brief-haiku';
 import {
   isDeliverableCompletedProject,
   deliverableKindFromProjectContext,
   isHandoffEligible,
 } from '@/lib/project-deliverable';
+import { parsePriorityContext } from '@/lib/priority-context';
 import { buildMorningBriefWelcomeLine, buildFocusDashboard } from '@/lib/tasks-focus';
 import { buildTodayTasks, type TodayTask } from '@/lib/tasks-today';
 
@@ -51,6 +53,7 @@ function parseProjectContext(rawContext: string | null): Record<string, unknown>
 }
 
 export default async function DashboardPage() {
+  const demoMode = process.env.NEXT_PUBLIC_DEMO_MODE === 'true';
   const { userId } = await auth();
   if (typeof userId !== 'string' || userId.length === 0) redirect('/sign-in');
 
@@ -59,45 +62,45 @@ export default async function DashboardPage() {
 
   if (!user.onboardingCompletedAt) {
     return (
-      <div className="flex h-screen bg-nightshift-bg">
+      <div className="flex h-screen bg-alter-bg">
         <Sidebar />
         <div className="flex flex-1 flex-col overflow-hidden">
           <Header />
           <main className="flex flex-1 items-center justify-center p-6">
             <div className="max-w-lg space-y-6 text-center">
-              <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-nightshift-accent/25 to-nightshift-navy/30 ring-1 ring-white/10">
-                <span className="font-display text-2xl font-bold text-nightshift-text-primary">A</span>
+              <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-alter-primary/25 to-alter-surface/30 ring-1 ring-white/10">
+                <span className="font-display text-2xl font-bold text-alter-text">A</span>
               </div>
               <div>
-                <h1 className="mb-3 font-display text-3xl font-bold text-nightshift-text-primary">
+                <h1 className="mb-3 font-display text-3xl font-bold text-alter-text">
                   Welcome to Alter
                 </h1>
-                <p className="text-lg leading-relaxed text-nightshift-text-secondary">
+                <p className="text-lg leading-relaxed text-alter-text-secondary">
                   Before Alter can work for you, it needs to learn who you are — your voice, your projects, and how you think.
                 </p>
               </div>
-              <div className="card space-y-4 border-nightshift-accent/25 bg-nightshift-bg-card p-6">
-                <h2 className="text-xl font-semibold text-nightshift-text-primary">
+              <div className="card space-y-4 border-alter-primary/25 bg-alter-surface p-6">
+                <h2 className="text-xl font-semibold text-alter-text">
                   Build your identity profile
                 </h2>
-                <p className="text-sm text-nightshift-text-secondary">
+                <p className="text-sm text-alter-text-secondary">
                   Connect your tools and import your chat history. Takes about two minutes. Alter builds your voice profile and detects active projects — locally first.
                 </p>
-                <div className="flex items-center gap-4 text-sm text-nightshift-text-muted pt-1">
+                <div className="flex items-center gap-4 text-sm text-alter-muted pt-1">
                   <span className="flex items-center gap-1.5">
-                    <span className="inline-block h-1.5 w-1.5 rounded-full bg-nightshift-accent" />
+                    <span className="inline-block h-1.5 w-1.5 rounded-full bg-alter-primary" />
                     Gmail
                   </span>
                   <span className="flex items-center gap-1.5">
-                    <span className="inline-block h-1.5 w-1.5 rounded-full bg-nightshift-accent" />
+                    <span className="inline-block h-1.5 w-1.5 rounded-full bg-alter-primary" />
                     GitHub
                   </span>
                   <span className="flex items-center gap-1.5">
-                    <span className="inline-block h-1.5 w-1.5 rounded-full bg-nightshift-accent" />
+                    <span className="inline-block h-1.5 w-1.5 rounded-full bg-alter-primary" />
                     Chat history
                   </span>
                   <span className="flex items-center gap-1.5">
-                    <span className="inline-block h-1.5 w-1.5 rounded-full bg-nightshift-accent" />
+                    <span className="inline-block h-1.5 w-1.5 rounded-full bg-alter-primary" />
                     Voice profile
                   </span>
                 </div>
@@ -108,7 +111,7 @@ export default async function DashboardPage() {
                   Begin Setup →
                 </a>
               </div>
-              <p className="text-xs text-nightshift-text-muted">
+              <p className="text-xs text-alter-muted">
                 You can skip any step — connect only what you want.
               </p>
             </div>
@@ -182,7 +185,8 @@ export default async function DashboardPage() {
       context: p.context,
       lastActive: p.lastActive,
       progress: p.progress,
-    }))
+    })),
+    parsePriorityContext(user.priorityContext)
   );
 
   const clerkUser = await currentUser();
@@ -198,7 +202,9 @@ export default async function DashboardPage() {
     dueDate: t.dueDate,
     source: t.source,
   }));
-  const narrative = await generateMorningBriefNarrative(rawForBrief);
+  const narrative = process.env.DASHBOARD_SHOW_NARRATIVE === 'true'
+    ? `You have ${rawForBrief.length} active signals today — focus on the top priorities first.`
+    : '';
 
   const sevenDaysAgo = new Date();
   sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
@@ -208,6 +214,50 @@ export default async function DashboardPage() {
   const recentlyFinishedDeliverables = completedDeliverables.filter(
     (p) => p.updatedAt >= sevenDaysAgo
   );
+
+  let recentAlterActions: {
+    id: string;
+    title: string;
+    description: string | null;
+    app: string;
+    type: string;
+    createdAt: Date;
+    metadata: string | null;
+  }[] = [];
+  let actionsThisWeek = 0;
+  try {
+    [recentAlterActions, actionsThisWeek] = await Promise.all([
+      db.action.findMany({
+        where: { userId: user.id },
+        orderBy: { createdAt: 'desc' },
+        take: 12,
+        select: {
+          id: true,
+          title: true,
+          description: true,
+          app: true,
+          type: true,
+          createdAt: true,
+          metadata: true,
+        },
+      }),
+      db.action.count({
+        where: { userId: user.id, createdAt: { gte: sevenDaysAgo } },
+      }),
+    ]);
+  } catch {
+    recentAlterActions = [];
+    actionsThisWeek = 0;
+  }
+
+  const showCompletionBanner =
+    recentlyFinishedDeliverables.length > 0 || actionsThisWeek > 0;
+  const completionBannerMessage =
+    recentlyFinishedDeliverables.length > 0 && actionsThisWeek > 0
+      ? `${recentlyFinishedDeliverables.length} deliverable${recentlyFinishedDeliverables.length !== 1 ? 's' : ''} continued, ${actionsThisWeek} action${actionsThisWeek !== 1 ? 's' : ''} logged this week.`
+      : recentlyFinishedDeliverables.length > 0
+        ? `${recentlyFinishedDeliverables.length} deliverable${recentlyFinishedDeliverables.length !== 1 ? 's' : ''} continued while you were away.`
+        : `${actionsThisWeek} action${actionsThisWeek !== 1 ? 's' : ''} logged this week.`;
 
   const completedActions = completedDeliverables.map((p) => {
     const ctx = parseProjectContext(p.context);
@@ -238,8 +288,7 @@ export default async function DashboardPage() {
     return h > 0 && h <= 168;
   }).length;
 
-  const bannerCount = recentlyFinishedDeliverables.length;
-  const bannerId = `done-${user.id}-${bannerCount}-${sevenDaysAgo.toISOString().slice(0, 10)}`;
+  const bannerId = `done-${user.id}-${recentlyFinishedDeliverables.length}-${actionsThisWeek}-${sevenDaysAgo.toISOString().slice(0, 10)}`;
 
   // Build flagged items from stalled projects
   const flaggedItems = stalled.map((p) => {
@@ -261,18 +310,17 @@ export default async function DashboardPage() {
   });
 
   return (
-    <div className="flex h-screen bg-nightshift-bg">
+    <div className="flex h-screen bg-alter-bg">
       <Sidebar />
       <div className="flex flex-1 flex-col overflow-hidden">
         <Header />
-        <main className="flex-1 overflow-y-auto bg-[radial-gradient(ellipse_120%_80%_at_50%_-20%,rgba(124,58,237,0.07),transparent_50%),radial-gradient(ellipse_80%_50%_at_100%_20%,rgba(6,182,212,0.05),transparent_45%)] px-5 py-10 sm:px-8 md:px-12">
+        <main className="flex-1 overflow-y-auto bg-[radial-gradient(ellipse_120%_80%_at_50%_-20%,rgba(212,167,68,0.08),transparent_50%),radial-gradient(ellipse_70%_50%_at_100%_20%,rgba(212,167,68,0.04),transparent_45%)] px-5 py-10 sm:px-8 md:px-12">
           <div className="mx-auto w-full max-w-[800px] space-y-10">
-            {bannerCount > 0 && (
-              <DashboardCompletionBanner
-                bannerId={bannerId}
-                message={`Alter continued ${bannerCount} deliverable${bannerCount !== 1 ? 's' : ''} while you were away.`}
-              />
+            {showCompletionBanner && (
+              <DashboardCompletionBanner bannerId={bannerId} message={completionBannerMessage} />
             )}
+
+            {!demoMode && process.env.NODE_ENV !== 'production' && <DevConsistencyPanel />}
 
             <MorningBriefCard welcomeLine={welcomeLine} narrative={narrative} />
 
@@ -280,36 +328,62 @@ export default async function DashboardPage() {
 
             <SuggestedAutomations items={focusDashboard.suggestedAutomations} />
 
-            <OtherActiveWork grouped={focusDashboard.grouped} />
+            {demoMode ? (
+              <section className="rounded-xl border border-alter-border/60 bg-alter-surface/30 px-5 py-5 md:px-6">
+                <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-alter-muted">Next</p>
+                <h2 className="mt-1 font-display text-xl font-bold text-alter-text">Delegate with Handoff</h2>
+                <p className="mt-2 text-sm text-alter-text-secondary">
+                  Focus on your top items. Alter can handle the rest.
+                </p>
+                <a href="/dashboard/handoff" className="btn-primary mt-4 inline-flex items-center gap-2">
+                  Open Handoff →
+                </a>
+              </section>
+            ) : (
+            <details className="rounded-xl border border-alter-border/60 bg-alter-surface/30">
+              <summary className="cursor-pointer px-5 py-4 text-sm font-medium text-alter-text-secondary md:px-6">
+                More
+              </summary>
+              <div className="space-y-6 px-5 pb-5 md:px-6 md:pb-6">
+                {recentAlterActions.length > 0 && (
+                  <RecentAlterActions
+                    actions={recentAlterActions.map((a) => ({
+                      ...a,
+                      createdAt: a.createdAt.toISOString(),
+                    }))}
+                  />
+                )}
 
-            <section className="rounded-xl border border-nightshift-border/60 bg-nightshift-bg-card/30 px-5 py-5 md:px-6">
-              <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-nightshift-text-muted">Alter knows</p>
-              <h2 className="mt-1 font-display text-xl font-bold text-nightshift-text-primary md:text-2xl">Your landscape</h2>
-              <p className="mt-2 text-sm leading-relaxed text-nightshift-text-secondary">
-                {activeDeliverableCount} active deliverable{activeDeliverableCount !== 1 ? 's' : ''} · {upcomingDeadlineCount}{' '}
-                upcoming deadline{upcomingDeadlineCount !== 1 ? 's' : ''} this week · {inboxApprox} inbox thread
-                {inboxApprox !== 1 ? 's' : ''} indexed
-              </p>
-            </section>
+                <OtherActiveWork grouped={focusDashboard.grouped} />
 
-            {pendingDrafts > 0 && (
-              <a href="/dashboard/drafts" className="card block border-nightshift-warning/30 transition-colors hover:border-nightshift-warning/60">
-                <div className="flex items-center gap-3">
-                  <span className="flex h-10 w-10 items-center justify-center rounded-xl border border-nightshift-border bg-nightshift-bg-light text-nightshift-highlight">
-                    <FileEdit className="h-5 w-5" strokeWidth={1.75} aria-hidden />
-                  </span>
-                  <div>
-                    <span className="font-medium text-nightshift-text-primary">{pendingDrafts} draft{pendingDrafts > 1 ? 's' : ''} awaiting review</span>
-                    <p className="text-xs text-nightshift-text-muted">Alter drafted these — review and approve</p>
-                  </div>
-                </div>
-              </a>
-            )}
+                <section className="rounded-xl border border-alter-border/60 bg-alter-surface/30 px-5 py-5 md:px-6">
+                  <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-alter-muted">Alter knows</p>
+                  <h2 className="mt-1 font-display text-xl font-bold text-alter-text md:text-2xl">Your landscape</h2>
+                  <p className="mt-2 text-sm leading-relaxed text-alter-text-secondary">
+                    {activeDeliverableCount} active deliverable{activeDeliverableCount !== 1 ? 's' : ''} · {upcomingDeadlineCount}{' '}
+                    upcoming deadline{upcomingDeadlineCount !== 1 ? 's' : ''} this week · {inboxApprox} inbox thread
+                    {inboxApprox !== 1 ? 's' : ''} indexed
+                  </p>
+                </section>
 
-            <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-              <div className="card">
-                <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-nightshift-text-muted">Calendar</p>
-                <h2 className="mt-1 mb-4 font-display text-lg font-bold text-nightshift-text-primary">Upcoming events</h2>
+                {pendingDrafts > 0 && (
+                  <a href="/dashboard/drafts" className="card block border-nightshift-warning/30 transition-colors hover:border-nightshift-warning/60">
+                    <div className="flex items-center gap-3">
+                      <span className="flex h-10 w-10 items-center justify-center rounded-xl border border-alter-border bg-alter-surface text-alter-gold-light">
+                        <FileEdit className="h-5 w-5" strokeWidth={1.75} aria-hidden />
+                      </span>
+                      <div>
+                        <span className="font-medium text-alter-text">{pendingDrafts} draft{pendingDrafts > 1 ? 's' : ''} awaiting review</span>
+                        <p className="text-xs text-alter-muted">Alter drafted these — review and approve</p>
+                      </div>
+                    </div>
+                  </a>
+                )}
+
+                <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+                  <div className="card">
+                <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-alter-muted">Calendar</p>
+                <h2 className="mt-1 mb-4 font-display text-lg font-bold text-alter-text">Upcoming events</h2>
                 {upcomingEvents.length > 0 ? (
                   <div className="space-y-2">
                     {upcomingEvents.map((event: any, idx: number) => {
@@ -321,15 +395,15 @@ export default async function DashboardPage() {
                       return (
                         <div
                           key={event?.id ?? `ev-${idx}`}
-                          className={`rounded-lg p-3 ${isDeadline ? 'bg-nightshift-warning/10 border border-nightshift-warning/30' : 'bg-nightshift-bg-light'}`}
+                          className={`rounded-lg p-3 ${isDeadline ? 'bg-nightshift-warning/10 border border-nightshift-warning/30' : 'bg-alter-surface'}`}
                         >
                           <div className="flex items-center gap-2">
-                            <span className="text-nightshift-highlight">
+                            <span className="text-alter-gold-light">
                               {isDeadline ? <Zap className="h-4 w-4" aria-hidden /> : <Calendar className="h-4 w-4" aria-hidden />}
                             </span>
-                            <span className="text-sm font-medium text-nightshift-text-primary">{title}</span>
+                            <span className="text-sm font-medium text-alter-text">{title}</span>
                           </div>
-                          <p className="mt-1 text-xs text-nightshift-text-muted ml-7">
+                          <p className="mt-1 text-xs text-alter-muted ml-7">
                             {start.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}
                           </p>
                         </div>
@@ -337,19 +411,19 @@ export default async function DashboardPage() {
                     })}
                   </div>
                 ) : (
-                  <p className="text-sm text-nightshift-text-muted">No upcoming events. Connect Google Calendar in Settings.</p>
+                  <p className="text-sm text-alter-muted">No upcoming events. Connect Google Calendar in Settings.</p>
                 )}
               </div>
 
               <div className="card">
-                <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-nightshift-text-muted">GitHub</p>
-                <h2 className="mt-1 mb-4 font-display text-lg font-bold text-nightshift-text-primary">Recent activity</h2>
+                <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-alter-muted">GitHub</p>
+                <h2 className="mt-1 mb-4 font-display text-lg font-bold text-alter-text">Recent activity</h2>
                 {recentGithub.length > 0 ? (
                   <div className="space-y-2">
                     {recentGithub.map((gh: any, idx: number) => (
-                      <div key={gh?.id ?? `gh-${idx}`} className="rounded-lg bg-nightshift-bg-light p-3">
+                      <div key={gh?.id ?? `gh-${idx}`} className="rounded-lg bg-alter-surface p-3">
                         <div className="flex items-center gap-2">
-                          <span className="text-nightshift-highlight">
+                          <span className="text-alter-gold-light">
                             {gh?.type === 'commit' ? (
                               <Package className="h-4 w-4" aria-hidden />
                             ) : gh?.type === 'pr' ? (
@@ -362,12 +436,12 @@ export default async function DashboardPage() {
                             href={typeof gh?.url === 'string' ? gh.url : '#'}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="text-sm font-medium text-nightshift-accent hover:underline truncate"
+                            className="text-sm font-medium text-alter-primary hover:underline truncate"
                           >
                             {typeof gh?.title === 'string' ? gh.title : 'Activity'}
                           </a>
                         </div>
-                        <p className="mt-1 text-xs text-nightshift-text-muted ml-7">
+                        <p className="mt-1 text-xs text-alter-muted ml-7">
                           {String(gh?.type ?? 'item')} &middot;{' '}
                           {gh?.authoredAt ? new Date(gh.authoredAt).toLocaleDateString() : '—'}
                         </p>
@@ -375,39 +449,43 @@ export default async function DashboardPage() {
                     ))}
                   </div>
                 ) : (
-                  <p className="text-sm text-nightshift-text-muted">No recent activity. Connect GitHub in Settings.</p>
+                  <p className="text-sm text-alter-muted">No recent activity. Connect GitHub in Settings.</p>
                 )}
               </div>
             </div>
 
-            {/* Completed & Flagged */}
-            <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-              {completedActions.length > 0 ? (
-                <CompletedActions actions={completedActions} />
-              ) : (
-                <div className="card rounded-xl p-5 md:p-6">
-                  <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-nightshift-text-muted">
-                    Recently completed
-                  </p>
-                  <h2 className="mt-1 font-display text-xl font-bold text-nightshift-text-primary">Deliverables</h2>
-                  <p className="mt-2 text-sm text-nightshift-text-muted">
-                    No completed deliverables yet — finished academic, code, or doc work shows here.
-                  </p>
+                <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+                  {completedActions.length > 0 ? (
+                    <CompletedActions actions={completedActions} />
+                  ) : (
+                    <div className="card rounded-xl p-5 md:p-6">
+                      <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-alter-muted">
+                        Recently completed
+                      </p>
+                      <h2 className="mt-1 font-display text-xl font-bold text-alter-text">Deliverables</h2>
+                      <p className="mt-2 text-sm text-alter-muted">
+                        {recentAlterActions.length > 0
+                          ? 'No completed deliverable projects yet — Alter activity from the overnight loop and drafts appears in Activity and above.'
+                          : 'No completed deliverables yet — finished academic, code, or doc work shows here.'}
+                      </p>
+                    </div>
+                  )}
+                  {flaggedItems.length > 0 ? (
+                    <FlaggedItems items={flaggedItems} />
+                  ) : (
+                    <div className="card border-nightshift-success/20">
+                      <h2 className="mb-4 text-sm font-medium uppercase tracking-wider text-nightshift-success">
+                        All Clear
+                      </h2>
+                      <p className="text-sm text-alter-muted">
+                        No stalled projects. Everything looks good!
+                      </p>
+                    </div>
+                  )}
                 </div>
-              )}
-              {flaggedItems.length > 0 ? (
-                <FlaggedItems items={flaggedItems} />
-              ) : (
-                <div className="card border-nightshift-success/20">
-                  <h2 className="mb-4 text-sm font-medium uppercase tracking-wider text-nightshift-success">
-                    All Clear
-                  </h2>
-                  <p className="text-sm text-nightshift-text-muted">
-                    No stalled projects. Everything looks good!
-                  </p>
-                </div>
-              )}
-            </div>
+              </div>
+            </details>
+            )}
           </div>
         </main>
       </div>

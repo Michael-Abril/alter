@@ -206,6 +206,8 @@ export interface HandoffTask {
   selected: boolean;
   /** Top picks for this run vs collapsed “other” — UI only */
   tier?: 'recommended' | 'other';
+  /** Code projects vs Canvas assignment rows — drives POST payload */
+  handoffKind?: 'project' | 'canvas';
 }
 
 export interface HandoffSubmission {

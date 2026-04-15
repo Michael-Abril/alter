@@ -24,13 +24,13 @@ export default function FlaggedItems({ items }: FlaggedItemsProps) {
         {items.map((item) => (
           <div
             key={item.id}
-            className="rounded-lg border border-nightshift-warning/20 bg-nightshift-bg-light p-3"
+            className="rounded-lg border border-nightshift-warning/20 bg-alter-surface p-3"
           >
             <div className="flex items-start gap-3">
               <AppIcon app={item.app} />
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2">
-                  <span className="text-sm font-medium text-nightshift-text-primary">
+                  <span className="text-sm font-medium text-alter-text">
                     {item.title}
                   </span>
                   {item.confidence !== null && (
@@ -38,11 +38,11 @@ export default function FlaggedItems({ items }: FlaggedItemsProps) {
                   )}
                 </div>
                 {item.description && (
-                  <p className="mt-1 text-xs text-nightshift-text-secondary">
+                  <p className="mt-1 text-xs text-alter-text-secondary">
                     {item.description}
                   </p>
                 )}
-                <span className="mt-1 block text-xs text-nightshift-text-muted">
+                <span className="mt-1 block text-xs text-alter-muted">
                   {timeAgo(item.createdAt)}
                 </span>
               </div>

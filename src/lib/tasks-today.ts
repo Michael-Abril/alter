@@ -13,6 +13,15 @@ import {
 export type TodayTaskSource = 'canvas' | 'project' | 'email';
 export type TodayTaskUrgency = 'critical' | 'high' | 'medium' | 'low';
 
+/** Where the user should open the task (Canvas assignment page, etc.) */
+export type TaskExternalProvider =
+  | 'canvas'
+  | 'gmail'
+  | 'github'
+  | 'drive'
+  | 'calendar'
+  | 'docs';
+
 export interface TodayTask {
   id: string;
   title: string;
@@ -21,6 +30,13 @@ export interface TodayTask {
   description: string;
   dueDate: string | null;
   suggestedAction: string;
+  /** Deep link to native tool (e.g. Canvas assignment `html_url`) */
+  externalUrl?: string | null;
+  provider?: TaskExternalProvider | null;
+  /** Submission / upload page when different from assignment view (Canvas) */
+  submissionUrl?: string | null;
+  /** Most recent evidence timestamp (chat/project/email) used for recency weighting */
+  evidenceAt?: string | null;
 }
 
 type InternalTask = TodayTask & { lastActiveMs?: number; receivedAtMs?: number };
@@ -129,6 +145,28 @@ function projectClassificationOk(ctx: Record<string, unknown>): boolean {
   return classes.some((c) => c === 'code_build' || c === 'document_build');
 }
 
+function normalizeKey(s: string): string {
+  return s
+    .toLowerCase()
+    .replace(/\b(the|a|an|to|for|of|and|or|with|on|in|my|your)\b/g, ' ')
+    .replace(/[^a-z0-9]+/g, ' ')
+    .trim()
+    .replace(/\s+/g, ' ');
+}
+
+function looksLikeStaleNoise(title: string, description: string): boolean {
+  const blob = `${title} ${description}`.toLowerCase();
+  return /\b(sync|github sync|code sync|setup|configure|oauth|connect github|token refresh|env var)\b/.test(
+    blob
+  );
+}
+
+function parseIso(v: unknown): number | null {
+  if (typeof v !== 'string') return null;
+  const t = new Date(v).getTime();
+  return Number.isFinite(t) ? t : null;
+}
+
 export async function buildTodayTasks(userId: string): Promise<TodayTask[]> {
   const now = Date.now();
   const weekMs = 7 * 24 * 60 * 60 * 1000;
@@ -171,8 +209,12 @@ export async function buildTodayTasks(userId: string): Promise<TodayTask[]> {
           description: desc,
           dueDate: due.toISOString(),
           suggestedAction: a.html_url
-            ? `Open in Canvas and submit before the deadline: ${a.html_url}`
+            ? 'Open in Canvas — complete or submit before the deadline.'
             : 'Open Canvas and complete this assignment before the deadline.',
+          externalUrl: a.html_url || null,
+          provider: 'canvas',
+          submissionUrl: a.html_url || null,
+          evidenceAt: due.toISOString(),
         };
         canvasByKey.set(canvasDedupeKey(title, due), task);
         canvasForProjectMatch.push({ title, description: desc, urgency: u });
@@ -213,6 +255,10 @@ export async function buildTodayTasks(userId: string): Promise<TodayTask[]> {
       description: desc,
       dueDate: due.toISOString(),
       suggestedAction: 'Complete this Canvas assignment before the deadline.',
+      externalUrl: null,
+      provider: 'canvas',
+      submissionUrl: null,
+      evidenceAt: due.toISOString(),
     };
     canvasByKey.set(key, task);
     canvasForProjectMatch.push({
@@ -224,10 +270,41 @@ export async function buildTodayTasks(userId: string): Promise<TodayTask[]> {
 
   const canvasTasks: InternalTask[] = [...canvasByKey.values()];
 
-  const projects = await db.project.findMany({
-    where: { userId, status: 'in_progress' },
-    orderBy: { lastActive: 'desc' },
-  });
+  const [projects, recentChats, recentCompletedActions, recentCompletedProjects] = await Promise.all([
+    db.project.findMany({
+      where: { userId, status: 'in_progress' },
+      orderBy: { lastActive: 'desc' },
+    }),
+    db.chatMessage.findMany({
+      where: {
+        userId,
+        source: { in: ['claude', 'chatgpt'] },
+        timestamp: { gte: new Date(Date.now() - 14 * 24 * 60 * 60 * 1000) },
+      },
+      orderBy: { timestamp: 'desc' },
+      take: 400,
+      select: { content: true, timestamp: true },
+    }),
+    db.action.findMany({
+      where: {
+        userId,
+        status: 'completed',
+        createdAt: { gte: new Date(Date.now() - 21 * 24 * 60 * 60 * 1000) },
+      },
+      orderBy: { createdAt: 'desc' },
+      take: 120,
+      select: { title: true, description: true },
+    }),
+    db.project.findMany({
+      where: {
+        userId,
+        status: 'completed',
+        updatedAt: { gte: new Date(Date.now() - 45 * 24 * 60 * 60 * 1000) },
+      },
+      select: { name: true },
+      take: 120,
+    }),
+  ]);
 
   const projectTasks: InternalTask[] = [];
   for (const p of projects) {
@@ -257,6 +334,36 @@ export async function buildTodayTasks(userId: string): Promise<TodayTask[]> {
     }
 
     const nextStep = typeof ctx.nextStep === 'string' ? ctx.nextStep : null;
+    const projectKey = normalizeKey(p.name);
+    const ageDays = (Date.now() - p.lastActive.getTime()) / (1000 * 60 * 60 * 24);
+    const topicMatches = recentChats.filter((m) => {
+      const blob = m.content.toLowerCase();
+      return topics.some((t) => t.length >= 4 && blob.includes(t.toLowerCase()));
+    });
+    const latestChatEvidenceMs = topicMatches[0]?.timestamp?.getTime() ?? null;
+    const evidenceMs = latestChatEvidenceMs ?? p.lastActive.getTime();
+    const hasRecentEvidence = evidenceMs >= Date.now() - 10 * 24 * 60 * 60 * 1000;
+
+    // Suppress stale / already-handled work to keep queue believable.
+    if (looksLikeStaleNoise(p.name, p.description || nextStep || '')) continue;
+    if (ageDays > 14 && !hasRecentEvidence) continue;
+
+    const likelyDoneByAction = recentCompletedActions.some((a) => {
+      const blob = normalizeKey(`${a.title} ${a.description || ''}`);
+      return blob.includes(projectKey) || projectKey.includes(blob);
+    });
+    if (likelyDoneByAction && ageDays > 3 && !hasRecentEvidence) continue;
+
+    const likelyDoneByCompletedProject = recentCompletedProjects.some((cp) => {
+      const cpk = normalizeKey(cp.name);
+      return cpk.includes(projectKey) || projectKey.includes(cpk);
+    });
+    if (likelyDoneByCompletedProject && !hasRecentEvidence) continue;
+
+    if (hasRecentEvidence) {
+      u = maxUrgency(u, 'high');
+    }
+
     projectTasks.push({
       id: `project-${p.id}`,
       title: p.name,
@@ -269,6 +376,9 @@ export async function buildTodayTasks(userId: string): Promise<TodayTask[]> {
       dueDate: null,
       suggestedAction:
         nextStep || 'Open the project workspace and continue implementation or writing.',
+      externalUrl: typeof ctx.repoUrl === 'string' ? ctx.repoUrl : typeof ctx.docUrl === 'string' ? ctx.docUrl : null,
+      provider: typeof ctx.repoUrl === 'string' ? 'github' : typeof ctx.docUrl === 'string' ? 'docs' : null,
+      evidenceAt: new Date(evidenceMs).toISOString(),
       lastActiveMs: p.lastActive.getTime(),
     });
   }
@@ -300,13 +410,92 @@ export async function buildTodayTasks(userId: string): Promise<TodayTask[]> {
       dueDate: null,
       suggestedAction:
         'Open your inbox and draft a reply, or review when Alter generates a draft.',
+      externalUrl: e.threadId
+        ? `https://mail.google.com/mail/u/0/#inbox/${e.threadId}`
+        : null,
+      provider: 'gmail',
+      evidenceAt: e.receivedAt.toISOString(),
       receivedAtMs: e.receivedAt.getTime(),
+    });
+  }
+
+  // Follow-up detection for demo flow:
+  // If we sent an email, then got a reply in that thread, and never replied again,
+  // surface that as a high-signal "needs reply" task.
+  const [recentSent, recentReceived] = await Promise.all([
+    db.email.findMany({
+      where: { userId, direction: 'sent' },
+      orderBy: { receivedAt: 'desc' },
+      take: 120,
+      select: { id: true, subject: true, threadId: true, to: true, receivedAt: true, gmailId: true },
+    }),
+    db.email.findMany({
+      where: { userId, direction: 'received' },
+      orderBy: { receivedAt: 'desc' },
+      take: 240,
+      select: { id: true, subject: true, threadId: true, from: true, receivedAt: true, gmailId: true },
+    }),
+  ]);
+
+  const latestSentByThread = new Map<string, (typeof recentSent)[number]>();
+  for (const s of recentSent) {
+    if (!s.threadId) continue;
+    const prev = latestSentByThread.get(s.threadId);
+    if (!prev || s.receivedAt > prev.receivedAt) latestSentByThread.set(s.threadId, s);
+  }
+
+  const latestReplyAfterSent = new Map<string, (typeof recentReceived)[number]>();
+  for (const r of recentReceived) {
+    if (!r.threadId) continue;
+    const sent = latestSentByThread.get(r.threadId);
+    if (!sent) continue;
+    if (r.receivedAt <= sent.receivedAt) continue;
+    const prev = latestReplyAfterSent.get(r.threadId);
+    if (!prev || r.receivedAt > prev.receivedAt) latestReplyAfterSent.set(r.threadId, r);
+  }
+
+  for (const [threadId, reply] of latestReplyAfterSent.entries()) {
+    const sent = latestSentByThread.get(threadId);
+    if (!sent) continue;
+    emailTasks.push({
+      id: `followup-thread-${threadId}`,
+      title: reply.subject || sent.subject || '(No subject)',
+      source: 'email',
+      urgency: 'high',
+      description: `Follow-up needed: ${reply.from} replied and you have not responded yet.`,
+      dueDate: null,
+      suggestedAction: 'Review the reply and send a response.',
+      externalUrl: `https://mail.google.com/mail/u/0/#inbox/${threadId}`,
+      provider: 'gmail',
+      evidenceAt: reply.receivedAt.toISOString(),
+      receivedAtMs: reply.receivedAt.getTime(),
     });
   }
 
   const all: InternalTask[] = [...canvasTasks, ...projectTasks, ...emailTasks];
 
-  all.sort((a, b) => {
+  // Dedupe similar tasks (old extraction artifacts frequently create near-duplicates).
+  const dedupedByKey = new Map<string, InternalTask>();
+  for (const t of all) {
+    const key = `${t.source}:${normalizeKey(t.title)}`;
+    const prev = dedupedByKey.get(key);
+    if (!prev) {
+      dedupedByKey.set(key, t);
+      continue;
+    }
+    const prevUrg = URGENCY_ORDER[prev.urgency];
+    const nextUrg = URGENCY_ORDER[t.urgency];
+    if (nextUrg < prevUrg) {
+      dedupedByKey.set(key, t);
+      continue;
+    }
+    if ((t.receivedAtMs ?? t.lastActiveMs ?? 0) > (prev.receivedAtMs ?? prev.lastActiveMs ?? 0)) {
+      dedupedByKey.set(key, t);
+    }
+  }
+  const deduped = [...dedupedByKey.values()];
+
+  deduped.sort((a, b) => {
     const ur = URGENCY_ORDER[a.urgency] - URGENCY_ORDER[b.urgency];
     if (ur !== 0) return ur;
     const sr = SOURCE_ORDER[a.source] - SOURCE_ORDER[b.source];
@@ -333,8 +522,8 @@ export async function buildTodayTasks(userId: string): Promise<TodayTask[]> {
     return 0;
   });
 
-  return all.map(
-    ({ id, title, source, urgency, description, dueDate, suggestedAction }) => ({
+  return deduped.map(
+    ({
       id,
       title,
       source,
@@ -342,6 +531,22 @@ export async function buildTodayTasks(userId: string): Promise<TodayTask[]> {
       description,
       dueDate,
       suggestedAction,
+      externalUrl,
+      provider,
+      submissionUrl,
+      evidenceAt,
+    }) => ({
+      id,
+      title,
+      source,
+      urgency,
+      description,
+      dueDate,
+      suggestedAction,
+      ...(externalUrl != null ? { externalUrl } : {}),
+      ...(provider != null ? { provider } : {}),
+      ...(submissionUrl != null ? { submissionUrl } : {}),
+      ...(evidenceAt != null ? { evidenceAt } : {}),
     })
   );
 }

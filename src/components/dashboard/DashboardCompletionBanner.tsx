@@ -36,12 +36,12 @@ export default function DashboardCompletionBanner({
   if (!visible) return null;
 
   return (
-    <div className="mb-6 flex items-start justify-between gap-3 rounded-lg border border-nightshift-border bg-[#0f1419] px-4 py-3 md:px-5">
-      <p className="text-sm font-medium text-teal-400/95">{message}</p>
+    <div className="mb-6 flex items-start justify-between gap-3 rounded-lg border border-alter-primary/30 bg-alter-surface px-4 py-3 md:px-5">
+      <p className="text-sm font-medium text-alter-gold-light">{message}</p>
       <button
         type="button"
         onClick={dismiss}
-        className="shrink-0 rounded-md p-1 text-nightshift-text-muted transition-colors hover:bg-white/5 hover:text-nightshift-text-primary"
+        className="shrink-0 rounded-md p-1 text-alter-muted transition-colors hover:bg-white/5 hover:text-alter-text"
         aria-label="Dismiss"
       >
         <X className="h-4 w-4" strokeWidth={2} />

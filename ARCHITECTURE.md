@@ -34,7 +34,7 @@ Alter is an AI "digital twin" that learns your work patterns, communication styl
 │   ORCHESTRATION LAYER   │ │   AI LAYER  │ │        DATA LAYER               │
 │   (Node.js Scripts)     │ │             │ │                                 │
 │  ┌───────────────────┐  │ │ ┌─────────┐ │ │  ┌────────────┐  ┌───────────┐  │
-│  │ overnight-loop    │  │ │ │Akash ML │ │ │  │  Prisma    │  │   Vectra  │  │
+│  │ overnight-loop    │  │ │ │OpenClaw │ │ │  │  Prisma    │  │   Vectra  │  │
 │  │ continue-work     │──┼─┼▶│   or    │ │ │  │  (SQLite/  │  │  (Vector  │  │
 │  │ draft-email       │  │ │ │Anthropic│ │ │  │  Postgres) │  │   Store)  │  │
 │  │ nightshift-daemon │  │ │ └─────────┘ │ │  └────────────┘  └───────────┘  │
@@ -67,14 +67,14 @@ nightshift-ai/
 │   ├── lib/                    # Shared utilities
 │   │   ├── clerk-user.ts       # User resolution from Clerk
 │   │   ├── db.ts               # Prisma client
-│   │   ├── openclaw-client.ts  # AI client (Akash ML → Anthropic fallback)
+│   │   ├── openclaw-client.ts  # OpenClaw API client (with Anthropic fallback)
 │   │   ├── voice-profile-builder.ts  # Voice profile extraction
 │   │   └── morning-brief-haiku.ts    # Brief narrative generation
 │   ├── components/             # React components
 │   └── types/                  # TypeScript types
 ├── orchestration/              # Background processing scripts
 │   ├── lib/
-│   │   └── ai-client.mjs       # **Main AI client** (Akash ML → Anthropic)
+│   │   └── ai-client.mjs       # Shared AI client (OpenClaw → Anthropic)
 │   ├── overnight-loop.mjs      # Main overnight processing
 │   ├── continue-work.mjs       # Work continuation logic
 │   ├── draft-email.mjs         # Email draft generation
@@ -83,6 +83,12 @@ nightshift-ai/
 ├── prisma/
 │   └── schema.prisma           # Database schema
 ├── docs/                       # Documentation
+│   ├── ARCHITECTURE.md         # This file
+│   ├── DAEMON.md               # Daemon documentation
+│   ├── PERSON1_BACKEND.md      # Backend owner guide
+│   ├── PERSON2_VECTORS.md      # Vector/embedding guide
+│   ├── PERSON3_OPENCLAW.md     # OpenClaw integration guide
+│   └── PERSON4_VOICE_UI.md     # Voice/UI guide
 ├── data/                       # Runtime data
 │   ├── briefs/                 # Generated briefs
 │   ├── continuations/          # Work continuation outputs
@@ -92,17 +98,17 @@ nightshift-ai/
 
 ## AI Client Architecture
 
-The system uses **Akash ML API** as the primary AI provider with Anthropic as fallback:
+The system uses a dual AI client pattern for reliability:
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
 │                        AI REQUEST                                │
-│  (system prompt + user prompt + max_tokens + temperature)       │
+│  (system prompt + user prompt + max_tokens)                     │
 └───────────────────────────┬─────────────────────────────────────┘
                             │
                             ▼
                    ┌────────────────┐
-                   │ Is Akash ML    │
+                   │ Is OpenClaw    │
                    │ configured?    │
                    └────────┬───────┘
                             │
@@ -110,8 +116,8 @@ The system uses **Akash ML API** as the primary AI provider with Anthropic as fa
               │ YES                       │ NO
               ▼                           ▼
      ┌─────────────────┐         ┌─────────────────┐
-     │ Call Akash ML   │         │ Use Anthropic   │
-     │ api.akashml.com │         │ Directly        │
+     │ Try OpenClaw    │         │ Use Anthropic   │
+     │ API Call        │         │ Directly        │
      └────────┬────────┘         └─────────────────┘
               │
               │ SUCCESS?
@@ -126,22 +132,14 @@ The system uses **Akash ML API** as the primary AI provider with Anthropic as fa
                └─────────────────┘
 ```
 
-### Akash ML Models
-
-| Model | Use Case | Cost (per M tokens) |
-|-------|----------|---------------------|
-| `meta-llama/Llama-3.3-70B-Instruct` | **Default** - Fast, general purpose | $0.13 in / $0.40 out |
-| `deepseek-ai/DeepSeek-V3.2` | Complex reasoning | $0.28 in / $0.42 out |
-| `Qwen/Qwen2.5-72B-Instruct` | Alternative | $0.13 in / $0.40 out |
-
-**Cost comparison**: Akash ML is ~10-50x cheaper than Anthropic ($3-15/M tokens)
-
-### AI Client Files
+### Two AI Clients
 
 | Location | File | Purpose |
 |----------|------|---------|
-| Orchestration | `orchestration/lib/ai-client.mjs` | Background scripts (overnight loop, daemon) |
-| Next.js API | `src/lib/openclaw-client.ts` | API routes (to be updated) |
+| Next.js API | `src/lib/openclaw-client.ts` | API routes use this |
+| Orchestration | `orchestration/lib/ai-client.mjs` | Background scripts use this |
+
+Both implement the same OpenClaw → Anthropic fallback pattern.
 
 ## Data Flow: Overnight Loop
 
@@ -154,7 +152,7 @@ The system uses **Akash ML API** as the primary AI provider with Anthropic as fa
 
 3. For each project:
    ├─▶ Fetch project context from vector DB
-   ├─▶ Call AI (Akash ML primary, Anthropic fallback)
+   ├─▶ Call AI (OpenClaw or Anthropic) to continue work
    ├─▶ Save output to /data/continuations/
    └─▶ Log action to database
 
@@ -219,12 +217,24 @@ Critical variables for operation:
 |----------|----------|---------|
 | `CLERK_SECRET_KEY` | Yes | Authentication |
 | `DATABASE_URL` | Yes | Database connection |
-| `AKASH_ML_API_KEY` | Yes* | Primary AI (cheap inference) |
-| `ANTHROPIC_API_KEY` | No* | Fallback AI (higher quality) |
+| `ANTHROPIC_API_KEY` | Yes* | AI calls |
+| `OPENCLAW_API_URL` | No* | OpenClaw API endpoint |
+| `OPENCLAW_GATEWAY_PASSWORD` | No* | OpenClaw auth |
 
-*At least one AI provider must be configured.
+*Either Anthropic or OpenClaw must be configured.
 
 See `.env.example` for full list with descriptions.
+
+## OpenClaw Integration Status
+
+**Current Status**: In Progress
+
+OpenClaw is an external AI orchestration service. The integration:
+- ✅ Shared AI client created (`orchestration/lib/ai-client.mjs`)
+- ✅ Fallback to Anthropic when OpenClaw unavailable
+- ⏳ Full OpenClaw workflow integration (Royce)
+
+**For Royce**: See `docs/PERSON3_OPENCLAW.md` for detailed integration guide.
 
 ## Running the System
 
@@ -248,6 +258,20 @@ node orchestration/nightshift-daemon.mjs --test
 - `GET /api/actions` - Activity feed
 - `GET /api/drafts` - Draft review
 - `GET /api/daemon/status` - Daemon status
+- `GET /api/internal/dev/consistency` - Unified priority + metadata consistency checks (dev)
+
+### Consistency Guardrails
+
+NightShift includes a dev consistency checker used in QA and beta hardening:
+- Focus list cap and handoff list cap enforcement
+- Focus/Handoff overlap detection
+- Suggested automation block count sanity
+- Native destination metadata schema checks on Action/Draft JSON (`externalUrl`, `provider`, `kind`)
+
+CLI:
+```bash
+npm run consistency:check
+```
 
 ## Troubleshooting
 
@@ -259,10 +283,10 @@ node orchestration/nightshift-daemon.mjs --test
 - Actions are created by orchestration scripts
 - Check daemon logs in `/data/logs/`
 
-### "AI not working"
-- Verify `AKASH_ML_API_KEY` in `.env`
-- Check logs for "[ai-client] Akash ML failed" messages
-- System will fallback to Anthropic if Akash ML fails
+### "OpenClaw not working"
+- Verify `OPENCLAW_API_URL` and `OPENCLAW_GATEWAY_PASSWORD` in `.env`
+- System will fallback to Anthropic if OpenClaw fails
+- Check logs for "[ai-client] OpenClaw failed" messages
 
 ### "Voice profile not matching"
 - Ensure user has enough chat history (10+ messages)
