@@ -11,7 +11,7 @@ const slideLeft = {
     opacity: 1,
     x: 0,
     rotateY: 0,
-    transition: { duration: 0.85, ease: [0.16, 1, 0.3, 1] },
+    transition: { duration: 0.85, ease: [0.16, 1, 0.3, 1] as [number, number, number, number] },
   },
 };
 
@@ -26,7 +26,7 @@ const vaultReveal = {
     opacity: 1,
     rotateY: 0,
     x: 0,
-    transition: { duration: 0.8, ease: [0.16, 1, 0.3, 1] },
+    transition: { duration: 0.8, ease: [0.16, 1, 0.3, 1] as [number, number, number, number] },
   },
 };
 

@@ -88,7 +88,7 @@ export function ScrollSection({
       animate={inView ? 'visible' : 'hidden'}
       transition={{
         duration: 0.8,
-        ease: [0.16, 1, 0.3, 1],
+        ease: [0.16, 1, 0.3, 1] as [number, number, number, number],
         delay,
       }}
     >
@@ -114,7 +114,7 @@ export function ScrollChild({
       variants={variants[variant]}
       transition={{
         duration: 0.7,
-        ease: [0.16, 1, 0.3, 1],
+        ease: [0.16, 1, 0.3, 1] as [number, number, number, number],
         delay,
       }}
     >
