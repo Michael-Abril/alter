@@ -6,11 +6,12 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Forward, LayoutDashboard, FileEdit, ScrollText, Settings } from 'lucide-react';
+import { Forward, LayoutDashboard, FileEdit, ScrollText, Settings, MessageSquare } from 'lucide-react';
 import { AlterWordmark } from '@/components/brand/AlterLogo';
 
 const navItems = [
   { href: '/dashboard', label: 'Morning brief', icon: LayoutDashboard },
+  { href: '/dashboard/chat', label: 'Chat with Alter', icon: MessageSquare },
   { href: '/dashboard/drafts', label: 'Draft review', icon: FileEdit },
   { href: '/dashboard/handoff', label: 'Handoff', icon: Forward },
   { href: '/dashboard/activity', label: 'Activity', icon: ScrollText },
