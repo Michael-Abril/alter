@@ -11,15 +11,19 @@ import { apiSuccess, apiError } from '@/lib/utils';
 import db from '@/lib/db';
 import { tryAuthUser, resolveUserForClerkId } from '@/lib/clerk-user';
 
-// GET: List all pending drafts for the authenticated user
-export async function GET() {
+// GET: List drafts for the authenticated user (?status=pending for Draft review queue)
+export async function GET(req: NextRequest) {
   try {
     const authResult = await tryAuthUser();
     if (!authResult.ok) return authResult.response;
     const { user } = authResult;
 
+    const status = req.nextUrl.searchParams.get('status');
     const drafts = await db.draft.findMany({
-      where: { userId: user.id },
+      where: {
+        userId: user.id,
+        ...(status ? { status } : {}),
+      },
       orderBy: { createdAt: 'desc' },
     });
 

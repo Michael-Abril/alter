@@ -8,7 +8,7 @@
 import { NextRequest } from 'next/server';
 import { auth } from '@clerk/nextjs/server';
 import { apiSuccess, apiError } from '@/lib/utils';
-import { validateCredentials, saveCanvasConfig } from '@/lib/canvas';
+import { normalizeCanvasDomain, validateCredentials, saveCanvasConfig } from '@/lib/canvas';
 import db from '@/lib/db';
 
 // POST: Connect Canvas account
@@ -24,9 +24,9 @@ export async function POST(req: NextRequest) {
       return apiError('Missing token or domain', 400);
     }
 
-    // Validate domain format
-    if (!domain.includes('.') || domain.includes('http')) {
-      return apiError('Invalid domain format. Use format: school.instructure.com', 400);
+    const host = normalizeCanvasDomain(domain);
+    if (!host.includes('.') || host.includes('http')) {
+      return apiError('Invalid domain format. Use hostname only: school.instructure.com', 400);
     }
 
     // Find user
@@ -36,7 +36,7 @@ export async function POST(req: NextRequest) {
     console.log(`[canvas/connect] Validating credentials for user ${user.id}...`);
 
     // Validate credentials by attempting to fetch user profile
-    const config = { token, domain };
+    const config = { token, domain: host };
     const isValid = await validateCredentials(config);
 
     if (!isValid) {
@@ -51,7 +51,7 @@ export async function POST(req: NextRequest) {
     return apiSuccess({
       success: true,
       message: 'Canvas account connected successfully',
-      domain,
+      domain: host,
     });
   } catch (error) {
     console.error('[canvas/connect] Error:', error);

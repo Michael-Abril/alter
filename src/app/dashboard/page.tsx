@@ -18,15 +18,16 @@ import OtherActiveWork from '@/components/dashboard/OtherActiveWork';
 import MorningBriefCard from '@/components/dashboard/MorningBriefCard';
 import DashboardCompletionBanner from '@/components/dashboard/DashboardCompletionBanner';
 import RecentAlterActions from '@/components/dashboard/RecentAlterActions';
+import DevConsistencyPanel from '@/components/dashboard/DevConsistencyPanel';
 import db from '@/lib/db';
 import { getCachedDashboardUser } from '@/lib/clerk-user';
 import { displayFirstName } from '@/lib/display-name';
-import { generateMorningBriefNarrative } from '@/lib/morning-brief-haiku';
 import {
   isDeliverableCompletedProject,
   deliverableKindFromProjectContext,
   isHandoffEligible,
 } from '@/lib/project-deliverable';
+import { parsePriorityContext } from '@/lib/priority-context';
 import { buildMorningBriefWelcomeLine, buildFocusDashboard } from '@/lib/tasks-focus';
 import { buildTodayTasks, type TodayTask } from '@/lib/tasks-today';
 
@@ -52,6 +53,7 @@ function parseProjectContext(rawContext: string | null): Record<string, unknown>
 }
 
 export default async function DashboardPage() {
+  const demoMode = process.env.NEXT_PUBLIC_DEMO_MODE === 'true';
   const { userId } = await auth();
   if (typeof userId !== 'string' || userId.length === 0) redirect('/sign-in');
 
@@ -183,7 +185,8 @@ export default async function DashboardPage() {
       context: p.context,
       lastActive: p.lastActive,
       progress: p.progress,
-    }))
+    })),
+    parsePriorityContext(user.priorityContext)
   );
 
   const clerkUser = await currentUser();
@@ -199,7 +202,9 @@ export default async function DashboardPage() {
     dueDate: t.dueDate,
     source: t.source,
   }));
-  const narrative = await generateMorningBriefNarrative(rawForBrief);
+  const narrative = process.env.DASHBOARD_SHOW_NARRATIVE === 'true'
+    ? `You have ${rawForBrief.length} active signals today — focus on the top priorities first.`
+    : '';
 
   const sevenDaysAgo = new Date();
   sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
@@ -217,6 +222,7 @@ export default async function DashboardPage() {
     app: string;
     type: string;
     createdAt: Date;
+    metadata: string | null;
   }[] = [];
   let actionsThisWeek = 0;
   try {
@@ -232,6 +238,7 @@ export default async function DashboardPage() {
           app: true,
           type: true,
           createdAt: true,
+          metadata: true,
         },
       }),
       db.action.count({
@@ -247,10 +254,10 @@ export default async function DashboardPage() {
     recentlyFinishedDeliverables.length > 0 || actionsThisWeek > 0;
   const completionBannerMessage =
     recentlyFinishedDeliverables.length > 0 && actionsThisWeek > 0
-      ? `Alter continued ${recentlyFinishedDeliverables.length} deliverable${recentlyFinishedDeliverables.length !== 1 ? 's' : ''} and recorded ${actionsThisWeek} action${actionsThisWeek !== 1 ? 's' : ''} this week.`
+      ? `${recentlyFinishedDeliverables.length} deliverable${recentlyFinishedDeliverables.length !== 1 ? 's' : ''} continued, ${actionsThisWeek} action${actionsThisWeek !== 1 ? 's' : ''} logged this week.`
       : recentlyFinishedDeliverables.length > 0
-        ? `Alter continued ${recentlyFinishedDeliverables.length} deliverable${recentlyFinishedDeliverables.length !== 1 ? 's' : ''} while you were away.`
-        : `Alter recorded ${actionsThisWeek} action${actionsThisWeek !== 1 ? 's' : ''} this week — see Activity for drafts, continuations, and overnight runs.`;
+        ? `${recentlyFinishedDeliverables.length} deliverable${recentlyFinishedDeliverables.length !== 1 ? 's' : ''} continued while you were away.`
+        : `${actionsThisWeek} action${actionsThisWeek !== 1 ? 's' : ''} logged this week.`;
 
   const completedActions = completedDeliverables.map((p) => {
     const ctx = parseProjectContext(p.context);
@@ -313,49 +320,68 @@ export default async function DashboardPage() {
               <DashboardCompletionBanner bannerId={bannerId} message={completionBannerMessage} />
             )}
 
-            <MorningBriefCard welcomeLine={welcomeLine} narrative={narrative} />
+            {!demoMode && process.env.NODE_ENV !== 'production' && <DevConsistencyPanel />}
 
-            {recentAlterActions.length > 0 && (
-              <RecentAlterActions
-                actions={recentAlterActions.map((a) => ({
-                  ...a,
-                  createdAt: a.createdAt.toISOString(),
-                }))}
-              />
-            )}
+            <MorningBriefCard welcomeLine={welcomeLine} narrative={narrative} />
 
             <TodaysFocus items={focusDashboard.focusItems} />
 
             <SuggestedAutomations items={focusDashboard.suggestedAutomations} />
 
-            <OtherActiveWork grouped={focusDashboard.grouped} />
+            {demoMode ? (
+              <section className="rounded-xl border border-nightshift-border/60 bg-nightshift-bg-card/30 px-5 py-5 md:px-6">
+                <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-nightshift-text-muted">Next</p>
+                <h2 className="mt-1 font-display text-xl font-bold text-nightshift-text-primary">Delegate with Handoff</h2>
+                <p className="mt-2 text-sm text-nightshift-text-secondary">
+                  Focus on your top items. Alter can handle the rest.
+                </p>
+                <a href="/dashboard/handoff" className="btn-primary mt-4 inline-flex items-center gap-2">
+                  Open Handoff →
+                </a>
+              </section>
+            ) : (
+            <details className="rounded-xl border border-nightshift-border/60 bg-nightshift-bg-card/30">
+              <summary className="cursor-pointer px-5 py-4 text-sm font-medium text-nightshift-text-secondary md:px-6">
+                More
+              </summary>
+              <div className="space-y-6 px-5 pb-5 md:px-6 md:pb-6">
+                {recentAlterActions.length > 0 && (
+                  <RecentAlterActions
+                    actions={recentAlterActions.map((a) => ({
+                      ...a,
+                      createdAt: a.createdAt.toISOString(),
+                    }))}
+                  />
+                )}
 
-            <section className="rounded-xl border border-nightshift-border/60 bg-nightshift-bg-card/30 px-5 py-5 md:px-6">
-              <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-nightshift-text-muted">Alter knows</p>
-              <h2 className="mt-1 font-display text-xl font-bold text-nightshift-text-primary md:text-2xl">Your landscape</h2>
-              <p className="mt-2 text-sm leading-relaxed text-nightshift-text-secondary">
-                {activeDeliverableCount} active deliverable{activeDeliverableCount !== 1 ? 's' : ''} · {upcomingDeadlineCount}{' '}
-                upcoming deadline{upcomingDeadlineCount !== 1 ? 's' : ''} this week · {inboxApprox} inbox thread
-                {inboxApprox !== 1 ? 's' : ''} indexed
-              </p>
-            </section>
+                <OtherActiveWork grouped={focusDashboard.grouped} />
 
-            {pendingDrafts > 0 && (
-              <a href="/dashboard/drafts" className="card block border-nightshift-warning/30 transition-colors hover:border-nightshift-warning/60">
-                <div className="flex items-center gap-3">
-                  <span className="flex h-10 w-10 items-center justify-center rounded-xl border border-nightshift-border bg-nightshift-bg-light text-nightshift-highlight">
-                    <FileEdit className="h-5 w-5" strokeWidth={1.75} aria-hidden />
-                  </span>
-                  <div>
-                    <span className="font-medium text-nightshift-text-primary">{pendingDrafts} draft{pendingDrafts > 1 ? 's' : ''} awaiting review</span>
-                    <p className="text-xs text-nightshift-text-muted">Alter drafted these — review and approve</p>
-                  </div>
-                </div>
-              </a>
-            )}
+                <section className="rounded-xl border border-nightshift-border/60 bg-nightshift-bg-card/30 px-5 py-5 md:px-6">
+                  <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-nightshift-text-muted">Alter knows</p>
+                  <h2 className="mt-1 font-display text-xl font-bold text-nightshift-text-primary md:text-2xl">Your landscape</h2>
+                  <p className="mt-2 text-sm leading-relaxed text-nightshift-text-secondary">
+                    {activeDeliverableCount} active deliverable{activeDeliverableCount !== 1 ? 's' : ''} · {upcomingDeadlineCount}{' '}
+                    upcoming deadline{upcomingDeadlineCount !== 1 ? 's' : ''} this week · {inboxApprox} inbox thread
+                    {inboxApprox !== 1 ? 's' : ''} indexed
+                  </p>
+                </section>
 
-            <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-              <div className="card">
+                {pendingDrafts > 0 && (
+                  <a href="/dashboard/drafts" className="card block border-nightshift-warning/30 transition-colors hover:border-nightshift-warning/60">
+                    <div className="flex items-center gap-3">
+                      <span className="flex h-10 w-10 items-center justify-center rounded-xl border border-nightshift-border bg-nightshift-bg-light text-nightshift-highlight">
+                        <FileEdit className="h-5 w-5" strokeWidth={1.75} aria-hidden />
+                      </span>
+                      <div>
+                        <span className="font-medium text-nightshift-text-primary">{pendingDrafts} draft{pendingDrafts > 1 ? 's' : ''} awaiting review</span>
+                        <p className="text-xs text-nightshift-text-muted">Alter drafted these — review and approve</p>
+                      </div>
+                    </div>
+                  </a>
+                )}
+
+                <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+                  <div className="card">
                 <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-nightshift-text-muted">Calendar</p>
                 <h2 className="mt-1 mb-4 font-display text-lg font-bold text-nightshift-text-primary">Upcoming events</h2>
                 {upcomingEvents.length > 0 ? (
@@ -428,36 +454,38 @@ export default async function DashboardPage() {
               </div>
             </div>
 
-            {/* Completed & Flagged */}
-            <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-              {completedActions.length > 0 ? (
-                <CompletedActions actions={completedActions} />
-              ) : (
-                <div className="card rounded-xl p-5 md:p-6">
-                  <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-nightshift-text-muted">
-                    Recently completed
-                  </p>
-                  <h2 className="mt-1 font-display text-xl font-bold text-nightshift-text-primary">Deliverables</h2>
-                  <p className="mt-2 text-sm text-nightshift-text-muted">
-                    {recentAlterActions.length > 0
-                      ? 'No completed deliverable projects yet — Alter activity from the overnight loop and drafts appears in Activity and above.'
-                      : 'No completed deliverables yet — finished academic, code, or doc work shows here.'}
-                  </p>
+                <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+                  {completedActions.length > 0 ? (
+                    <CompletedActions actions={completedActions} />
+                  ) : (
+                    <div className="card rounded-xl p-5 md:p-6">
+                      <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-nightshift-text-muted">
+                        Recently completed
+                      </p>
+                      <h2 className="mt-1 font-display text-xl font-bold text-nightshift-text-primary">Deliverables</h2>
+                      <p className="mt-2 text-sm text-nightshift-text-muted">
+                        {recentAlterActions.length > 0
+                          ? 'No completed deliverable projects yet — Alter activity from the overnight loop and drafts appears in Activity and above.'
+                          : 'No completed deliverables yet — finished academic, code, or doc work shows here.'}
+                      </p>
+                    </div>
+                  )}
+                  {flaggedItems.length > 0 ? (
+                    <FlaggedItems items={flaggedItems} />
+                  ) : (
+                    <div className="card border-nightshift-success/20">
+                      <h2 className="mb-4 text-sm font-medium uppercase tracking-wider text-nightshift-success">
+                        All Clear
+                      </h2>
+                      <p className="text-sm text-nightshift-text-muted">
+                        No stalled projects. Everything looks good!
+                      </p>
+                    </div>
+                  )}
                 </div>
-              )}
-              {flaggedItems.length > 0 ? (
-                <FlaggedItems items={flaggedItems} />
-              ) : (
-                <div className="card border-nightshift-success/20">
-                  <h2 className="mb-4 text-sm font-medium uppercase tracking-wider text-nightshift-success">
-                    All Clear
-                  </h2>
-                  <p className="text-sm text-nightshift-text-muted">
-                    No stalled projects. Everything looks good!
-                  </p>
-                </div>
-              )}
-            </div>
+              </div>
+            </details>
+            )}
           </div>
         </main>
       </div>

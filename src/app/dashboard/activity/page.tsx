@@ -17,6 +17,7 @@ import { timeAgo } from '@/lib/utils';
 import type { Action } from '@/types';
 import { Loader2 } from 'lucide-react';
 import { isUserNotFoundResponse } from '@/lib/dashboard-client-guard';
+import { linkLabel, parseWorkMetadata } from '@/lib/work-destination';
 
 export default function ActivityPage() {
   const router = useRouter();
@@ -132,49 +133,74 @@ export default function ActivityPage() {
                         {action.description}
                       </p>
                     )}
-                    {action.metadata && (() => {
-                      try {
-                        const meta = typeof action.metadata === 'string' ? JSON.parse(action.metadata) : action.metadata;
-                        return (
-                          <div className="mt-2 space-y-1">
-                            {meta.prUrl && (
-                              <a
-                                href={meta.prUrl}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="inline-flex items-center gap-1 text-xs px-2 py-1 rounded bg-nightshift-success/10 text-nightshift-success hover:bg-nightshift-success/20 transition-colors"
+                    {(() => {
+                      const meta = parseWorkMetadata(action.metadata);
+                      if (!meta) return null;
+                      const prSkip =
+                        typeof meta.prSkipReason === 'string' ? meta.prSkipReason : '';
+                      const outputFsPath =
+                        typeof meta.filePath === 'string'
+                          ? meta.filePath
+                          : typeof meta.outputPath === 'string'
+                            ? meta.outputPath
+                            : '';
+                      const destinationStatus =
+                        typeof meta.destinationStatus === 'string' ? meta.destinationStatus : '';
+                      const destinationNote =
+                        typeof meta.destinationNote === 'string' ? meta.destinationNote : '';
+                      return (
+                        <div className="mt-2 space-y-1">
+                          {meta.externalUrl ? (
+                            <a
+                              href={meta.externalUrl}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="inline-flex items-center gap-1 text-xs px-2 py-1 rounded bg-nightshift-success/10 text-nightshift-success hover:bg-nightshift-success/20 transition-colors"
+                            >
+                              🔗 {linkLabel(meta)}
+                            </a>
+                          ) : null}
+                          {typeof meta.submissionUrl === 'string' && meta.submissionUrl.length > 0 ? (
+                            <a
+                              href={meta.submissionUrl}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="inline-flex items-center gap-1 text-xs px-2 py-1 rounded bg-nightshift-accent/10 text-nightshift-accent hover:bg-nightshift-accent/20 transition-colors"
+                            >
+                              Open submission
+                            </a>
+                          ) : null}
+                          {prSkip ? (
+                            <div className="text-xs text-nightshift-warning">
+                              {prSkip === 'missing_token' && 'GitHub not connected — connect GitHub in Settings.'}
+                              {prSkip === 'missing_default_repo' && 'No default repo configured in Settings.'}
+                              {prSkip.startsWith('push_failed') &&
+                                `GitHub push failed: ${prSkip.replace('push_failed: ', '')}`}
+                            </div>
+                          ) : null}
+                          {outputFsPath ? (
+                            <div className="flex items-center gap-2">
+                              <button
+                                onClick={() => {
+                                  navigator.clipboard.writeText(outputFsPath);
+                                }}
+                                className="text-xs px-2 py-1 rounded bg-nightshift-accent/10 text-nightshift-accent hover:bg-nightshift-accent/20 transition-colors"
                               >
-                                🔗 View Pull Request
-                              </a>
-                            )}
-                            {meta.prSkipReason && (
-                              <div className="text-xs text-nightshift-warning">
-                                {meta.prSkipReason === 'missing_token' && '⚠ GitHub not connected — connect GitHub in Settings to auto-create PRs'}
-                                {meta.prSkipReason === 'missing_default_repo' && '⚠ No default repo set — configure a default repo in Settings'}
-                                {meta.prSkipReason?.startsWith('push_failed') && `⚠ GitHub push failed: ${meta.prSkipReason.replace('push_failed: ', '')}`}
-                              </div>
-                            )}
-                            {(meta.filePath || meta.outputPath) && (
-                              <div className="flex items-center gap-2">
-                                <button
-                                  onClick={() => {
-                                    navigator.clipboard.writeText(meta.filePath || meta.outputPath);
-                                    alert('File path copied to clipboard!');
-                                  }}
-                                  className="text-xs px-2 py-1 rounded bg-nightshift-accent/10 text-nightshift-accent hover:bg-nightshift-accent/20 transition-colors"
-                                >
-                                  📁 Copy File Path
-                                </button>
-                                <span className="text-xs text-nightshift-text-muted truncate max-w-md">
-                                  {meta.filePath || meta.outputPath}
-                                </span>
-                              </div>
-                            )}
-                          </div>
-                        );
-                      } catch (e) {
-                        return null;
-                      }
+                                Copy File Path
+                              </button>
+                              <span className="text-xs text-nightshift-text-muted truncate max-w-md">
+                                {outputFsPath}
+                              </span>
+                            </div>
+                          ) : null}
+                          {destinationStatus === 'local_fallback' ? (
+                            <div className="text-xs text-nightshift-text-muted">
+                              Saved locally for this run. Connect/reconnect Google Drive to restore Open Document links.
+                              {destinationNote ? ` (${destinationNote})` : ''}
+                            </div>
+                          ) : null}
+                        </div>
+                      );
                     })()}
                     <div className="mt-2 flex items-center gap-3 text-xs text-nightshift-text-muted">
                       <span>{timeAgo(action.createdAt)}</span>

@@ -14,6 +14,19 @@ import db from '@/lib/db';
 import { tryAuthUser } from '@/lib/clerk-user';
 import { getOvernightLoopScriptPath } from '@/lib/overnight-loop-path';
 
+function parseLastMessageAt(context: string | null): number | null {
+  if (!context) return null;
+  try {
+    const c = JSON.parse(context) as Record<string, unknown>;
+    const v = c.lastMessageAt;
+    if (typeof v !== 'string') return null;
+    const t = new Date(v).getTime();
+    return Number.isFinite(t) ? t : null;
+  } catch {
+    return null;
+  }
+}
+
 // GET: Return unfinished tasks detected for the user
 export async function GET() {
   try {
@@ -21,12 +34,18 @@ export async function GET() {
     if (!authResult.ok) return authResult.response;
     const { user } = authResult;
 
+    const freshnessCutoff = Date.now() - 21 * 24 * 60 * 60 * 1000;
     const projects = await db.project.findMany({
       where: { userId: user.id, status: 'in_progress' },
       orderBy: { lastActive: 'desc' },
     });
 
-    const tasks = projects.map((p) => {
+    const tasks = projects
+      .filter((p) => {
+        const evidence = parseLastMessageAt(p.context) ?? p.lastActive.getTime();
+        return evidence >= freshnessCutoff;
+      })
+      .map((p) => {
       const ctx = p.context ? JSON.parse(p.context) : {};
       return {
         id: p.id,
@@ -37,7 +56,7 @@ export async function GET() {
         estimatedConfidence: p.progress / 100,
         selected: false,
       };
-    });
+      });
 
     return apiSuccess(tasks);
   } catch (e) {
@@ -56,11 +75,18 @@ export async function POST(req: NextRequest) {
     const body = await req.json();
     const { projectIds, instructions } = body;
 
-    if (!projectIds || !Array.isArray(projectIds) || projectIds.length === 0) {
-      return apiError('No projects selected for handoff', 400);
+    const ids = Array.isArray(projectIds)
+      ? projectIds.filter((id: unknown): id is string => typeof id === 'string' && id.length > 0)
+      : [];
+    const instr = typeof instructions === 'string' ? instructions.trim() : '';
+
+    if (ids.length === 0 && !instr) {
+      return apiError('Select at least one project or Canvas assignment, or add instructions for the run', 400);
     }
 
-    console.log(`[handoff] Triggering overnight loop for user ${user.id} with ${projectIds.length} projects`);
+    console.log(
+      `[handoff] Triggering overnight loop for user ${user.id} — ${ids.length} project(s), instructions ${instr ? 'yes' : 'no'}`
+    );
 
     const { spawn } = await import('child_process');
     const pathMod = await import('path');
@@ -73,15 +99,15 @@ export async function POST(req: NextRequest) {
 
     fsMod.writeFileSync(runStatusPath, JSON.stringify({
       state: 'running',
-      projectIds,
+      projectIds: ids,
       startedAt: new Date().toISOString(),
-      projectsQueued: projectIds.length,
+      projectsQueued: ids.length,
     }, null, 2));
 
     const loopArgs = [
       scriptPath,
       `--user-id=${user.id}`,
-      `--project-ids=${projectIds.join(',')}`,
+      `--project-ids=${ids.join(',')}`,
       '--skip-confirmation',
     ];
 
@@ -108,7 +134,7 @@ export async function POST(req: NextRequest) {
     return apiSuccess({
       success: true,
       message: 'Overnight run activated',
-      projectsQueued: projectIds.length,
+      projectsQueued: ids.length,
       processId: child.pid,
       estimatedCompletion: 'Check morning brief for results',
     });

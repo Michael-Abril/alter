@@ -19,10 +19,12 @@ import {
   type OnboardingSyncStatus,
 } from '@/lib/onboarding-sync';
 import { enqueueSyncJob } from '@/lib/sync-queue';
+import { detectProjectsForUser } from '@/lib/detect-projects-inline';
+import { buildVoiceProfileForUser } from '@/lib/voice-profile-builder';
 
 const execAsync = promisify(exec);
 const ONBOARDING_LOOKBACK_DAYS = 3;
-const ONBOARDING_MAX_CONVERSATIONS = 8;
+const ONBOARDING_MAX_CONVERSATIONS = 20;
 let playwrightInstallPromise: Promise<void> | null = null;
 
 async function ensurePlaywrightChromiumInstalled() {
@@ -52,6 +54,10 @@ export async function POST(req: NextRequest) {
     if (contentType.includes('application/json')) {
       const body = await req.json().catch(() => ({}));
       const lookbackDays = Math.max(1, Math.min(30, Number(body?.days) || ONBOARDING_LOOKBACK_DAYS));
+      const maxConversations = Math.max(
+        5,
+        Math.min(40, Number(body?.maxConversations) || ONBOARDING_MAX_CONVERSATIONS)
+      );
       const resetProfile = Boolean(body?.resetProfile);
       const headless = body?.headless !== undefined ? Boolean(body.headless) : true;
       const existing = readSyncStatus(userId, 'chatgpt');
@@ -80,7 +86,7 @@ export async function POST(req: NextRequest) {
       const cmd =
         `node orchestration/scrape-chatgpt.mjs ` +
         `--user=${userId} ` +
-        `--max=${ONBOARDING_MAX_CONVERSATIONS} ` +
+        `--max=${maxConversations} ` +
         `--since-days=${lookbackDays}` +
         (headless ? ' --headless' : '') +
         (resetProfile ? ' --reset-profile' : '');
@@ -136,6 +142,19 @@ export async function POST(req: NextRequest) {
           });
           if (!needsAuth && !noConversations) {
             writeLastSyncedAt(userId, 'chatgpt', new Date().toISOString());
+            // Keep Morning Brief / Today Focus fresh after chat re-sync.
+            try {
+              const dbUser = await db.user.findUnique({ where: { clerkId: userId } });
+              if (dbUser) {
+                await detectProjectsForUser(dbUser.id, {
+                  sinceDays: Math.max(lookbackDays, 7),
+                  maxConversations: 30,
+                });
+                await buildVoiceProfileForUser({ clerkId: userId, sampleLimit: 80 });
+              }
+            } catch (refreshErr) {
+              console.warn('[onboarding/import-chatgpt] Post-sync refresh warning:', refreshErr);
+            }
           }
         })
         .catch((err: any) => {

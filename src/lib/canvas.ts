@@ -21,6 +21,64 @@ export interface CanvasConfig {
   domain: string; // e.g., "babson.instructure.com"
 }
 
+/**
+ * Hostname only — strips https://, paths, and trailing slashes so API URLs are valid.
+ * Users often paste a full Canvas URL; without this, requests hit `https://https://...`.
+ */
+export function normalizeCanvasDomain(raw: string): string {
+  let d = raw.trim();
+  d = d.replace(/^https?:\/\//i, '');
+  const slash = d.indexOf('/');
+  if (slash !== -1) d = d.slice(0, slash);
+  d = d.replace(/:\d+$/, '');
+  return d.replace(/\.+$/, '').toLowerCase();
+}
+
+/**
+ * Hostnames to try when validating Canvas API access. Many schools use a vanity URL
+ * (e.g. canvas.babson.edu) for the web UI, but the REST API lives on Canvas Cloud:
+ * babson.instructure.com. Without the Instructure host, /api/v1/... may return HTML.
+ */
+export function canvasHostCandidates(normalizedHost: string): string[] {
+  const seen = new Set<string>();
+  const out: string[] = [];
+  const push = (h: string) => {
+    if (!h || seen.has(h)) return;
+    seen.add(h);
+    out.push(h);
+  };
+
+  if (normalizedHost.endsWith('.instructure.com')) {
+    push(normalizedHost);
+    return out;
+  }
+
+  const m = /^canvas\.([a-z0-9-]+)\.([a-z0-9.-]+)$/i.exec(normalizedHost);
+  if (m && m[1].toLowerCase() !== 'instructure') {
+    // Prefer Cloud API host first; vanity canvas.school.edu often returns HTML for /api/v1.
+    push(`${m[1].toLowerCase()}.instructure.com`);
+    push(normalizedHost);
+    return out;
+  }
+
+  push(normalizedHost);
+  return out;
+}
+
+/** True if body looks like JSON (avoids parsing HTML error pages as JSON). */
+export function tryParseCanvasJson(text: string): Record<string, unknown> | null {
+  const t = text.trimStart();
+  if (!t.startsWith('{') && !t.startsWith('[')) return null;
+  try {
+    const v = JSON.parse(text) as unknown;
+    return v !== null && typeof v === 'object' && !Array.isArray(v)
+      ? (v as Record<string, unknown>)
+      : null;
+  } catch {
+    return null;
+  }
+}
+
 interface CanvasConfigFile {
   [userId: string]: CanvasConfig;
 }

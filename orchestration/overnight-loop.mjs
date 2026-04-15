@@ -195,6 +195,7 @@ export async function runOvernightLoop(config, options = {}) {
   const startTime = Date.now();
   const results = {
     projectsContinued: [],
+    canvasPrepResults: [],
     emailsDrafted: [],
     flaggedItems: [],
     errors: [],
@@ -248,10 +249,41 @@ export async function runOvernightLoop(config, options = {}) {
   }
   console.log('');
 
-  // ─── Step 1: Continue work on each project ──────────────────────────────────
+  // ─── Step 1: Canvas assignment prep (when handoff lists Canvas lines) — before projects/emails so budget applies
 
   console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-  console.log('📂 STEP 1: Project Continuation');
+  console.log('🎓 STEP 1: Canvas Assignment Prep');
+  console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+  console.log('');
+
+  try {
+    const { runCanvasAssignmentPrep } = await import('./canvas-assignment-prep.mjs');
+    const canvasPrep = await runCanvasAssignmentPrep(resolvedUserId, instructions || '', {
+      apiUrl,
+      spentUsdCap: () => results.stats.spentUsd >= RUN_BUDGET_USD - 1e-9,
+    });
+
+    if (canvasPrep.spentUsd > 0) {
+      results.stats.spentUsd += canvasPrep.spentUsd;
+      const estIn = Math.floor(canvasPrep.tokensUsed * 0.3);
+      const estOut = Math.floor(canvasPrep.tokensUsed * 0.7);
+      results.stats.inputTokens += estIn;
+      results.stats.outputTokens += estOut;
+      results.stats.totalTokensUsed += canvasPrep.tokensUsed;
+      results.stats.filesGenerated += canvasPrep.results.filter((r) => r.ok).length;
+    }
+
+    results.canvasPrepResults = canvasPrep.results.filter((r) => r.ok);
+  } catch (err) {
+    console.error(`   ❌ Canvas prep error: ${err.message}`);
+    results.errors.push({ type: 'canvas_prep', error: err.message });
+  }
+  console.log('');
+
+  // ─── Step 2: Continue work on each project ──────────────────────────────────
+
+  console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+  console.log('📂 STEP 2: Project Continuation');
   console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
   console.log('');
 
@@ -437,10 +469,10 @@ export async function runOvernightLoop(config, options = {}) {
     }
   }
 
-  // ─── Step 2: Draft replies for incoming emails ──────────────────────────────
+  // ─── Step 3: Draft replies for incoming emails ──────────────────────────────
 
   console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-  console.log('📧 STEP 2: Email Draft Generation');
+  console.log('📧 STEP 3: Email Draft Generation');
   console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
   console.log('');
 
@@ -537,7 +569,7 @@ export async function runOvernightLoop(config, options = {}) {
   // ─── Step 3: Check for flagged items ────────────────────────────────────────
 
   console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-  console.log('🚩 STEP 3: Flagged Items Check');
+  console.log('🚩 STEP 4: Flagged Items Check');
   console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
   console.log('');
 
@@ -572,10 +604,13 @@ export async function runOvernightLoop(config, options = {}) {
 
   const endTime = Date.now();
   results.stats.duration = Math.round((endTime - startTime) / 1000);
-  results.stats.totalActions = results.projectsContinued.length + results.emailsDrafted.length;
+  results.stats.totalActions =
+    results.projectsContinued.length +
+    results.emailsDrafted.length +
+    (results.canvasPrepResults?.length || 0);
 
   console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-  console.log('📊 STEP 4: Morning Brief Generation');
+  console.log('📊 STEP 5: Morning Brief Generation');
   console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
   console.log('');
 
@@ -648,6 +683,7 @@ function writeRunStatus(state, results = null, briefPath = null, progress = null
     }
     if (results) {
       payload.projectsContinued = results.projectsContinued?.length || 0;
+      payload.canvasPrepDrafts = results.canvasPrepResults?.length || 0;
       payload.emailsDrafted = results.emailsDrafted?.length || 0;
       payload.totalTokensUsed = results.stats?.totalTokensUsed || 0;
       payload.inputTokens = results.stats?.inputTokens || 0;
@@ -689,6 +725,7 @@ function generateMorningBrief(results, metadata) {
   lines.push(`While you were away, NightShift completed **${results.stats.totalActions} autonomous actions**:`);
   lines.push('');
   lines.push(`- ✅ **${results.stats.successfulProjects}** projects continued`);
+  lines.push(`- 🎓 **${results.canvasPrepResults?.length || 0}** Canvas prep drafts (Draft review)`);
   lines.push(`- 📧 **${results.stats.draftedEmails}** email drafts created`);
   lines.push(`- 🚩 **${results.flaggedItems.length}** items flagged for review`);
   lines.push(`- 🪙 **${results.stats.totalTokensUsed.toLocaleString()}** tokens used (in+out)`);
@@ -727,6 +764,15 @@ function generateMorningBrief(results, metadata) {
       lines.push(`- **File:** \`${path.basename(String(proj.outputPath || 'output'))}\``);
       lines.push('');
     }
+  }
+
+  if (results.canvasPrepResults && results.canvasPrepResults.length > 0) {
+    lines.push('## 🎓 Canvas assignment prep');
+    lines.push('');
+    for (const c of results.canvasPrepResults) {
+      lines.push(`- **${c.title}** — saved to Draft review (id \`${c.draftId}\`)`);
+    }
+    lines.push('');
   }
 
   // Email drafts
@@ -947,17 +993,21 @@ async function main() {
     process.exit(0);
   }
 
-  // Normal mode: require user ID and project IDs
-  if (!USER_ID_ARG || !PROJECT_IDS_ARG) {
+  // Normal mode: require user ID; project IDs optional (instructions-only / Canvas prep runs)
+  if (!USER_ID_ARG) {
     console.error('❌ Missing required arguments');
     console.error('');
     console.error('Usage:');
     console.error('  node overnight-loop.mjs --user-id=USER_ID --project-ids=ID1,ID2');
+    console.error('  node overnight-loop.mjs --user-id=USER_ID --project-ids=');
     console.error('  node overnight-loop.mjs --simulate');
     process.exit(1);
   }
 
-  const projectIds = PROJECT_IDS_ARG.split(',');
+  const projectIds = (PROJECT_IDS_ARG ?? '')
+    .split(',')
+    .map((s) => s.trim())
+    .filter(Boolean);
 
   const result = await runOvernightLoop({
     userId: USER_ID_ARG,

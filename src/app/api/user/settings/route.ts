@@ -12,6 +12,7 @@ import { tryAuthUser } from '@/lib/clerk-user';
 import { loadGitHubConfig } from '@/lib/github';
 import { loadCanvasConfig } from '@/lib/canvas';
 import { getDefaultOutputDirectory, setOutputDirectory } from '@/lib/output';
+import { parsePriorityContext, serializePriorityContext, type UserPriorityContext } from '@/lib/priority-context';
 
 // PATCH: Update user settings
 export async function PATCH(req: NextRequest) {
@@ -21,7 +22,7 @@ export async function PATCH(req: NextRequest) {
     const { user } = authResult;
 
     const body = await req.json();
-    const { autonomyLevel, wakeTime, boundaries, outputDirectory } = body;
+    const { autonomyLevel, wakeTime, boundaries, outputDirectory, priorityContext } = body;
 
     // Validate autonomyLevel if provided
     if (autonomyLevel !== undefined && (autonomyLevel < 0 || autonomyLevel > 3)) {
@@ -35,6 +36,14 @@ export async function PATCH(req: NextRequest) {
 
     if (outputDirectory !== undefined && (typeof outputDirectory !== 'string' || !outputDirectory.trim())) {
       return apiError('outputDirectory must be a non-empty string', 400);
+    }
+
+    if (
+      priorityContext !== undefined &&
+      priorityContext !== null &&
+      typeof priorityContext !== 'object'
+    ) {
+      return apiError('priorityContext must be an object', 400);
     }
 
     // Update user settings
@@ -110,6 +119,7 @@ export async function GET() {
       githubConnected,
       canvasConnected,
       outputDirectory: user.outputDirectory || getDefaultOutputDirectory(),
+      priorityContext: parsePriorityContext(user.priorityContext),
       boundaries: user.boundaries.map((b) => ({
         id: b.id,
         rule: b.rule,

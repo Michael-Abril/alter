@@ -13,14 +13,16 @@ import UnfinishedWork from '@/components/handoff/UnfinishedWork';
 import HandoffButton from '@/components/handoff/HandoffButton';
 import type { HandoffTask } from '@/types';
 import { isUserNotFoundResponse } from '@/lib/dashboard-client-guard';
-import {
-  MAX_HANDOFF_RECOMMENDED,
-  oneLineHandoffSummary,
-  type ProjectLike,
-} from '@/lib/handoff-recommended';
 import { CheckCircle2, ClipboardList, Loader2, XCircle } from 'lucide-react';
+import type { ScoredTask, SuggestedAutomation } from '@/lib/unified-priority';
 
-interface ProjectFromAPI extends ProjectLike {
+interface ProjectFromAPI {
+  id: string;
+  name: string;
+  description: string | null;
+  status: string;
+  progress: number;
+  lastActive: string;
   context: {
     nextStep?: string;
     keyTopics?: string[];
@@ -29,7 +31,10 @@ interface ProjectFromAPI extends ProjectLike {
   } | null;
 }
 
+const MAX_HANDOFF_RECOMMENDED = 3;
+
 export default function HandoffPage() {
+  const demoMode = process.env.NEXT_PUBLIC_DEMO_MODE === 'true';
   const router = useRouter();
   const [tasks, setTasks] = useState<HandoffTask[]>([]);
   const [loading, setLoading] = useState(true);
@@ -38,9 +43,12 @@ export default function HandoffPage() {
   const [activating, setActivating] = useState(false);
   const [activateError, setActivateError] = useState('');
   const [activateResult, setActivateResult] = useState<{ projectsQueued?: number } | null>(null);
+  const [focusTitles, setFocusTitles] = useState<string[]>([]);
+  const [suggestedAutomations, setSuggestedAutomations] = useState<SuggestedAutomation[]>([]);
   const [runStatus, setRunStatus] = useState<{
     state?: string;
     projectsContinued?: number;
+    canvasPrepDrafts?: number;
     emailsDrafted?: number;
     duration?: number;
     currentProject?: string;
@@ -94,17 +102,59 @@ export default function HandoffPage() {
 
         const data = json.data;
         const projects: ProjectFromAPI[] = data?.projects || [];
+        const focusItems: ScoredTask[] = data?.focusItems || [];
+        const handoffItems: ScoredTask[] = data?.handoffItems || [];
+        const automations: SuggestedAutomation[] = data?.suggestedAutomations || [];
+        setFocusTitles(focusItems.slice(0, 3).map((item) => item.title));
+        setSuggestedAutomations(automations.slice(0, 1));
 
-        const handoffTasks: HandoffTask[] = projects.map((p, i) => ({
-          id: p.id,
-          projectId: p.id,
-          title: p.name,
-          description: oneLineHandoffSummary(p),
-          app: 'claude',
-          estimatedConfidence: Math.min(0.95, p.progress / 100 + 0.1),
-          selected: i < MAX_HANDOFF_RECOMMENDED,
-          tier: i < MAX_HANDOFF_RECOMMENDED ? 'recommended' : 'other',
-        }));
+        const projectTaskMap = new Map(
+          projects.map((p) => [
+            p.id,
+            (p.context?.nextStep || p.description || `${p.progress}% in progress — continue the latest milestone.`)
+              .replace(/\s+/g, ' ')
+              .trim()
+              .slice(0, 100),
+          ])
+        );
+
+        const handoffForUi = handoffItems.filter(
+          (item) => item.source === 'project' || item.source === 'canvas'
+        );
+
+        const handoffTasks: HandoffTask[] = handoffForUi.map((item, i) => {
+          const tier: 'recommended' | 'other' = i < MAX_HANDOFF_RECOMMENDED ? 'recommended' : 'other';
+          if (item.source === 'canvas') {
+            const desc = (item.description || item.suggestedAction || 'Canvas assignment — prep and drafts overnight.')
+              .replace(/\s+/g, ' ')
+              .trim();
+            return {
+              id: item.id,
+              title: item.title,
+              description: desc.length > 100 ? `${desc.slice(0, 97)}…` : desc,
+              app: 'canvas',
+              estimatedConfidence: Math.min(0.95, Math.max(0.45, item.score / 100)),
+              selected: i < MAX_HANDOFF_RECOMMENDED,
+              tier,
+              handoffKind: 'canvas' as const,
+            };
+          }
+          const projectId = item.id.replace(/^project-/, '');
+          const desc =
+            projectTaskMap.get(projectId) || item.description || 'Continue the next project milestone.';
+          const short = desc.replace(/\s+/g, ' ').trim();
+          return {
+            id: projectId,
+            projectId,
+            title: item.title,
+            description: short.length > 100 ? `${short.slice(0, 97)}…` : short,
+            app: 'claude',
+            estimatedConfidence: Math.min(0.95, Math.max(0.45, item.score / 100)),
+            selected: i < MAX_HANDOFF_RECOMMENDED,
+            tier,
+            handoffKind: 'project' as const,
+          };
+        });
 
         setTasks(handoffTasks);
       } catch (err) {
@@ -128,12 +178,24 @@ export default function HandoffPage() {
     setActivating(true);
     setActivateError('');
     try {
+      const projectIds = selectedTasks
+        .filter((t) => t.handoffKind === 'project' && t.projectId)
+        .map((t) => t.projectId as string);
+      const canvasLines = selectedTasks
+        .filter((t) => t.handoffKind === 'canvas')
+        .map((t) => `- ${t.id} | ${t.title}`);
+      let instructions = specialInstructions?.trim() || '';
+      if (canvasLines.length > 0) {
+        const block = `Canvas assignments to support (outlines, drafts, prep):\n${canvasLines.join('\n')}`;
+        instructions = instructions ? `${instructions}\n\n${block}` : block;
+      }
+
       const res = await fetch('/api/handoff', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          projectIds: selectedTasks.map((t) => t.id),
-          instructions: specialInstructions || undefined,
+          projectIds,
+          instructions: instructions || undefined,
         }),
       });
       const json = await res.json();
@@ -227,8 +289,14 @@ export default function HandoffPage() {
                   <div className="mt-4 space-y-4 text-sm text-nightshift-text-secondary">
                     <div className="space-y-1">
                       <p>
-                        {runStatus.projectsContinued || 0} project(s) continued, {runStatus.emailsDrafted || 0} email
-                        draft(s) created
+                        {runStatus.projectsContinued || 0} code project(s) continued
+                        {typeof runStatus.canvasPrepDrafts === 'number' && runStatus.canvasPrepDrafts > 0
+                          ? `, ${runStatus.canvasPrepDrafts} Canvas prep draft(s) in Draft review`
+                          : ''}
+                        , {runStatus.emailsDrafted || 0} email draft(s) created
+                      </p>
+                      <p className="text-xs text-nightshift-text-muted">
+                        Canvas selections produce prep/outlines in Draft review (not counted as “projects continued”).
                       </p>
                       {runStatus.duration && <p>Duration: {runStatus.duration}s</p>}
                     </div>
@@ -269,9 +337,7 @@ export default function HandoffPage() {
                   runStatus?.state !== 'completed' &&
                   runStatus?.state !== 'error' && (
                     <p className="mt-2 text-nightshift-text-secondary">
-                      {activateResult?.projectsQueued || selectedTasks.length} project
-                      {(activateResult?.projectsQueued || selectedTasks.length) !== 1 ? 's' : ''} queued — check Activity
-                      or Drafts.
+                      Run queued — check Activity and Draft review when Alter finishes.
                     </p>
                   )}
               </div>
@@ -288,17 +354,38 @@ export default function HandoffPage() {
                   <ClipboardList className="h-9 w-9 text-nightshift-highlight" strokeWidth={1.5} aria-hidden />
                 </div>
                 <p className="text-nightshift-text-secondary">
-                  No deliverable projects in progress. Classify projects in your workspace or run the project detector.
+                  No handoff items yet. Connect Canvas in Settings, ensure projects are in progress with code/document
+                  classifications, or check back when you have email or assignment load.
                 </p>
               </div>
             ) : (
               <>
-                <h1 className="font-display text-xl font-bold text-nightshift-text-primary md:text-2xl">
-                  What should Alter work on?
-                </h1>
+                <h1 className="font-display text-xl font-bold text-nightshift-text-primary md:text-2xl">Handoff</h1>
+                <p className="text-sm text-nightshift-text-secondary">Let Alter continue while you&apos;re away.</p>
+
+                {focusTitles.length > 0 && (
+                  <section className="card border-nightshift-border/80 bg-nightshift-bg-card/70">
+                    <h2 className="text-sm font-semibold text-nightshift-text-primary">You focus on</h2>
+                    <p className="mt-2 text-sm text-nightshift-text-secondary">
+                      {focusTitles.join(', ')}
+                    </p>
+                  </section>
+                )}
+
+                {suggestedAutomations[0] && (
+                  <section className="card border-nightshift-border/80 bg-nightshift-bg-card/70">
+                    <h2 className="text-sm font-semibold text-nightshift-text-primary">
+                      Alter will handle
+                    </h2>
+                    <p className="mt-2 text-sm text-nightshift-text-secondary">
+                      {suggestedAutomations[0].headline}
+                    </p>
+                  </section>
+                )}
 
                 <UnfinishedWork tasks={tasks} onToggleTask={toggleTask} />
 
+                {!demoMode && (
                 <div className="card border-nightshift-border/80 bg-nightshift-bg-card/80">
                   <h3 className="mb-3 text-[10px] font-semibold uppercase tracking-[0.2em] text-nightshift-text-muted">
                     Special instructions
@@ -310,6 +397,7 @@ export default function HandoffPage() {
                     onChange={(e) => setSpecialInstructions(e.target.value)}
                   />
                 </div>
+                )}
 
                 {activateError && (
                   <div className="card border-nightshift-error/50 text-center">

@@ -2,7 +2,7 @@
  * Conversational morning brief — personal note styling (teal accent).
  */
 
-export default function MorningBriefCard({ welcomeLine, narrative }: { welcomeLine: string; narrative: string }) {
+export default function MorningBriefCard({ welcomeLine, narrative }: { welcomeLine: string; narrative?: string }) {
   return (
     <section
       className="rounded-xl border border-nightshift-border/60 border-l-4 border-l-teal-500/90 bg-nightshift-bg-card/80 px-5 py-5 shadow-md md:px-6 md:py-6"
@@ -12,7 +12,11 @@ export default function MorningBriefCard({ welcomeLine, narrative }: { welcomeLi
         Morning brief
       </p>
       <h2 className="mt-2 font-display text-xl font-semibold text-nightshift-text-primary md:text-2xl">{welcomeLine}</h2>
-      <p className="mt-3 max-w-[52ch] text-sm leading-relaxed text-nightshift-text-secondary md:text-[15px]">{narrative}</p>
+      {narrative ? (
+        <p className="mt-3 max-w-[52ch] text-sm leading-relaxed text-nightshift-text-secondary md:text-[15px]">
+          {narrative}
+        </p>
+      ) : null}
     </section>
   );
 }

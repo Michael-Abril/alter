@@ -129,7 +129,11 @@ export async function persistContinuationOutput(project, content, tokensUsed, op
   }
 
   await logAction(normalizedProject, outputPath, tokensUsed, apiUrl, prUrl, prSkipReason, options.logMetadata);
-  return { success: true, outputPath, content, tokensUsed, prUrl };
+  const resolvedOutputPath =
+    outputPath && typeof outputPath === 'object' && typeof outputPath.outputPath === 'string'
+      ? outputPath.outputPath
+      : outputPath;
+  return { success: true, outputPath: resolvedOutputPath, content, tokensUsed, prUrl };
 }
 
 export async function continueWork(project, options = {}) {
@@ -510,6 +514,42 @@ async function saveContinuation(project, content) {
   
   // Document and academic projects: save as .docx
   if (classification === 'document_build' || classification === 'academic_deliverable') {
+    let driveCreateDocError = null;
+    // Try native Google Doc first (when user has Drive connected).
+    try {
+      const docRes = await fetch(`${API_BASE_URL}/api/drive/create-doc`, {
+        method: 'POST',
+        headers: actionsPostHeaders(),
+        body: JSON.stringify({
+          userId: project.userId,
+          title: project.name,
+          content,
+          projectId: project.id,
+        }),
+      });
+      if (docRes.ok) {
+        const docJson = await docRes.json();
+        const docUrl = docJson?.data?.docUrl;
+        if (typeof docUrl === 'string' && docUrl.length > 0) {
+          return {
+            outputPath: docUrl,
+            destinationMeta: {
+              provider: 'drive',
+              kind: 'doc',
+              externalUrl: docUrl,
+              destinationStatus: 'remote',
+            },
+          };
+        }
+      } else {
+        const errText = await docRes.text().catch(() => '');
+        driveCreateDocError = `drive_create_doc_http_${docRes.status}${errText ? `: ${errText.slice(0, 160)}` : ''}`;
+      }
+    } catch (err) {
+      driveCreateDocError = `drive_create_doc_error: ${err?.message || String(err)}`;
+      // Fall back to local .docx output path.
+    }
+
     // Check if this involves a spreadsheet
     const lowerContent = content.toLowerCase();
     const lowerName = project.name.toLowerCase();
@@ -542,7 +582,16 @@ async function saveContinuation(project, content) {
       subject: `${classification} - ${project.context?.nextStep || 'Continued work'}`,
     });
     
-    return filepath;
+    return {
+      outputPath: filepath,
+      destinationMeta: {
+        provider: 'local',
+        kind: 'file',
+        externalUrl: null,
+        destinationStatus: 'local_fallback',
+        destinationNote: driveCreateDocError || 'Drive doc creation unavailable during this run',
+      },
+    };
   }
   
   // Other projects: save as markdown
@@ -562,7 +611,15 @@ async function saveContinuation(project, content) {
   ].join('\n');
   
   fs.writeFileSync(filepath, output, 'utf-8');
-  return filepath;
+  return {
+    outputPath: filepath,
+    destinationMeta: {
+      provider: 'local',
+      kind: 'file',
+      externalUrl: null,
+      destinationStatus: 'local_fallback',
+    },
+  };
 }
 
 /**
@@ -570,13 +627,30 @@ async function saveContinuation(project, content) {
  */
 async function logAction(project, outputPath, tokensUsed, apiUrl, prUrl = null, prSkipReason = null, extraMeta = null) {
   try {
+    let resolvedOutputPath = outputPath;
+    let destinationMetaFromSave = null;
+    if (outputPath && typeof outputPath === 'object' && typeof outputPath.outputPath === 'string') {
+      resolvedOutputPath = outputPath.outputPath;
+      destinationMetaFromSave =
+        outputPath.destinationMeta && typeof outputPath.destinationMeta === 'object'
+          ? outputPath.destinationMeta
+          : null;
+    }
+    const isRemoteUrl = typeof resolvedOutputPath === 'string' && /^https?:\/\//i.test(resolvedOutputPath);
+    const baseMetadata = {
+      provider: prUrl ? 'github' : isRemoteUrl ? 'drive' : 'local',
+      kind: prUrl ? 'pr' : isRemoteUrl ? 'doc' : 'file',
+      externalUrl: prUrl || (isRemoteUrl ? resolvedOutputPath : null),
+    };
     const metadata = {
       projectId: project.id,
       projectName: project.name,
-      outputPath,
-      filePath: outputPath,
+      outputPath: resolvedOutputPath,
+      filePath: resolvedOutputPath,
       tokensUsed,
       timestamp: new Date().toISOString(),
+      ...baseMetadata,
+      ...(destinationMetaFromSave || {}),
       ...(extraMeta && typeof extraMeta === 'object' ? extraMeta : {}),
     };
 

@@ -4,6 +4,7 @@
 
 import Link from 'next/link';
 import { timeAgo } from '@/lib/utils';
+import { linkLabel, parseWorkMetadata } from '@/lib/work-destination';
 
 export type AlterActionRow = {
   id: string;
@@ -12,6 +13,7 @@ export type AlterActionRow = {
   app: string;
   type: string;
   createdAt: string;
+  metadata?: string | null;
 };
 
 export default function RecentAlterActions({ actions }: { actions: AlterActionRow[] }) {
@@ -23,6 +25,9 @@ export default function RecentAlterActions({ actions }: { actions: AlterActionRo
       <h2 className="mt-1 font-display text-xl font-bold text-nightshift-text-primary">What Alter did recently</h2>
       <ul className="mt-4 space-y-3">
         {actions.map((a) => (
+          (() => {
+            const meta = parseWorkMetadata(a.metadata);
+            return (
           <li key={a.id} className="rounded-lg border border-nightshift-border/40 bg-nightshift-bg-light/20 px-3 py-2.5">
             <div className="flex flex-wrap items-baseline justify-between gap-2">
               <span className="text-sm font-medium text-nightshift-text-primary">{a.title}</span>
@@ -34,7 +39,19 @@ export default function RecentAlterActions({ actions }: { actions: AlterActionRo
             <p className="mt-1 text-[10px] uppercase tracking-wider text-nightshift-text-muted">
               {a.app} · {a.type}
             </p>
+            {meta?.externalUrl ? (
+              <a
+                href={meta.externalUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="mt-2 inline-flex items-center gap-1 text-xs text-nightshift-accent hover:underline"
+              >
+                {linkLabel(meta)} →
+              </a>
+            ) : null}
           </li>
+            );
+          })()
         ))}
       </ul>
       <Link

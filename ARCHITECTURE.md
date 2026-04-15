@@ -258,6 +258,20 @@ node orchestration/nightshift-daemon.mjs --test
 - `GET /api/actions` - Activity feed
 - `GET /api/drafts` - Draft review
 - `GET /api/daemon/status` - Daemon status
+- `GET /api/internal/dev/consistency` - Unified priority + metadata consistency checks (dev)
+
+### Consistency Guardrails
+
+NightShift includes a dev consistency checker used in QA and beta hardening:
+- Focus list cap and handoff list cap enforcement
+- Focus/Handoff overlap detection
+- Suggested automation block count sanity
+- Native destination metadata schema checks on Action/Draft JSON (`externalUrl`, `provider`, `kind`)
+
+CLI:
+```bash
+npm run consistency:check
+```
 
 ## Troubleshooting
 

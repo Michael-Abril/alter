@@ -17,6 +17,8 @@ const navItems = [
   { href: '/dashboard/settings', label: 'Settings', icon: Settings },
 ] as const;
 
+const DEMO_MODE = process.env.NEXT_PUBLIC_DEMO_MODE === 'true';
+
 export default function Sidebar() {
   const pathname = usePathname();
 
@@ -27,7 +29,10 @@ export default function Sidebar() {
       </div>
 
       <nav className="flex-1 space-y-0.5 px-3 py-4" aria-label="Primary">
-        {navItems.map((item) => {
+        {(DEMO_MODE
+          ? navItems.filter((item) => item.href === '/dashboard' || item.href === '/dashboard/handoff')
+          : navItems
+        ).map((item) => {
           const isActive =
             item.href === '/dashboard'
               ? pathname === '/dashboard'

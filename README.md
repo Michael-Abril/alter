@@ -70,6 +70,20 @@ npm run dev
 
 Open [http://localhost:3000](http://localhost:3000).
 
+### 5. Run Consistency Check (Focus/Handoff + Metadata)
+
+```bash
+npm run consistency:check
+# or
+npm run consistency:check -- --user-id=<internal-user-id>
+```
+
+This validates:
+- Focus and Handoff caps
+- Focus/Handoff overlap invariants
+- Suggested automation block count
+- Action/Draft destination metadata contract (`externalUrl`, `provider`, `kind`)
+
 ---
 
 ## Tech Stack

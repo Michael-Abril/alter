@@ -6,17 +6,26 @@ import { createGmailDraft, refreshAccessToken } from '@/lib/gmail';
 
 export async function POST(req: NextRequest) {
   const { userId } = await auth();
-  if (!userId) return apiError('Unauthorized', 401);
+  const webhookSecret = req.headers.get('x-openclaw-secret');
+  const expectedSecret = process.env.OPENCLAW_WEBHOOK_SECRET;
+  const hasWebhookAuth = Boolean(expectedSecret && webhookSecret === expectedSecret);
+  if (!userId && !hasWebhookAuth) return apiError('Unauthorized', 401);
 
   try {
     const body = await req.json();
-    const { to, subject, body: emailBody, threadId, inReplyTo } = body;
+    const { to, subject, body: emailBody, threadId, inReplyTo, userId: bodyUserId } = body;
 
     if (!to || !subject || !emailBody) {
       return apiError('Missing required fields: to, subject, body', 400);
     }
 
-    const user = await db.user.findUnique({ where: { clerkId: userId } });
+    const user = userId
+      ? await db.user.findUnique({ where: { clerkId: userId } })
+      : bodyUserId
+      ? await db.user.findFirst({
+          where: { OR: [{ id: bodyUserId }, { clerkId: bodyUserId }] },
+        })
+      : null;
     if (!user) return apiError('User not found', 404);
 
     if (!user.gmailToken) {

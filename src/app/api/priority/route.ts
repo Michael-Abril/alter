@@ -11,8 +11,22 @@ import { apiSuccess, apiError } from '@/lib/utils';
 import { tryAuthUser } from '@/lib/clerk-user';
 import { buildTodayTasks } from '@/lib/tasks-today';
 import { buildUnifiedPriority, scoreProjectRow, type ProjectRow } from '@/lib/unified-priority';
+import { parsePriorityContext } from '@/lib/priority-context';
 import db from '@/lib/db';
 import { isHandoffEligible } from '@/lib/project-deliverable';
+
+function parseLastMessageAt(context: string | null): number | null {
+  if (!context) return null;
+  try {
+    const c = JSON.parse(context) as Record<string, unknown>;
+    const v = c.lastMessageAt;
+    if (typeof v !== 'string') return null;
+    const t = new Date(v).getTime();
+    return Number.isFinite(t) ? t : null;
+  } catch {
+    return null;
+  }
+}
 
 export async function GET(_req: NextRequest) {
   const auth = await tryAuthUser();
@@ -46,9 +60,16 @@ export async function GET(_req: NextRequest) {
     progress: p.progress,
   }));
 
-  const unified = buildUnifiedPriority(tasks, projectRows);
+  const unified = buildUnifiedPriority(tasks, projectRows, {
+    priorityContext: parsePriorityContext(user.priorityContext),
+  });
 
-  const eligibleProjects = allProjects.filter((p) => isHandoffEligible(p.context));
+  const freshnessCutoffMs = Date.now() - 21 * 24 * 60 * 60 * 1000;
+  const eligibleProjects = allProjects.filter((p) => {
+    if (!isHandoffEligible(p.context)) return false;
+    const evidenceMs = parseLastMessageAt(p.context) ?? p.lastActive.getTime();
+    return evidenceMs >= freshnessCutoffMs;
+  });
 
   // Build the handoff project list — deliverable-classified projects only, ranked by unified score
   const rankedProjects = [...eligibleProjects].sort((a, b) => {

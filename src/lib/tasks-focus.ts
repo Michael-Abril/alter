@@ -9,6 +9,7 @@
 import { dueRelativePhrase } from '@/lib/dashboard-morning-line';
 import { focusDisplayKindForTask, type DisplayKind } from '@/lib/project-deliverable';
 import type { TodayTask, TodayTaskSource, TodayTaskUrgency } from '@/lib/tasks-today';
+import type { UserPriorityContext } from '@/lib/priority-context';
 import {
   buildUnifiedPriority,
   type ProjectRow,
@@ -35,6 +36,9 @@ export interface FocusItem {
   urgency: TodayTaskUrgency;
   source: TodayTaskSource;
   kind: DisplayKind;
+  externalUrl?: string | null;
+  submissionUrl?: string | null;
+  provider?: TodayTask['provider'];
 }
 
 export interface FocusDashboardResult {
@@ -133,13 +137,15 @@ function assignBucket(task: TodayTask, projectsById: Map<string, ProjectRow>): W
  * Returns focus items + grouped "other work" + suggested automations
  * — all derived from the same ranked list.
  */
-export function buildFocusDashboard(tasks: TodayTask[], projects: ProjectRow[]): FocusDashboardResult {
+export function buildFocusDashboard(
+  tasks: TodayTask[],
+  projects: ProjectRow[],
+  priorityContext?: UserPriorityContext
+): FocusDashboardResult {
   const projectsById = new Map(projects.map((p) => [p.id, p]));
 
-  // Run the unified engine — one scoring pass for both Focus and Handoff
-  const unified = buildUnifiedPriority(tasks, projects);
+  const unified = buildUnifiedPriority(tasks, projects, { priorityContext });
 
-  // Convert scored tasks to display-formatted FocusItems
   const focusItems: FocusItem[] = unified.focusItems.map((t) => ({
     id: t.id,
     title: t.title,
@@ -149,6 +155,9 @@ export function buildFocusDashboard(tasks: TodayTask[], projects: ProjectRow[]):
     urgency: t.urgency,
     source: t.source,
     kind: focusDisplayKindForTask(t, projectsById),
+    externalUrl: t.externalUrl ?? null,
+    submissionUrl: t.submissionUrl ?? null,
+    provider: t.provider,
   }));
 
   const focusIds = new Set(focusItems.map((f) => f.id));

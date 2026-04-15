@@ -22,6 +22,8 @@ model User {
   createdAt             DateTime         @default(now())
   updatedAt             DateTime         @updatedAt
   onboardingCompletedAt DateTime?
+  /// JSON: examWeek, focusTags — feeds unified prioritization
+  priorityContext       String?
   actions               Action[]
   boundaries            Boundary[]
   calendarEvents        CalendarEvent[]

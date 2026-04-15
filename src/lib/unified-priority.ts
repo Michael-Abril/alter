@@ -5,13 +5,10 @@
  *
  * FOCUS answers:  "What should the user personally do now?"
  * HANDOFF answers: "What should Alter work on while the user is away?"
- *
- * The two lists are designed to complement each other:
- * - Focus = high-judgment tasks the user must drive
- * - Handoff = automatable support + tasks Alter can advance without the user
  */
 
 import type { TodayTask, TodayTaskSource, TodayTaskUrgency } from '@/lib/tasks-today';
+import type { UserPriorityContext } from '@/lib/priority-context';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -24,6 +21,10 @@ export interface ScoredTask extends TodayTask {
   urgencyScore: number;
   strategicValue: number;
   momentumScore: number;
+  blockingBonus: number;
+  tagMatchBonus: number;
+  examWeekBonus: number;
+  recencyBoost: number;
   /**
    * True when the user must personally drive this task.
    * Studying, decisions, reviews, creative output — no AI substitute.
@@ -69,7 +70,6 @@ export interface UnifiedPriorityResult {
   /**
    * Context-aware support tasks generated from focusItems.
    * Feeds Handoff's "Suggested Automations" section.
-   * These explain the relationship: "You focus on X, Alter handles Y."
    */
   suggestedAutomations: SuggestedAutomation[];
   noiseFiltered: number;
@@ -83,15 +83,19 @@ export type ProjectRow = {
   progress?: number;
 };
 
+export type BuildUnifiedPriorityOptions = {
+  priorityContext?: UserPriorityContext;
+};
+
 /** Default focus list size — expand to MAX_FOCUS_ITEMS only when scores stay tight or urgency is critical. */
 export const DEFAULT_FOCUS_CAP = 3;
 export const MAX_FOCUS_ITEMS = 5;
-export const MAX_HANDOFF_ITEMS = 6;
+export const MAX_HANDOFF_ITEMS = 3;
 
 // ─── Noise filter (identical to tasks-focus.ts) ───────────────────────────────
 
 const NOISE_RE =
-  /(github\s*oauth|personal\s*access\s*token|connect\s*github|repository\s*settings|ssh\s*key|api\s*key|npm\s+install|yarn\s+install|pnpm\s+install|clone\s+the\s*repo|scaffold|boilerplate|eslint\s*config|prettier|husky|dependabot|workflows?\/)/i;
+  /(github\s*oauth|personal\s*access\s*token|connect\s*github|repository\s*settings|ssh\s*key|api\s*key|npm\s+install|yarn\s+install|pnpm\s+install|clone\s*the\s*repo|scaffold|boilerplate|eslint\s*config|prettier|husky|dependabot|workflows?\/)/i;
 
 const SETUP_TITLE_RE =
   /^(setup|configure|install|init|bootstrap|scaffold|repo\s*setup|dev\s*environment)/i;
@@ -131,12 +135,12 @@ function getClassifications(ctx: Record<string, unknown>): string[] {
 function computeDeadlineScore(dueDate: string | null): number {
   if (!dueDate) return 0;
   const h = (new Date(dueDate).getTime() - Date.now()) / (1000 * 60 * 60);
-  if (h <= 0) return 50;    // overdue — clear it NOW
-  if (h <= 24) return 45;   // due today
-  if (h <= 48) return 35;   // due tomorrow
-  if (h <= 72) return 28;   // due in 3 days
-  if (h <= 168) return 12;  // due this week
-  return 4;                  // on the horizon
+  if (h <= 0) return 50; // overdue — clear it NOW
+  if (h <= 24) return 45; // due today
+  if (h <= 48) return 35; // due tomorrow
+  if (h <= 72) return 28; // due in 3 days
+  if (h <= 168) return 12; // due this week
+  return 4; // on the horizon
 }
 
 /**
@@ -165,9 +169,9 @@ function computeStrategicValue(task: TodayTask, project: ProjectRow | undefined)
   }
   if (task.source === 'project' && project) {
     const ageH = (Date.now() - project.lastActive.getTime()) / (1000 * 60 * 60);
-    if (ageH <= 48) return 14;   // recently active — context still warm
-    if (ageH <= 168) return 8;   // active this week
-    return 3;                     // going stale
+    if (ageH <= 48) return 14; // recently active — context still warm
+    if (ageH <= 168) return 8; // active this week
+    return 3; // going stale
   }
   return 4;
 }
@@ -183,31 +187,91 @@ function computeMomentumScore(progress: number): number {
   return 0;
 }
 
+/** Project blocks other work — boost surfacing (0–12). */
+function computeBlockingBonus(project: ProjectRow | undefined): number {
+  if (!project) return 0;
+  const ctx = parseCtx(project.context);
+  if (ctx.blocksOther === true) return 12;
+  if (ctx.blocksOther === 'true') return 12;
+  const deps = ctx.blockingDependencies;
+  if (typeof deps === 'number' && deps > 0) return Math.min(12, 4 + deps * 2);
+  return 0;
+}
+
+/** User focusTags match task text (0–10). */
+function computeTagMatchBonus(task: TodayTask, ctx: UserPriorityContext | undefined): number {
+  const tags = ctx?.focusTags;
+  if (!tags?.length) return 0;
+  const blob = `${task.title} ${task.description}`.toLowerCase();
+  let hits = 0;
+  for (const t of tags) {
+    const s = t.trim().toLowerCase();
+    if (s.length >= 2 && blob.includes(s)) hits++;
+  }
+  return Math.min(10, hits * 4);
+}
+
+/** Exam week: boost school-relevant tasks (0–8). */
+function computeExamWeekBonus(task: TodayTask, ctx: UserPriorityContext | undefined): number {
+  if (!ctx?.examWeek) return 0;
+  if (task.source === 'canvas') return 8;
+  const blob = `${task.title} ${task.description}`.toLowerCase();
+  if (/\b(exam|midterm|final|quiz|course|class|study)\b/.test(blob)) return 6;
+  return 0;
+}
+
+function evidenceTimestampMs(task: TodayTask, project: ProjectRow | undefined): number | null {
+  if (typeof task.evidenceAt === 'string') {
+    const t = new Date(task.evidenceAt).getTime();
+    if (Number.isFinite(t)) return t;
+  }
+  if (task.dueDate) {
+    const t = new Date(task.dueDate).getTime();
+    if (Number.isFinite(t)) return t;
+  }
+  if (project) return project.lastActive.getTime();
+  return null;
+}
+
+/** Fresh evidence should dominate stale backlog. */
+function computeRecencyBoost(task: TodayTask, project: ProjectRow | undefined): number {
+  const ts = evidenceTimestampMs(task, project);
+  if (!ts) return 0;
+  const ageH = (Date.now() - ts) / (1000 * 60 * 60);
+  if (ageH <= 24) return 20;
+  if (ageH <= 72) return 14;
+  if (ageH <= 168) return 8;
+  if (ageH <= 336) return 3;
+  return -8;
+}
+
+function shouldSuppressStaleTask(task: TodayTask, project: ProjectRow | undefined): boolean {
+  const text = `${task.title} ${task.description} ${task.suggestedAction}`.toLowerCase();
+  const staleAdmin = /\b(sync|github sync|code sync|setup|oauth|connect github|token)\b/.test(text);
+  const ts = evidenceTimestampMs(task, project);
+  const ageDays = ts ? (Date.now() - ts) / (1000 * 60 * 60 * 24) : Infinity;
+  if (staleAdmin && !task.dueDate && ageDays > 3) return true;
+  if (task.source === 'project' && !task.dueDate && ageDays > 21) return true;
+  if (task.source === 'email' && ageDays > 14) return true;
+  return false;
+}
+
 // ─── Task classification ──────────────────────────────────────────────────────
 
-/**
- * Classify a task into user-judgment / automatable buckets.
- *
- * requiresUserJudgment: user must personally drive this (studying, deciding, creating)
- * automatable: Alter can meaningfully advance this without the user
- *
- * A task can be BOTH (e.g. a document build: user writes core content, Alter scaffolds).
- * In that case the task goes into Focus AND its automatable side goes into Suggested Automations.
- */
 function classifyTask(
   task: TodayTask,
   project: ProjectRow | undefined
 ): { requiresUserJudgment: boolean; automatable: boolean; effort: Effort } {
-  // Canvas assignments are exclusively user-driven — studying and submitting cannot be delegated
   if (task.source === 'canvas') {
-    return { requiresUserJudgment: true, automatable: false, effort: 'high' };
+    // User must submit the work, but Alter can draft outlines, prep, and checklists overnight.
+    return { requiresUserJudgment: true, automatable: true, effort: 'high' };
   }
 
   if (task.source === 'email') {
     const highStakes = task.urgency === 'critical' || task.urgency === 'high';
     return {
-      requiresUserJudgment: highStakes, // user should draft high-stakes replies
-      automatable: true,                // Alter can always generate a first draft
+      requiresUserJudgment: highStakes,
+      automatable: true,
       effort: highStakes ? 'medium' : 'low',
     };
   }
@@ -220,22 +284,23 @@ function classifyTask(
       return { requiresUserJudgment: true, automatable: false, effort: 'high' };
     }
     if (classes.includes('document_build')) {
-      // User drives the thinking; Alter can scaffold and draft
       return { requiresUserJudgment: true, automatable: true, effort: 'medium' };
     }
     if (classes.includes('code_build')) {
-      // Code can be continued by Alter; user reviews
       return { requiresUserJudgment: false, automatable: true, effort: 'medium' };
     }
   }
 
-  // Anything else defaults to automatable background work
   return { requiresUserJudgment: false, automatable: true, effort: 'low' };
 }
 
 // ─── Scoring ──────────────────────────────────────────────────────────────────
 
-function scoreTask(task: TodayTask, projectsById: Map<string, ProjectRow>): ScoredTask {
+function scoreTask(
+  task: TodayTask,
+  projectsById: Map<string, ProjectRow>,
+  priorityContext?: UserPriorityContext
+): ScoredTask {
   const pid = task.id.replace(/^project-/, '');
   const project = task.source === 'project' ? projectsById.get(pid) : undefined;
   const progress = (project as (ProjectRow & { progress?: number }) | undefined)?.progress ?? 0;
@@ -244,8 +309,20 @@ function scoreTask(task: TodayTask, projectsById: Map<string, ProjectRow>): Scor
   const urgencyScore = computeUrgencyScore(task.urgency);
   const strategicValue = computeStrategicValue(task, project);
   const momentumScore = computeMomentumScore(progress);
+  const blockingBonus = computeBlockingBonus(project);
+  const tagMatchBonus = computeTagMatchBonus(task, priorityContext);
+  const examWeekBonus = computeExamWeekBonus(task, priorityContext);
+  const recencyBoost = computeRecencyBoost(task, project);
 
-  const score = deadlineScore + urgencyScore + strategicValue + momentumScore;
+  const score =
+    deadlineScore +
+    urgencyScore +
+    strategicValue +
+    momentumScore +
+    blockingBonus +
+    tagMatchBonus +
+    examWeekBonus +
+    recencyBoost;
 
   const { requiresUserJudgment, automatable, effort } = classifyTask(task, project);
 
@@ -256,6 +333,10 @@ function scoreTask(task: TodayTask, projectsById: Map<string, ProjectRow>): Scor
     urgencyScore,
     strategicValue,
     momentumScore,
+    blockingBonus,
+    tagMatchBonus,
+    examWeekBonus,
+    recencyBoost,
     requiresUserJudgment,
     automatable,
     effort,
@@ -263,25 +344,90 @@ function scoreTask(task: TodayTask, projectsById: Map<string, ProjectRow>): Scor
   };
 }
 
-// ─── Suggested automations (single block — no per-task repetition) ────────────
+// ─── Suggested automations (dynamic from focus) ───────────────────────────────
 
-/** One high-signal block for the dashboard; not duplicated per focus item. */
-function buildSuggestedAutomations(): SuggestedAutomation[] {
+function truncateTitle(t: string, max = 42): string {
+  const s = t.trim();
+  return s.length > max ? `${s.slice(0, max - 1)}…` : s;
+}
+
+/**
+ * One block for dashboard + handoff — headline tied to top focus tasks.
+ * @param canvasAssignments Upcoming Canvas tasks (for “Alter will handle” copy)
+ */
+export function buildSuggestedAutomationsFromFocus(
+  focusItems: ScoredTask[],
+  canvasAssignments: ScoredTask[] = []
+): SuggestedAutomation[] {
+  const canvasTitles = canvasAssignments
+    .slice(0, 3)
+    .map((c) => truncateTitle(c.title, 40));
+
+  if (focusItems.length === 0) {
+    if (canvasTitles.length > 0) {
+      return [
+        {
+          id: 'let-alter-handle-canvas',
+          headline: 'Let Alter handle',
+          bullets: [
+            `Canvas: prep, outlines, and drafts for ${canvasTitles.join(' · ')}.`,
+            'Draft summaries and supporting notes.',
+            'Continue lower-priority project work in the background.',
+          ],
+          linkedFocusId: null,
+        },
+      ];
+    }
+    return [
+      {
+        id: 'let-alter-handle',
+        headline: 'Let Alter handle',
+        bullets: ['Organize notes', 'Draft summaries', 'Continue low-priority work'],
+        linkedFocusId: null,
+      },
+    ];
+  }
+
+  const a = truncateTitle(focusItems[0].title);
+  const b = focusItems[1] ? truncateTitle(focusItems[1].title) : null;
+  const headline =
+    focusItems.length >= 2 && b
+      ? `Focus on ${a} and ${b} — Alter handles the rest`
+      : `Focus on ${a} — Alter handles the rest`;
+
+  const focusMentions = focusItems.slice(0, 3).map((f) => truncateTitle(f.title, 32));
+  const bullets: string[] = [];
+
+  if (canvasTitles.length > 0) {
+    bullets.push(
+      `Canvas: ${canvasTitles.slice(0, 2).join(' · ')} — outlines, drafts, and checklists.`
+    );
+  }
+  if (focusMentions[0]) {
+    bullets.push(`Supporting notes and context for "${focusMentions[0]}".`);
+  }
+  if (focusMentions[1]) {
+    bullets.push(`Draft summaries and prep for "${focusMentions[1]}".`);
+  }
+  if (bullets.length < 2) {
+    bullets.push('Draft summaries and prep artifacts.');
+  }
+  bullets.push('Continue lower-priority project work in the background.');
+
   return [
     {
-      id: 'let-alter-handle',
-      headline: 'Let Alter handle',
-      bullets: ['Organize notes', 'Draft summaries', 'Continue low-priority work', 'Queue Handoff for the rest'],
-      linkedFocusId: null,
+      id: 'suggested-auto-focus',
+      headline,
+      bullets: bullets.slice(0, 3),
+      linkedFocusId: focusItems[0]?.id ?? null,
     },
   ];
 }
 
 /**
  * Pick 2–5 focus items: prefer a tight list (default 3), don't pad with weak tasks.
- * Slots 4–5 only when the task is critical or still scores close to the pack.
  */
-function pickFocusItems(judgmentSorted: ScoredTask[]): ScoredTask[] {
+function pickFocusItems(judgmentSorted: ScoredTask[], allScored: ScoredTask[]): ScoredTask[] {
   if (judgmentSorted.length === 0) return [];
   const maxS = judgmentSorted[0].score;
   const out: ScoredTask[] = [];
@@ -301,7 +447,21 @@ function pickFocusItems(judgmentSorted: ScoredTask[]): ScoredTask[] {
     }
   }
 
-  return out;
+  // Ensure one current school assignment can surface when genuinely relevant.
+  if (!out.some((t) => t.source === 'canvas')) {
+    const topCanvas = allScored.find(
+      (t) =>
+        t.source === 'canvas' &&
+        (t.urgency === 'critical' || t.urgency === 'high' || t.score >= (out[0]?.score ?? 0) - 12)
+    );
+    if (topCanvas) {
+      if (out.length < MAX_FOCUS_ITEMS) out.push(topCanvas);
+      else out[out.length - 1] = topCanvas;
+      out.sort((a, b) => b.score - a.score);
+    }
+  }
+
+  return out.slice(0, MAX_FOCUS_ITEMS);
 }
 
 // ─── Main export ──────────────────────────────────────────────────────────────
@@ -311,21 +471,27 @@ function pickFocusItems(judgmentSorted: ScoredTask[]): ScoredTask[] {
  *
  * @param tasks     Output of buildTodayTasks() — Canvas, projects, email
  * @param projects  All ProjectRow entries (used for scoring context)
+ * @param options   Optional user priorityContext (exam week, focus tags)
  */
 export function buildUnifiedPriority(
   tasks: TodayTask[],
-  projects: ProjectRow[]
+  projects: ProjectRow[],
+  options?: BuildUnifiedPriorityOptions
 ): UnifiedPriorityResult {
   const projectsById = new Map(projects.map((p) => [p.id, p]));
+  const priorityContext = options?.priorityContext;
 
-  // Filter setup/config noise
   const clean = tasks.filter((t) => !isNoise(t));
   const noiseFiltered = tasks.length - clean.length;
 
-  // Score every task with the unified formula
-  const scored = clean.map((t) => scoreTask(t, projectsById));
+  const scored = clean
+    .map((t) => scoreTask(t, projectsById, priorityContext))
+    .filter((t) => {
+      const pid = t.id.replace(/^project-/, '');
+      const p = t.source === 'project' ? projectsById.get(pid) : undefined;
+      return !shouldSuppressStaleTask(t, p);
+    });
 
-  // Sort: score desc, then deadline asc as tiebreaker
   scored.sort((a, b) => {
     if (b.score !== a.score) return b.score - a.score;
     const da = a.dueDate ? new Date(a.dueDate).getTime() : Number.POSITIVE_INFINITY;
@@ -333,18 +499,19 @@ export function buildUnifiedPriority(
     return da - db;
   });
 
-  // Today's Focus: user-judgment tasks — default 3, max 5 only when scores stay tight or critical
   const judgmentSorted = scored.filter((t) => t.requiresUserJudgment).sort((a, b) => b.score - a.score);
-  const focusItems = pickFocusItems(judgmentSorted);
+  const focusItems = pickFocusItems(judgmentSorted, scored);
 
   const focusIds = new Set(focusItems.map((t) => t.id));
 
-  // Handoff "Work to Continue": automatable tasks not already in Focus
-  const handoffItems = scored
-    .filter((t) => t.automatable && !focusIds.has(t.id))
-    .slice(0, MAX_HANDOFF_ITEMS);
+  const handoffCandidates = scored.filter((t) => t.automatable && !focusIds.has(t.id));
+  const canvasH = handoffCandidates.filter((t) => t.source === 'canvas');
+  const projectH = handoffCandidates.filter((t) => t.source === 'project');
+  const otherH = handoffCandidates.filter((t) => t.source !== 'canvas' && t.source !== 'project');
+  const handoffItems = [...canvasH, ...projectH, ...otherH].slice(0, MAX_HANDOFF_ITEMS);
 
-  const suggestedAutomations = buildSuggestedAutomations();
+  const canvasForCopy = scored.filter((t) => t.source === 'canvas').slice(0, 3);
+  const suggestedAutomations = buildSuggestedAutomationsFromFocus(focusItems, canvasForCopy);
 
   return { all: scored, focusItems, handoffItems, suggestedAutomations, noiseFiltered };
 }
@@ -360,14 +527,12 @@ export function scoreProjectRow(p: ProjectRow & { progress?: number; status?: st
   const ageH = (Date.now() - p.lastActive.getTime()) / (1000 * 60 * 60);
 
   let s = 0;
-  // Momentum: nearly-done work is worth completing
   s += computeMomentumScore(progress);
-  // Recency: warm context is worth keeping warm
   if (ageH <= 48) s += 14;
   else if (ageH <= 168) s += 8;
   else s += 2;
-  // Stalled projects get a small penalty
   if (p.status === 'stalled') s -= 6;
+  s += computeBlockingBonus(p);
 
   return s;
 }

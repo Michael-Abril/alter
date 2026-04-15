@@ -990,7 +990,8 @@ export default function OnboardingPage() {
                       className="w-full px-3 py-2 bg-nightshift-surface border border-nightshift-border rounded-lg focus:outline-none focus:ring-2 focus:ring-nightshift-accent"
                     />
                     <p className="text-xs text-nightshift-text-muted mt-1">
-                      Enter your school's Canvas domain (e.g., canvas.harvard.edu)
+                      Use the hostname from your Canvas tab (often yourschool.instructure.com). Vanity URLs like
+                      canvas.school.edu may not serve the API; we try both automatically.
                     </p>
                   </div>
                   

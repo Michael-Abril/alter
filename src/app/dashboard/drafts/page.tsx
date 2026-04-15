@@ -54,7 +54,7 @@ export default function DraftsPage() {
 
   async function fetchDrafts() {
     try {
-      const res = await fetch('/api/drafts');
+      const res = await fetch('/api/drafts?status=pending');
       const json = await res.json();
       if (isUserNotFoundResponse(res, json)) {
         router.replace('/onboarding');

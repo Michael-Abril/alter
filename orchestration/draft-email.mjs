@@ -120,7 +120,8 @@ export async function draftEmailReply(incomingEmail, userId, options = {}) {
     incomingEmail,
     draftResult.draftId,
     confidence,
-    apiUrl
+    apiUrl,
+    draftResult.externalUrl
   );
   console.log(`   ✅ Action logged (ID: ${actionResult.actionId})`);
   console.log('');
@@ -247,10 +248,32 @@ async function loadVoiceProfile(userId, apiUrl) {
  * Save the draft to the database via POST /api/drafts.
  */
 async function saveDraft(userId, incomingEmail, draft, confidence, tokensUsed, apiUrl) {
+  let gmailDraft = null;
+  try {
+    const gmailRes = await fetch(`${apiUrl}/api/gmail/drafts`, {
+      method: 'POST',
+      headers: actionsPostHeaders(),
+      body: JSON.stringify({
+        userId,
+        to: incomingEmail.from,
+        subject: `Re: ${incomingEmail.subject}`,
+        body: draft,
+        threadId: incomingEmail.threadId || null,
+        inReplyTo: incomingEmail.messageId || null,
+      }),
+    });
+    if (gmailRes.ok) {
+      const gmailJson = await gmailRes.json();
+      gmailDraft = gmailJson?.data || null;
+    }
+  } catch {
+    // Keep local-draft-only flow as fallback.
+  }
+
   try {
     const response = await fetch(`${apiUrl}/api/drafts`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: actionsPostHeaders(),
       body: JSON.stringify({
         userId,
         type: 'email',
@@ -260,12 +283,16 @@ async function saveDraft(userId, incomingEmail, draft, confidence, tokensUsed, a
         confidenceScore: confidence,
         status: 'pending',
         context: JSON.stringify({
+          provider: 'gmail',
+          kind: 'gmail_draft',
+          externalUrl: gmailDraft?.draftUrl || null,
           recipientEmail: incomingEmail.from, // For send pipeline
           threadId: incomingEmail.threadId || null, // Gmail thread ID
           inReplyTo: incomingEmail.messageId || null, // For email headers
           incomingFrom: incomingEmail.from,
           incomingSubject: incomingEmail.subject,
           tokensUsed,
+          gmailDraftId: gmailDraft?.draftId || null,
         }),
       }),
     });
@@ -275,17 +302,25 @@ async function saveDraft(userId, incomingEmail, draft, confidence, tokensUsed, a
     }
 
     const data = await response.json();
-    return { draftId: data.data?.id || data.data?.draftId || 'unknown' };
+    return {
+      draftId: data.data?.id || data.data?.draftId || 'unknown',
+      gmailDraftId: gmailDraft?.draftId || null,
+      externalUrl: gmailDraft?.draftUrl || null,
+    };
   } catch (err) {
     console.warn(`   ⚠️  Failed to save draft: ${err.message}`);
-    return { draftId: 'not-saved' };
+    return {
+      draftId: 'not-saved',
+      gmailDraftId: gmailDraft?.draftId || null,
+      externalUrl: gmailDraft?.draftUrl || null,
+    };
   }
 }
 
 /**
  * Log the action to the database via POST /api/actions.
  */
-async function logAction(userId, incomingEmail, draftId, confidence, apiUrl) {
+async function logAction(userId, incomingEmail, draftId, confidence, apiUrl, externalUrl = null) {
   try {
     const response = await fetch(`${apiUrl}/api/actions`, {
       method: 'POST',
@@ -300,6 +335,9 @@ async function logAction(userId, incomingEmail, draftId, confidence, apiUrl) {
         status: 'completed',
         metadata: JSON.stringify({
           draftId,
+          provider: 'gmail',
+          kind: 'gmail_draft',
+          externalUrl,
           incomingFrom: incomingEmail.from,
           incomingSubject: incomingEmail.subject,
         }),

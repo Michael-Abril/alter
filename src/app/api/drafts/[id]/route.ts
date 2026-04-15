@@ -173,6 +173,50 @@ export async function PATCH(
         return apiError('Draft context missing recipient email address', 400);
       }
 
+      // Demo safety: avoid creating outbound drafts for blocked domains.
+      const recipientDomain = String(recipientEmail).split('@')[1]?.toLowerCase() || '';
+      const blockedDomains = new Set(
+        String(process.env.DEMO_BLOCKED_EMAIL_DOMAINS || 'ascendlabs.online')
+          .split(',')
+          .map((d) => d.trim().toLowerCase())
+          .filter(Boolean)
+      );
+      if (recipientDomain && blockedDomains.has(recipientDomain)) {
+        await db.draft.update({
+          where: { id },
+          data: {
+            status: 'approved',
+            context: JSON.stringify({
+              ...context,
+              approvedAt: new Date().toISOString(),
+              blockedForDemo: true,
+            }),
+          },
+        });
+        await db.action.create({
+          data: {
+            userId: user.id,
+            type: 'email_flagged',
+            title: `Blocked outbound draft to ${recipientEmail}`,
+            description: 'Demo safety mode blocked creating a Gmail draft for this recipient domain.',
+            app: 'gmail',
+            confidence: draft.confidenceScore,
+            status: 'flagged',
+            metadata: JSON.stringify({
+              recipientEmail,
+              draftId: draft.id,
+              blockedForDemo: true,
+            }),
+          },
+        });
+        return apiSuccess({
+          id,
+          status: 'approved',
+          message: `Draft approved but not created in Gmail (blocked domain: ${recipientDomain}).`,
+          errorCode: 'DEMO_BLOCKED_DOMAIN',
+        });
+      }
+
       if (!user.gmailConnected || !user.gmailToken) {
         await db.draft.update({ where: { id }, data: { status: 'approved' } });
         return apiSuccess({

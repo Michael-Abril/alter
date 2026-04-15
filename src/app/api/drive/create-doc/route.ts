@@ -12,16 +12,25 @@ import { createGoogleDoc } from '@/lib/google-drive';
 
 export async function POST(req: Request) {
   const { userId: clerkId } = await auth();
-  if (!clerkId) return apiError('Unauthorized', 401);
+  const webhookSecret = req.headers.get('x-openclaw-secret');
+  const expectedSecret = process.env.OPENCLAW_WEBHOOK_SECRET;
+  const hasWebhookAuth = Boolean(expectedSecret && webhookSecret === expectedSecret);
+  if (!clerkId && !hasWebhookAuth) return apiError('Unauthorized', 401);
 
   try {
-    const { title, content, projectId } = await req.json();
+    const { title, content, projectId, userId } = await req.json();
 
     if (!title || !content) {
       return apiError('Missing required fields: title, content', 400);
     }
 
-    const user = await db.user.findUnique({ where: { clerkId } });
+    const user = clerkId
+      ? await db.user.findUnique({ where: { clerkId } })
+      : userId
+      ? await db.user.findFirst({
+          where: { OR: [{ id: userId }, { clerkId: userId }] },
+        })
+      : null;
     if (!user) return apiError('User not found', 404);
 
     const result = await createGoogleDoc(user.id, title, content);

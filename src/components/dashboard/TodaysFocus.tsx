@@ -80,6 +80,31 @@ export default function TodaysFocus({ items }: { items: FocusItem[] }) {
                   <span className="text-nightshift-highlight">→</span>{' '}
                   <span className="font-semibold text-nightshift-text-primary">{item.action}</span>
                 </p>
+                {item.externalUrl ? (
+                  <p className="text-sm">
+                    <a
+                      href={item.externalUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-nightshift-accent underline-offset-2 hover:underline"
+                    >
+                      {item.provider === 'canvas' ? 'Open in Canvas' : 'Open'}
+                    </a>
+                    {item.submissionUrl && item.submissionUrl !== item.externalUrl ? (
+                      <>
+                        {' · '}
+                        <a
+                          href={item.submissionUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-nightshift-accent underline-offset-2 hover:underline"
+                        >
+                          Submit
+                        </a>
+                      </>
+                    ) : null}
+                  </p>
+                ) : null}
               </div>
             </div>
           </li>

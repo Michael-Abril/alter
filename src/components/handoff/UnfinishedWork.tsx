@@ -37,9 +37,11 @@ export default function UnfinishedWork({ tasks, onToggleTask }: UnfinishedWorkPr
             id="handoff-recommended-heading"
             className="font-display text-base font-semibold tracking-tight text-nightshift-text-primary md:text-lg"
           >
-            Recommended
+            Alter will handle
           </h2>
-          <p className="mt-1 text-xs text-nightshift-text-muted">Uncheck anything to exclude from this run.</p>
+          <p className="mt-1 text-xs text-nightshift-text-muted">
+            Top 2–3 items — projects and Canvas assignments Alter can advance overnight.
+          </p>
           <div className="mt-4 space-y-2">
             {recommended.map((task) => (
               <HandoffRow key={task.id} task={task} onToggle={onToggleTask} emphasized />

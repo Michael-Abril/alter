@@ -2,6 +2,8 @@ const path = require('path');
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  // Allow HMR / dev assets when the app is opened at http://127.0.0.1:3000 (cross-origin vs localhost).
+  allowedDevOrigins: ['127.0.0.1'],
   // Next otherwise picks the parent folder when another package-lock.json exists (e.g. in ~),
   // which loads the wrong node_modules and breaks Prisma / other native deps in dev.
   turbopack: {

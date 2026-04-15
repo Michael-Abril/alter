@@ -18,8 +18,8 @@ export default function HandoffButton({ selectedCount, onActivate, disabled }: H
       <div>
         <p className="text-sm text-nightshift-text-secondary">
           {selectedCount > 0
-            ? `${selectedCount} project${selectedCount > 1 ? 's' : ''} selected — Alter will continue these while you’re away`
-            : 'Select at least one project above'}
+            ? `${selectedCount} item${selectedCount > 1 ? 's' : ''} selected — Alter will continue these while you’re away`
+            : 'Select at least one project or Canvas assignment above'}
         </p>
       </div>
       <button
