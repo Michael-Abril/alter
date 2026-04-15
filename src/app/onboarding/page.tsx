@@ -550,15 +550,17 @@ export default function OnboardingPage() {
       });
       
       const data = await res.json();
-      
+
       if (data.success) {
-        setChatgptStatus(`✓ Imported ${data.messagesImported || 0} messages`);
+        setChatgptStatus(`✓ Imported ${data.messagesImported || 0} messages from ${data.source || 'file'}`);
         setChatgptMessages(data.messagesImported || 0);
-        setChatgptImporting(false);
+      } else {
+        setChatgptStatus(data.error || 'Import failed - check file format');
       }
+      setChatgptImporting(false);
     } catch (err) {
       console.error('Upload failed:', err);
-      setChatgptStatus('Upload failed');
+      setChatgptStatus('Upload failed - network error');
       setChatgptImporting(false);
     }
   }

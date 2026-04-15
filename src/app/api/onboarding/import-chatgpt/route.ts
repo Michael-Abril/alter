@@ -19,6 +19,7 @@ import {
   type OnboardingSyncStatus,
 } from '@/lib/onboarding-sync';
 import { enqueueSyncJob } from '@/lib/sync-queue';
+import JSZip from 'jszip';
 
 const execAsync = promisify(exec);
 const ONBOARDING_LOOKBACK_DAYS = 3;
@@ -196,9 +197,10 @@ export async function POST(req: NextRequest) {
     let chatData: any;
     let detectedSource: 'claude' | 'chatgpt' = 'chatgpt';
 
+    try {
     if (file.name.endsWith('.zip')) {
       // Claude exports come as ZIP files containing conversations.json
-      const JSZip = (await import('jszip')).default;
+      console.log('[import] Processing ZIP file:', file.name);
       const arrayBuffer = await file.arrayBuffer();
       const zip = await JSZip.loadAsync(arrayBuffer);
 
@@ -234,6 +236,10 @@ export async function POST(req: NextRequest) {
       } else if (Array.isArray(chatData) && chatData[0]?.mapping) {
         detectedSource = 'chatgpt';
       }
+    }
+    } catch (parseError: any) {
+      console.error('[import] Failed to parse file:', parseError);
+      return apiError(`Failed to parse file: ${parseError.message}`, 400);
     }
 
     console.log(`[onboarding/import] Processing ${detectedSource} export format`);
