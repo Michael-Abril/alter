@@ -10,7 +10,7 @@ interface SceneCanvasProps {
 
 export default function SceneCanvas({ children }: SceneCanvasProps) {
   return (
-    <div style={{ width: '100vw', height: '100vh', position: 'relative' }}>
+    <div style={{ width: '100vw', height: '100vh', position: 'relative', overflow: 'hidden' }}>
       <Canvas
         dpr={[1, 1.5]}
         camera={{ position: [0, 0, 8], fov: 50 }}
