@@ -43,17 +43,17 @@ export default function AlterHeaderStatus() {
 
   if (daemonRunning) {
     return (
-      <div className="flex items-center gap-2 rounded-full border border-nightshift-border bg-nightshift-bg-card px-3 py-1.5">
-        <span className="h-2 w-2 shrink-0 animate-pulse rounded-full bg-cyan-400 shadow-[0_0_8px_rgba(34,211,238,0.45)]" aria-hidden />
-        <span className="text-xs font-medium text-cyan-200/90">Monitoring your work</span>
+      <div className="flex items-center gap-2 rounded-full border border-alter-border bg-alter-surface px-3 py-1.5">
+        <span className="h-2 w-2 shrink-0 animate-pulse rounded-full bg-alter-gold-light shadow-[0_0_8px_rgba(212,167,68,0.5)]" aria-hidden />
+        <span className="text-xs font-medium text-alter-gold-light/90">Monitoring your work</span>
       </div>
     );
   }
 
   return (
-    <div className="flex items-center gap-2 rounded-full border border-nightshift-border/80 bg-nightshift-bg-card/80 px-3 py-1.5">
-      <span className="h-2 w-2 shrink-0 rounded-full bg-nightshift-text-muted/80" aria-hidden />
-      <span className="text-xs font-medium text-nightshift-text-secondary">Ready when you step away</span>
+    <div className="flex items-center gap-2 rounded-full border border-alter-border/80 bg-alter-surface/80 px-3 py-1.5">
+      <span className="h-2 w-2 shrink-0 rounded-full bg-alter-muted/80" aria-hidden />
+      <span className="text-xs font-medium text-alter-text-secondary">Ready when you step away</span>
     </div>
   );
 }

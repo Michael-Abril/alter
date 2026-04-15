@@ -39,32 +39,32 @@ export default function TodaysFocus({ items }: { items: FocusItem[] }) {
   if (items.length === 0) {
     return (
       <section
-        className="rounded-xl border border-nightshift-border/80 bg-nightshift-bg-card/50 px-5 py-8 md:px-6"
+        className="rounded-xl border border-alter-border/80 bg-alter-surface/50 px-5 py-8 md:px-6"
         aria-labelledby="today-heading"
       >
-        <h2 id="today-heading" className="font-display text-xl font-bold text-nightshift-text-primary">
+        <h2 id="today-heading" className="font-display text-xl font-bold text-alter-text">
           Today
         </h2>
-        <p className="mt-2 text-sm text-nightshift-text-muted">Nothing in focus yet.</p>
+        <p className="mt-2 text-sm text-alter-muted">Nothing in focus yet.</p>
       </section>
     );
   }
 
   return (
     <section
-      className="rounded-xl border border-nightshift-border bg-gradient-to-br from-nightshift-bg-card to-nightshift-bg-light/30 px-5 py-6 shadow-lg md:px-7 md:py-8"
+      className="rounded-xl border border-alter-border bg-gradient-to-br from-alter-surface to-alter-surface/30 px-5 py-6 shadow-lg md:px-7 md:py-8"
       aria-labelledby="today-heading"
     >
-      <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-nightshift-text-muted">Today</p>
-      <h2 id="today-heading" className="mt-1 font-display text-2xl font-bold tracking-tight text-nightshift-text-primary md:text-[26px]">
+      <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-alter-muted">Today</p>
+      <h2 id="today-heading" className="mt-1 font-display text-2xl font-bold tracking-tight text-alter-text md:text-[26px]">
         Focus
       </h2>
 
       <ol className="mt-6 space-y-6">
         {items.map((item, i) => (
-          <li key={item.id} className="border-b border-nightshift-border/40 pb-6 last:border-0 last:pb-0">
+          <li key={item.id} className="border-b border-alter-border/40 pb-6 last:border-0 last:pb-0">
             <div className="flex gap-3">
-              <span className="mt-1 w-7 shrink-0 text-right font-mono text-sm font-bold text-nightshift-text-muted">
+              <span className="mt-1 w-7 shrink-0 text-right font-mono text-sm font-bold text-alter-muted">
                 {i + 1}
               </span>
               <div className="min-w-0 flex-1 space-y-2">
@@ -72,13 +72,13 @@ export default function TodaysFocus({ items }: { items: FocusItem[] }) {
                   <ProjectKindBadge kind={item.kind} />
                   <UrgencyBadge dueAt={item.dueAt} />
                 </div>
-                <h3 className="text-lg font-bold leading-snug text-nightshift-text-primary md:text-[19px]">{item.title}</h3>
+                <h3 className="text-lg font-bold leading-snug text-alter-text md:text-[19px]">{item.title}</h3>
                 {item.dueTiming && (
-                  <p className="text-xs font-medium text-nightshift-text-secondary">{item.dueTiming}</p>
+                  <p className="text-xs font-medium text-alter-text-secondary">{item.dueTiming}</p>
                 )}
-                <p className="text-base text-nightshift-text-secondary">
-                  <span className="text-nightshift-highlight">→</span>{' '}
-                  <span className="font-semibold text-nightshift-text-primary">{item.action}</span>
+                <p className="text-base text-alter-text-secondary">
+                  <span className="text-alter-gold-light">→</span>{' '}
+                  <span className="font-semibold text-alter-text">{item.action}</span>
                 </p>
                 {item.externalUrl ? (
                   <p className="text-sm">
@@ -86,7 +86,7 @@ export default function TodaysFocus({ items }: { items: FocusItem[] }) {
                       href={item.externalUrl}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="text-nightshift-accent underline-offset-2 hover:underline"
+                      className="text-alter-primary underline-offset-2 hover:underline"
                     >
                       {item.provider === 'canvas' ? 'Open in Canvas' : 'Open'}
                     </a>
@@ -97,7 +97,7 @@ export default function TodaysFocus({ items }: { items: FocusItem[] }) {
                           href={item.submissionUrl}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="text-nightshift-accent underline-offset-2 hover:underline"
+                          className="text-alter-primary underline-offset-2 hover:underline"
                         >
                           Submit
                         </a>

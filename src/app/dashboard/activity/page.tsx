@@ -60,7 +60,7 @@ export default function ActivityPage() {
           <main className="flex-1 overflow-y-auto p-6">
             <div className="mx-auto max-w-4xl">
               <div className="flex items-center justify-center py-12">
-                <Loader2 className="h-8 w-8 animate-spin text-nightshift-accent" />
+                <Loader2 className="h-8 w-8 animate-spin text-alter-primary" />
               </div>
             </div>
           </main>
@@ -77,10 +77,10 @@ export default function ActivityPage() {
         <main className="flex-1 overflow-y-auto p-6">
           <div className="mx-auto max-w-4xl space-y-6">
             <div>
-              <h1 className="font-display text-2xl font-bold tracking-tight text-nightshift-text-primary">
+              <h1 className="font-display text-2xl font-bold tracking-tight text-alter-text">
                 Activity
               </h1>
-              <p className="mt-1 text-sm text-nightshift-text-secondary">
+              <p className="mt-1 text-sm text-alter-text-secondary">
                 Everything Alter has done on your behalf.
               </p>
             </div>
@@ -93,8 +93,8 @@ export default function ActivityPage() {
                   onClick={() => setFilter(f.value as any)}
                   className={`rounded-lg px-3 py-1.5 text-sm transition-colors ${
                     filter === f.value
-                      ? 'bg-nightshift-accent/15 font-medium text-nightshift-text-primary ring-1 ring-nightshift-accent/30'
-                      : 'text-nightshift-text-secondary hover:bg-nightshift-bg-card hover:text-nightshift-text-primary'
+                      ? 'bg-alter-primary/15 font-medium text-alter-text ring-1 ring-alter-primary/30'
+                      : 'text-alter-text-secondary hover:bg-alter-surface hover:text-alter-text'
                   }`}
                 >
                   {f.label}
@@ -106,7 +106,7 @@ export default function ActivityPage() {
             <div className="space-y-3">
               {filteredActions.length === 0 ? (
                 <div className="card text-center py-12">
-                  <p className="text-nightshift-text-secondary">
+                  <p className="text-alter-text-secondary">
                     No {filter !== 'all' ? filter : ''} actions found.
                   </p>
                 </div>
@@ -114,14 +114,14 @@ export default function ActivityPage() {
                 filteredActions.map((action) => (
                 <div
                   key={action.id}
-                  className="card flex items-start gap-4 hover:border-nightshift-accent/20 transition-colors"
+                  className="card flex items-start gap-4 hover:border-alter-primary/20 transition-colors"
                 >
                   <div className="mt-1">
                     <AppIcon app={action.app} />
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2">
-                      <h3 className="font-medium text-nightshift-text-primary truncate">
+                      <h3 className="font-medium text-alter-text truncate">
                         {action.title}
                       </h3>
                       {action.confidence !== null && (
@@ -129,7 +129,7 @@ export default function ActivityPage() {
                       )}
                     </div>
                     {action.description && (
-                      <p className="mt-1 text-sm text-nightshift-text-secondary">
+                      <p className="mt-1 text-sm text-alter-text-secondary">
                         {action.description}
                       </p>
                     )}
@@ -165,7 +165,7 @@ export default function ActivityPage() {
                               href={meta.submissionUrl}
                               target="_blank"
                               rel="noopener noreferrer"
-                              className="inline-flex items-center gap-1 text-xs px-2 py-1 rounded bg-nightshift-accent/10 text-nightshift-accent hover:bg-nightshift-accent/20 transition-colors"
+                              className="inline-flex items-center gap-1 text-xs px-2 py-1 rounded bg-alter-primary/10 text-alter-primary hover:bg-alter-primary/20 transition-colors"
                             >
                               Open submission
                             </a>
@@ -184,17 +184,17 @@ export default function ActivityPage() {
                                 onClick={() => {
                                   navigator.clipboard.writeText(outputFsPath);
                                 }}
-                                className="text-xs px-2 py-1 rounded bg-nightshift-accent/10 text-nightshift-accent hover:bg-nightshift-accent/20 transition-colors"
+                                className="text-xs px-2 py-1 rounded bg-alter-primary/10 text-alter-primary hover:bg-alter-primary/20 transition-colors"
                               >
                                 Copy File Path
                               </button>
-                              <span className="text-xs text-nightshift-text-muted truncate max-w-md">
+                              <span className="text-xs text-alter-muted truncate max-w-md">
                                 {outputFsPath}
                               </span>
                             </div>
                           ) : null}
                           {destinationStatus === 'local_fallback' ? (
-                            <div className="text-xs text-nightshift-text-muted">
+                            <div className="text-xs text-alter-muted">
                               Saved locally for this run. Connect/reconnect Google Drive to restore Open Document links.
                               {destinationNote ? ` (${destinationNote})` : ''}
                             </div>
@@ -202,7 +202,7 @@ export default function ActivityPage() {
                         </div>
                       );
                     })()}
-                    <div className="mt-2 flex items-center gap-3 text-xs text-nightshift-text-muted">
+                    <div className="mt-2 flex items-center gap-3 text-xs text-alter-muted">
                       <span>{timeAgo(action.createdAt)}</span>
                       <span
                         className={`capitalize ${

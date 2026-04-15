@@ -6,20 +6,20 @@ export default function SuggestedAutomations({ items }: { items: SuggestedAutoma
 
   return (
     <section
-      className="rounded-xl border border-nightshift-border/70 bg-nightshift-bg-card/50 px-5 py-5 md:px-6"
+      className="rounded-xl border border-alter-border/70 bg-alter-surface/50 px-5 py-5 md:px-6"
       aria-labelledby="let-alter-handle-heading"
     >
-      <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-nightshift-text-muted">Automations</p>
+      <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-alter-muted">Automations</p>
       <h2
         id="let-alter-handle-heading"
-        className="mt-1 font-display text-xl font-bold tracking-tight text-nightshift-text-primary md:text-2xl"
+        className="mt-1 font-display text-xl font-bold tracking-tight text-alter-text md:text-2xl"
       >
         {block.headline}
       </h2>
-      <ul className="mt-3 space-y-2 text-sm text-nightshift-text-secondary">
+      <ul className="mt-3 space-y-2 text-sm text-alter-text-secondary">
         {block.bullets.map((line) => (
           <li key={line} className="flex gap-2">
-            <span className="text-nightshift-highlight" aria-hidden>
+            <span className="text-alter-gold-light" aria-hidden>
               –
             </span>
             <span>{line}</span>

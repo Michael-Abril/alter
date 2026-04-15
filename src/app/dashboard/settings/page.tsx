@@ -271,7 +271,7 @@ export default function SettingsPage() {
         <main className="flex-1 overflow-y-auto p-6">
           <div className="mx-auto max-w-3xl space-y-8">
             <div className="flex items-center justify-between">
-              <h1 className="font-display text-2xl font-bold text-nightshift-text-primary">Settings</h1>
+              <h1 className="font-display text-2xl font-bold text-alter-text">Settings</h1>
               {saveSuccess && (
                 <div className="flex items-center gap-2 text-nightshift-success">
                   <CheckCircle2 className="h-5 w-5" />
@@ -288,7 +288,7 @@ export default function SettingsPage() {
 
             {loading && (
               <div className="flex items-center justify-center py-12">
-                <Loader2 className="h-8 w-8 animate-spin text-nightshift-accent" />
+                <Loader2 className="h-8 w-8 animate-spin text-alter-primary" />
               </div>
             )}
 
@@ -301,7 +301,7 @@ export default function SettingsPage() {
               {needsScopeUpgrade && (
                 <div className="mb-4 rounded-lg border border-nightshift-warning/50 bg-nightshift-warning/10 p-3">
                   <p className="text-sm text-nightshift-warning font-medium">Permissions upgrade available</p>
-                  <p className="text-xs text-nightshift-text-secondary mt-1">
+                  <p className="text-xs text-alter-text-secondary mt-1">
                     Alter now supports Google Drive and Calendar. Reconnect Google to enable these features.
                   </p>
                   <button
@@ -315,9 +315,9 @@ export default function SettingsPage() {
 
               <div className="space-y-3">
                 <div className="flex items-center gap-3">
-                  <span className={`h-3 w-3 rounded-full ${gmailConnected ? 'bg-nightshift-success' : 'bg-nightshift-text-muted'}`} />
-                  <span className="text-nightshift-text-primary">Google (Gmail, Drive, Calendar)</span>
-                  <span className="text-sm text-nightshift-text-secondary">{gmailConnected ? 'Connected' : 'Not connected'}</span>
+                  <span className={`h-3 w-3 rounded-full ${gmailConnected ? 'bg-nightshift-success' : 'bg-alter-muted'}`} />
+                  <span className="text-alter-text">Google (Gmail, Drive, Calendar)</span>
+                  <span className="text-sm text-alter-text-secondary">{gmailConnected ? 'Connected' : 'Not connected'}</span>
                   {gmailConnected ? (
                     <button
                       className="btn-ghost text-sm ml-auto"
@@ -334,9 +334,9 @@ export default function SettingsPage() {
                 </div>
 
                 <div className="flex items-center gap-3">
-                  <span className={`h-3 w-3 rounded-full ${githubConnected ? 'bg-nightshift-success' : 'bg-nightshift-text-muted'}`} />
-                  <span className="text-nightshift-text-primary">GitHub</span>
-                  <span className="text-sm text-nightshift-text-secondary">{githubConnected ? 'Connected' : 'Not connected'}</span>
+                  <span className={`h-3 w-3 rounded-full ${githubConnected ? 'bg-nightshift-success' : 'bg-alter-muted'}`} />
+                  <span className="text-alter-text">GitHub</span>
+                  <span className="text-sm text-alter-text-secondary">{githubConnected ? 'Connected' : 'Not connected'}</span>
                   {githubConnected ? (
                     <button
                       className="btn-ghost text-sm ml-auto"
@@ -353,9 +353,9 @@ export default function SettingsPage() {
                 </div>
 
                 <div className="flex items-center gap-3">
-                  <span className={`h-3 w-3 rounded-full ${canvasConnected ? 'bg-nightshift-success' : 'bg-nightshift-text-muted'}`} />
-                  <span className="text-nightshift-text-primary">Canvas</span>
-                  <span className="text-sm text-nightshift-text-secondary">{canvasConnected ? 'Connected' : 'Not connected'}</span>
+                  <span className={`h-3 w-3 rounded-full ${canvasConnected ? 'bg-nightshift-success' : 'bg-alter-muted'}`} />
+                  <span className="text-alter-text">Canvas</span>
+                  <span className="text-sm text-alter-text-secondary">{canvasConnected ? 'Connected' : 'Not connected'}</span>
                   {canvasConnected ? (
                     <div className="ml-auto flex flex-wrap items-center gap-2">
                       <button
@@ -386,18 +386,18 @@ export default function SettingsPage() {
             {/* Personality Sources - Claude & ChatGPT */}
             <section className="card">
               <h2 className="text-lg font-semibold mb-2">Personality Sources</h2>
-              <p className="text-sm text-nightshift-text-secondary mb-4">
+              <p className="text-sm text-alter-text-secondary mb-4">
                 Alter learns your voice and style from your AI chat history. Import conversations to build your digital twin.
               </p>
 
               <div className="space-y-3">
                 {/* Claude */}
-                <div className="flex items-center gap-3 p-3 rounded-lg bg-nightshift-bg-light">
+                <div className="flex items-center gap-3 p-3 rounded-lg bg-alter-surface">
                   <div className="flex items-center gap-3 flex-1">
-                    <span className={`h-3 w-3 rounded-full ${claudeMessages > 0 ? 'bg-nightshift-success' : 'bg-nightshift-text-muted'}`} />
+                    <span className={`h-3 w-3 rounded-full ${claudeMessages > 0 ? 'bg-nightshift-success' : 'bg-alter-muted'}`} />
                     <div>
-                      <span className="text-nightshift-text-primary font-medium">Claude</span>
-                      <span className="text-sm text-nightshift-text-secondary ml-2">
+                      <span className="text-alter-text font-medium">Claude</span>
+                      <span className="text-sm text-alter-text-secondary ml-2">
                         {claudeMessages > 0 ? `${claudeMessages.toLocaleString()} messages` : 'Not imported'}
                       </span>
                     </div>
@@ -417,12 +417,12 @@ export default function SettingsPage() {
                 </div>
 
                 {/* ChatGPT */}
-                <div className="flex items-center gap-3 p-3 rounded-lg bg-nightshift-bg-light">
+                <div className="flex items-center gap-3 p-3 rounded-lg bg-alter-surface">
                   <div className="flex items-center gap-3 flex-1">
-                    <span className={`h-3 w-3 rounded-full ${chatgptMessages > 0 ? 'bg-nightshift-success' : 'bg-nightshift-text-muted'}`} />
+                    <span className={`h-3 w-3 rounded-full ${chatgptMessages > 0 ? 'bg-nightshift-success' : 'bg-alter-muted'}`} />
                     <div>
-                      <span className="text-nightshift-text-primary font-medium">ChatGPT</span>
-                      <span className="text-sm text-nightshift-text-secondary ml-2">
+                      <span className="text-alter-text font-medium">ChatGPT</span>
+                      <span className="text-sm text-alter-text-secondary ml-2">
                         {chatgptMessages > 0 ? `${chatgptMessages.toLocaleString()} messages` : 'Not imported'}
                       </span>
                     </div>
@@ -442,7 +442,7 @@ export default function SettingsPage() {
                 </div>
               </div>
 
-              <p className="text-xs text-nightshift-text-muted mt-4">
+              <p className="text-xs text-alter-muted mt-4">
                 When you click Import, a browser window will open. Log in to Claude or ChatGPT if prompted, then Alter will automatically extract your conversation history.
               </p>
             </section>
@@ -457,28 +457,28 @@ export default function SettingsPage() {
                     onClick={() => setAutonomyLevel(level.level)}
                     className={`w-full text-left p-4 rounded-lg border transition-colors ${
                       autonomyLevel === level.level
-                        ? 'border-nightshift-accent bg-nightshift-accent/10'
-                        : 'border-nightshift-border hover:border-nightshift-text-muted'
+                        ? 'border-alter-primary bg-alter-primary/10'
+                        : 'border-alter-border hover:border-alter-muted'
                     }`}
                   >
                     <div className="flex items-center gap-2">
                       <div
                         className={`h-4 w-4 rounded-full border-2 flex items-center justify-center ${
                           autonomyLevel === level.level
-                            ? 'border-nightshift-accent'
-                            : 'border-nightshift-text-muted'
+                            ? 'border-alter-primary'
+                            : 'border-alter-muted'
                         }`}
                       >
                         {autonomyLevel === level.level && (
-                          <div className="h-2 w-2 rounded-full bg-nightshift-accent" />
+                          <div className="h-2 w-2 rounded-full bg-alter-primary" />
                         )}
                       </div>
                       <span className="font-medium">{level.name}</span>
-                      <span className="ml-auto text-xs text-nightshift-text-muted">
+                      <span className="ml-auto text-xs text-alter-muted">
                         Level {level.level}
                       </span>
                     </div>
-                    <p className="mt-1 ml-6 text-sm text-nightshift-text-secondary">
+                    <p className="mt-1 ml-6 text-sm text-alter-text-secondary">
                       {level.description}
                     </p>
                   </button>
@@ -489,7 +489,7 @@ export default function SettingsPage() {
             {/* Wake Time */}
             <section className="card">
               <h2 className="text-lg font-semibold mb-2">Wake Time</h2>
-              <p className="text-sm text-nightshift-text-secondary mb-4">
+              <p className="text-sm text-alter-text-secondary mb-4">
                 Alter will have your morning brief ready by this time.
               </p>
               <input
@@ -503,7 +503,7 @@ export default function SettingsPage() {
             {/* Output Directory */}
             <section className="card">
               <h2 className="text-lg font-semibold mb-2">Output Directory</h2>
-              <p className="text-sm text-nightshift-text-secondary mb-4">
+              <p className="text-sm text-alter-text-secondary mb-4">
                 Alter saves generated .docx files in this folder.
               </p>
               <input
@@ -518,14 +518,14 @@ export default function SettingsPage() {
             {/* Boundaries */}
             <section className="card">
               <h2 className="text-lg font-semibold mb-4">Boundary Rules</h2>
-              <p className="text-sm text-nightshift-text-secondary mb-4">
+              <p className="text-sm text-alter-text-secondary mb-4">
                 Set rules for what Alter can and cannot do.
               </p>
               <div className="space-y-3">
                 {boundaries.map((boundary) => (
                   <div
                     key={boundary.id}
-                    className="flex items-center justify-between p-3 rounded-lg bg-nightshift-bg-light"
+                    className="flex items-center justify-between p-3 rounded-lg bg-alter-surface"
                   >
                     <span className="text-sm">{boundary.rule}</span>
                     <span
@@ -536,7 +536,7 @@ export default function SettingsPage() {
                           ? 'bg-nightshift-warning/20 text-nightshift-warning'
                           : boundary.action === 'never'
                           ? 'bg-nightshift-error/20 text-nightshift-error'
-                          : 'bg-nightshift-navy/20 text-nightshift-text-secondary'
+                          : 'bg-alter-surface/20 text-alter-text-secondary'
                       }`}
                     >
                       {boundary.action}

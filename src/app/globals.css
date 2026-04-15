@@ -8,15 +8,15 @@
   }
 
   :root {
-    --nightshift-navy: #7c3aed;
-    --nightshift-accent: #2563eb;
-    --nightshift-bg: #080d18;
-    --nightshift-bg-light: #0f172a;
-    --nightshift-bg-card: #111827;
-    --nightshift-text-primary: #f3f4f6;
-    --nightshift-text-secondary: #94a3b8;
-    --nightshift-text-muted: #64748b;
-    --nightshift-border: rgba(148, 163, 184, 0.14);
+    --alter-surface: #7c3aed;
+    --alter-primary: #2563eb;
+    --alter-bg: #080d18;
+    --alter-surface: #0f172a;
+    --alter-surface: #111827;
+    --alter-text: #f3f4f6;
+    --alter-text-secondary: #94a3b8;
+    --alter-muted: #64748b;
+    --alter-border: rgba(148, 163, 184, 0.14);
 
     --alter-gold: #D4A744;
     --alter-gold-light: #F5C952;
@@ -24,7 +24,7 @@
   }
 
   body {
-    @apply bg-nightshift-bg text-nightshift-text-primary;
+    @apply bg-alter-bg text-alter-text;
     font-feature-settings: "rlig" 1, "calt" 1;
   }
 }
@@ -32,27 +32,27 @@
 @layer components {
   /* ─── Dashboard (nightshift) ─── */
   .card {
-    @apply rounded-xl border border-nightshift-border bg-nightshift-bg-card p-6 shadow-[0_1px_0_0_rgba(255,255,255,0.04)_inset,0_8px_28px_-12px_rgba(0,0,0,0.55)] transition-[transform,box-shadow,border-color] duration-200 hover:-translate-y-px hover:border-nightshift-border hover:shadow-[0_12px_36px_-16px_rgba(0,0,0,0.65)];
+    @apply rounded-xl border border-alter-border bg-alter-surface p-6 shadow-alter-card transition-[transform,box-shadow,border-color] duration-200 hover:-translate-y-px hover:border-alter-border-strong hover:shadow-alter-glow;
   }
 
   .app-surface-hero {
-    @apply border-nightshift-border bg-nightshift-bg-card;
+    @apply border-alter-border bg-alter-surface;
   }
 
   .btn-primary {
-    @apply rounded-lg bg-nightshift-accent px-4 py-2 font-medium text-white shadow-lg shadow-nightshift-accent/20 transition-colors hover:bg-nightshift-accent/90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-nightshift-highlight/60;
+    @apply rounded-lg bg-alter-primary px-4 py-2 font-medium text-alter-bg shadow-alter-gold-sm transition-all hover:bg-alter-gold-light hover:-translate-y-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-alter-gold-light/60 active:scale-[0.97];
   }
 
   .btn-secondary {
-    @apply rounded-lg bg-nightshift-navy px-4 py-2 font-medium text-white shadow-md shadow-nightshift-navy/20 transition-colors hover:bg-nightshift-navy/90;
+    @apply rounded-lg border border-alter-border-strong bg-alter-surface px-4 py-2 font-medium text-alter-text shadow-sm transition-all hover:border-alter-primary/50 hover:bg-alter-surface-elevated hover:-translate-y-0.5;
   }
 
   .btn-ghost {
-    @apply rounded-lg px-4 py-2 text-nightshift-text-secondary transition-colors hover:bg-nightshift-bg-light hover:text-nightshift-text-primary;
+    @apply rounded-lg px-4 py-2 text-alter-text-secondary transition-colors hover:bg-alter-surface hover:text-alter-text;
   }
 
   .input {
-    @apply rounded-lg border border-nightshift-border bg-nightshift-surface px-4 py-2 text-nightshift-text-primary placeholder:text-nightshift-text-muted transition-colors focus:border-nightshift-accent focus:outline-none focus:ring-2 focus:ring-nightshift-accent/35;
+    @apply rounded-lg border border-alter-border bg-alter-surface px-4 py-2 text-alter-text placeholder:text-alter-muted transition-colors focus:border-alter-primary focus:outline-none focus:ring-2 focus:ring-alter-primary/35;
   }
 
   /* ─── Alter marketing – premium dark + gold ─── */

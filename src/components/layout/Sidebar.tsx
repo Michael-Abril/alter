@@ -23,8 +23,8 @@ export default function Sidebar() {
   const pathname = usePathname();
 
   return (
-    <aside className="flex h-full w-[17rem] flex-col border-r border-nightshift-border bg-gradient-to-b from-nightshift-bg to-nightshift-bg-light shadow-[inset_-1px_0_0_rgba(124,58,237,0.06)]">
-      <div className="border-b border-nightshift-border px-4 py-5">
+    <aside className="flex h-full w-[17rem] flex-col border-r border-alter-border bg-gradient-to-b from-alter-bg to-alter-surface shadow-[inset_-1px_0_0_rgba(212,167,68,0.08)]">
+      <div className="border-b border-alter-border px-4 py-5">
         <AlterWordmark tone="app" />
       </div>
 
@@ -45,13 +45,13 @@ export default function Sidebar() {
               href={item.href}
               className={`group relative flex items-center gap-3 rounded-r-xl border-l-[3px] py-2.5 pl-3 pr-3 text-sm transition-all duration-200 ${
                 isActive
-                  ? 'border-l-teal-400 bg-[#1A1A2E] font-medium text-white shadow-[inset_0_1px_0_0_rgba(255,255,255,0.04)]'
-                  : 'border-l-transparent text-nightshift-text-muted/75 hover:bg-nightshift-bg-card/50 hover:text-nightshift-text-secondary'
+                  ? 'border-l-alter-primary bg-alter-surface-elevated font-medium text-alter-text shadow-[inset_0_1px_0_0_rgba(212,167,68,0.06)]'
+                  : 'border-l-transparent text-alter-muted/75 hover:bg-alter-surface/50 hover:text-alter-text-secondary'
               }`}
             >
               <Icon
                 className={`h-[18px] w-[18px] shrink-0 stroke-[1.5] transition-colors duration-200 ${
-                  isActive ? 'text-teal-300' : 'text-nightshift-text-muted group-hover:text-nightshift-text-secondary'
+                  isActive ? 'text-alter-gold-light' : 'text-alter-muted group-hover:text-alter-text-secondary'
                 }`}
                 aria-hidden
               />
@@ -61,10 +61,10 @@ export default function Sidebar() {
         })}
       </nav>
 
-      <div className="border-t border-nightshift-border px-4 py-4">
-        <div className="flex items-center gap-2 text-xs text-nightshift-text-muted">
+      <div className="border-t border-alter-border px-4 py-4">
+        <div className="flex items-center gap-2 text-xs text-alter-muted">
           <span
-            className="inline-block h-2 w-2 shrink-0 rounded-full bg-nightshift-success shadow-[0_0_8px_rgba(16,185,129,0.45)]"
+            className="inline-block h-2 w-2 shrink-0 rounded-full bg-emerald-400 shadow-[0_0_8px_rgba(16,185,129,0.45)]"
             aria-hidden
           />
           <span>Session active</span>

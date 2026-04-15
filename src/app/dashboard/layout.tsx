@@ -19,6 +19,6 @@ export default async function DashboardLayout({ children }: { children: React.Re
   }
 
   return (
-    <div className="min-h-screen bg-nightshift-bg text-nightshift-text-primary antialiased">{children}</div>
+    <div className="min-h-screen bg-alter-bg text-alter-text antialiased">{children}</div>
   );
 }

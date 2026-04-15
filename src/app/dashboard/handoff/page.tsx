@@ -214,11 +214,11 @@ export default function HandoffPage() {
   };
 
   return (
-    <div className="flex h-screen bg-nightshift-bg">
+    <div className="flex h-screen bg-alter-bg">
       <Sidebar />
       <div className="flex flex-1 flex-col overflow-hidden">
         <Header />
-        <main className="flex-1 overflow-y-auto bg-[radial-gradient(ellipse_100%_60%_at_50%_-10%,rgba(124,58,237,0.08),transparent_50%)] px-5 py-8 sm:px-8 md:px-12">
+        <main className="flex-1 overflow-y-auto bg-[radial-gradient(ellipse_100%_60%_at_50%_-10%,rgba(212,167,68,0.07),transparent_50%)] px-5 py-8 sm:px-8 md:px-12">
           <div className="mx-auto w-full max-w-[800px] space-y-8">
             {isActivated ? (
               <div
@@ -239,7 +239,7 @@ export default function HandoffPage() {
                     <XCircle className="h-14 w-14 text-nightshift-error" strokeWidth={1.25} aria-hidden />
                   ) : (
                     <Loader2
-                      className="h-14 w-14 animate-spin text-nightshift-highlight"
+                      className="h-14 w-14 animate-spin text-alter-gold-light"
                       strokeWidth={1.25}
                       aria-hidden
                     />
@@ -260,33 +260,33 @@ export default function HandoffPage() {
                   <div className="mt-3 space-y-2">
                     {runStatus.currentProject ? (
                       <>
-                        <p className="text-nightshift-text-primary font-medium animate-pulse">
+                        <p className="text-alter-text font-medium animate-pulse">
                           Working on: {runStatus.currentProject}
                         </p>
-                        <p className="text-sm text-nightshift-text-secondary">
+                        <p className="text-sm text-alter-text-secondary">
                           {runStatus.currentAction || 'Processing...'}
                         </p>
-                        <div className="flex items-center justify-center gap-4 text-xs text-nightshift-text-muted">
+                        <div className="flex items-center justify-center gap-4 text-xs text-alter-muted">
                           <span>Progress: {runStatus.projectsCompleted || 0} / {runStatus.projectsTotal || '?'} projects</span>
                           {(runStatus.currentIteration ?? 0) > 0 && (
                             <span>Iteration: {runStatus.currentIteration} / {runStatus.maxIterations || 3}</span>
                           )}
                         </div>
                         {(runStatus.tokensUsedSoFar ?? 0) > 0 && (
-                          <p className="text-xs text-nightshift-text-muted">
+                          <p className="text-xs text-alter-muted">
                             Tokens: {(runStatus.tokensUsedSoFar ?? 0).toLocaleString()} | Cost: ${(runStatus.spentSoFar || 0).toFixed(4)}
                           </p>
                         )}
                       </>
                     ) : (
-                      <p className="text-nightshift-text-secondary animate-pulse">
+                      <p className="text-alter-text-secondary animate-pulse">
                         Starting Alter...
                       </p>
                     )}
                   </div>
                 )}
                 {runStatus?.state === 'completed' && (
-                  <div className="mt-4 space-y-4 text-sm text-nightshift-text-secondary">
+                  <div className="mt-4 space-y-4 text-sm text-alter-text-secondary">
                     <div className="space-y-1">
                       <p>
                         {runStatus.projectsContinued || 0} code project(s) continued
@@ -295,12 +295,12 @@ export default function HandoffPage() {
                           : ''}
                         , {runStatus.emailsDrafted || 0} email draft(s) created
                       </p>
-                      <p className="text-xs text-nightshift-text-muted">
+                      <p className="text-xs text-alter-muted">
                         Canvas selections produce prep/outlines in Draft review (not counted as “projects continued”).
                       </p>
                       {runStatus.duration && <p>Duration: {runStatus.duration}s</p>}
                     </div>
-                    <p className="font-medium text-nightshift-text-primary">Where to find your output</p>
+                    <p className="font-medium text-alter-text">Where to find your output</p>
                     <div className="flex flex-col gap-2 sm:flex-row sm:justify-center">
                       <Link
                         href="/dashboard/drafts"
@@ -310,7 +310,7 @@ export default function HandoffPage() {
                       </Link>
                       <Link
                         href="/dashboard/activity"
-                        className="btn-ghost inline-flex items-center justify-center gap-2 border border-nightshift-border py-3 text-center text-base font-semibold text-nightshift-text-primary hover:border-nightshift-accent/40"
+                        className="btn-ghost inline-flex items-center justify-center gap-2 border border-alter-border py-3 text-center text-base font-semibold text-alter-text hover:border-alter-primary/40"
                       >
                         Activity Log
                       </Link>
@@ -327,7 +327,7 @@ export default function HandoffPage() {
                     </Link>
                     <Link
                       href="/dashboard/drafts"
-                      className="btn-ghost inline-flex items-center justify-center border border-nightshift-border py-3 text-center text-base font-semibold text-nightshift-text-primary"
+                      className="btn-ghost inline-flex items-center justify-center border border-alter-border py-3 text-center text-base font-semibold text-alter-text"
                     >
                       Draft Review
                     </Link>
@@ -336,7 +336,7 @@ export default function HandoffPage() {
                 {runStatus?.state !== 'running' &&
                   runStatus?.state !== 'completed' &&
                   runStatus?.state !== 'error' && (
-                    <p className="mt-2 text-nightshift-text-secondary">
+                    <p className="mt-2 text-alter-text-secondary">
                       Run queued — check Activity and Draft review when Alter finishes.
                     </p>
                   )}
@@ -344,40 +344,40 @@ export default function HandoffPage() {
             ) : loading ? (
               <div className="card py-12 text-center">
                 <div className="mb-3 flex justify-center">
-                  <Loader2 className="h-9 w-9 animate-spin text-nightshift-accent" aria-hidden />
+                  <Loader2 className="h-9 w-9 animate-spin text-alter-primary" aria-hidden />
                 </div>
-                <p className="text-nightshift-text-secondary">Loading…</p>
+                <p className="text-alter-text-secondary">Loading…</p>
               </div>
             ) : tasks.length === 0 ? (
               <div className="card py-12 text-center">
                 <div className="mb-3 flex justify-center">
-                  <ClipboardList className="h-9 w-9 text-nightshift-highlight" strokeWidth={1.5} aria-hidden />
+                  <ClipboardList className="h-9 w-9 text-alter-gold-light" strokeWidth={1.5} aria-hidden />
                 </div>
-                <p className="text-nightshift-text-secondary">
+                <p className="text-alter-text-secondary">
                   No handoff items yet. Connect Canvas in Settings, ensure projects are in progress with code/document
                   classifications, or check back when you have email or assignment load.
                 </p>
               </div>
             ) : (
               <>
-                <h1 className="font-display text-xl font-bold text-nightshift-text-primary md:text-2xl">Handoff</h1>
-                <p className="text-sm text-nightshift-text-secondary">Let Alter continue while you&apos;re away.</p>
+                <h1 className="font-display text-xl font-bold text-alter-text md:text-2xl">Handoff</h1>
+                <p className="text-sm text-alter-text-secondary">Let Alter continue while you&apos;re away.</p>
 
                 {focusTitles.length > 0 && (
-                  <section className="card border-nightshift-border/80 bg-nightshift-bg-card/70">
-                    <h2 className="text-sm font-semibold text-nightshift-text-primary">You focus on</h2>
-                    <p className="mt-2 text-sm text-nightshift-text-secondary">
+                  <section className="card border-alter-border/80 bg-alter-surface/70">
+                    <h2 className="text-sm font-semibold text-alter-text">You focus on</h2>
+                    <p className="mt-2 text-sm text-alter-text-secondary">
                       {focusTitles.join(', ')}
                     </p>
                   </section>
                 )}
 
                 {suggestedAutomations[0] && (
-                  <section className="card border-nightshift-border/80 bg-nightshift-bg-card/70">
-                    <h2 className="text-sm font-semibold text-nightshift-text-primary">
+                  <section className="card border-alter-border/80 bg-alter-surface/70">
+                    <h2 className="text-sm font-semibold text-alter-text">
                       Alter will handle
                     </h2>
-                    <p className="mt-2 text-sm text-nightshift-text-secondary">
+                    <p className="mt-2 text-sm text-alter-text-secondary">
                       {suggestedAutomations[0].headline}
                     </p>
                   </section>
@@ -386,8 +386,8 @@ export default function HandoffPage() {
                 <UnfinishedWork tasks={tasks} onToggleTask={toggleTask} />
 
                 {!demoMode && (
-                <div className="card border-nightshift-border/80 bg-nightshift-bg-card/80">
-                  <h3 className="mb-3 text-[10px] font-semibold uppercase tracking-[0.2em] text-nightshift-text-muted">
+                <div className="card border-alter-border/80 bg-alter-surface/80">
+                  <h3 className="mb-3 text-[10px] font-semibold uppercase tracking-[0.2em] text-alter-muted">
                     Special instructions
                   </h3>
                   <textarea
@@ -411,7 +411,7 @@ export default function HandoffPage() {
                   disabled={activating}
                 />
                 {activating && (
-                  <p className="animate-pulse text-center text-sm text-nightshift-text-muted">Starting run…</p>
+                  <p className="animate-pulse text-center text-sm text-alter-muted">Starting run…</p>
                 )}
               </>
             )}

@@ -126,7 +126,7 @@ export default function DraftsPage() {
   }
 
   function DraftTypeIcon({ type }: { type: string }) {
-    const cls = 'h-5 w-5 shrink-0 text-nightshift-highlight';
+    const cls = 'h-5 w-5 shrink-0 text-alter-gold-light';
     switch (type) {
       case 'email':
         return <Mail className={cls} strokeWidth={1.75} aria-hidden />;
@@ -166,7 +166,7 @@ export default function DraftsPage() {
           <main className="flex-1 overflow-y-auto p-6">
             <div className="mx-auto max-w-5xl">
               <div className="flex items-center justify-center py-12">
-                <Loader2 className="h-8 w-8 animate-spin text-nightshift-accent" />
+                <Loader2 className="h-8 w-8 animate-spin text-alter-primary" />
               </div>
             </div>
           </main>
@@ -183,10 +183,10 @@ export default function DraftsPage() {
         <main className="flex-1 overflow-y-auto p-6">
           <div className="mx-auto max-w-5xl space-y-6">
             <div>
-              <h1 className="font-display text-2xl font-bold tracking-tight text-nightshift-text-primary">
+              <h1 className="font-display text-2xl font-bold tracking-tight text-alter-text">
                 Draft review
               </h1>
-              <p className="mt-1 text-sm text-nightshift-text-secondary">
+              <p className="mt-1 text-sm text-alter-text-secondary">
                 Review and approve drafts Alter created for you — often after a handoff run.
               </p>
             </div>
@@ -200,7 +200,7 @@ export default function DraftsPage() {
                       href={error.split('Open in Gmail: ')[1]}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="underline hover:text-nightshift-accent transition-colors"
+                      className="underline hover:text-alter-primary transition-colors"
                     >
                       Open in Gmail →
                     </a>
@@ -213,13 +213,13 @@ export default function DraftsPage() {
 
             {drafts.length === 0 ? (
               <div className="card py-12 text-center">
-                <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl border border-nightshift-border bg-nightshift-bg-light text-nightshift-highlight">
+                <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl border border-alter-border bg-alter-surface text-alter-gold-light">
                   <FileEdit className="h-7 w-7" strokeWidth={1.5} aria-hidden />
                 </div>
-                <h2 className="text-lg font-semibold text-nightshift-text-primary">
+                <h2 className="text-lg font-semibold text-alter-text">
                   No drafts yet
                 </h2>
-                <p className="mt-2 text-nightshift-text-secondary">
+                <p className="mt-2 text-alter-text-secondary">
                   Run Handoff from the Handoff page, then check Draft review or Activity.
                 </p>
               </div>
@@ -236,15 +236,15 @@ export default function DraftsPage() {
                         <div className="flex items-center gap-3">
                           <DraftTypeIcon type={draft.type} />
                           <div>
-                            <h3 className="font-semibold text-nightshift-text-primary">
+                            <h3 className="font-semibold text-alter-text">
                               {draft.title}
                             </h3>
                             <div className="flex items-center gap-2 mt-1">
-                              <span className="text-xs text-nightshift-text-muted">
+                              <span className="text-xs text-alter-muted">
                                 {new Date(draft.createdAt).toLocaleString()}
                               </span>
-                              <span className="text-xs text-nightshift-text-muted">•</span>
-                              <span className="text-xs text-nightshift-text-muted capitalize">
+                              <span className="text-xs text-alter-muted">•</span>
+                              <span className="text-xs text-alter-muted capitalize">
                                 {draft.type} for {draft.targetApp}
                               </span>
                             </div>
@@ -262,8 +262,8 @@ export default function DraftsPage() {
                           disabled={isActionLoading}
                         />
                       ) : (
-                        <div className="bg-nightshift-bg-light rounded-lg p-4 mb-4">
-                          <pre className="whitespace-pre-wrap text-sm text-nightshift-text-primary font-sans">
+                        <div className="bg-alter-surface rounded-lg p-4 mb-4">
+                          <pre className="whitespace-pre-wrap text-sm text-alter-text font-sans">
                             {draft.content}
                           </pre>
                         </div>
@@ -271,22 +271,22 @@ export default function DraftsPage() {
 
                       {/* Context Info */}
                       {draft.context && (
-                        <div className="mb-4 flex flex-wrap items-center gap-3 text-xs text-nightshift-text-muted">
+                        <div className="mb-4 flex flex-wrap items-center gap-3 text-xs text-alter-muted">
                           {draft.context.retrievedSources > 0 && (
                             <span className="inline-flex items-center gap-1">
-                              <BookOpen className="h-3.5 w-3.5 text-nightshift-text-muted" strokeWidth={1.75} aria-hidden />
+                              <BookOpen className="h-3.5 w-3.5 text-alter-muted" strokeWidth={1.75} aria-hidden />
                               {draft.context.retrievedSources} sources
                             </span>
                           )}
                           {draft.context.tokensUsed && (
                             <span className="inline-flex items-center gap-1">
-                              <Hash className="h-3.5 w-3.5 text-nightshift-text-muted" strokeWidth={1.75} aria-hidden />
+                              <Hash className="h-3.5 w-3.5 text-alter-muted" strokeWidth={1.75} aria-hidden />
                               {draft.context.tokensUsed} tokens
                             </span>
                           )}
                           {draft.context.recommendation && (
                             <span className="inline-flex items-center gap-1 capitalize">
-                              <Lightbulb className="h-3.5 w-3.5 text-nightshift-text-muted" strokeWidth={1.75} aria-hidden />
+                              <Lightbulb className="h-3.5 w-3.5 text-alter-muted" strokeWidth={1.75} aria-hidden />
                               {draft.context.recommendation.replace(/_/g, ' ')}
                             </span>
                           )}
