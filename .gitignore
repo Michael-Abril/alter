@@ -61,8 +61,10 @@ data/github-oauth-config.json
 
 # Akash deploy file with secrets
 deploy.yaml
+AKASH-DEPLOYMENT-GUIDE.md
 
 # user data / debug artifacts
 data/scraped-sessions.json
 data/debug-screenshots/
 data/onboarding-sync/
+VARITY-ANALYSIS.md

@@ -25,6 +25,7 @@ import {
   Mail,
   XCircle,
 } from 'lucide-react';
+import { DraftChat } from '@/components/drafts/DraftChat';
 import { isUserNotFoundResponse } from '@/lib/dashboard-client-guard';
 
 interface Draft {
@@ -256,12 +257,19 @@ export default function DraftsPage() {
 
                       {/* Content */}
                       {isEditing ? (
-                        <textarea
-                          value={editedContent}
-                          onChange={(e) => setEditedContent(e.target.value)}
-                          className="input w-full h-64 resize-none font-mono text-sm"
-                          disabled={isActionLoading}
-                        />
+                        <>
+                          <textarea
+                            value={editedContent}
+                            onChange={(e) => setEditedContent(e.target.value)}
+                            className="input w-full h-64 resize-none font-mono text-sm mb-4"
+                            disabled={isActionLoading}
+                          />
+                          <DraftChat
+                            draftId={draft.id}
+                            draftContent={editedContent}
+                            onContentUpdate={(newContent) => setEditedContent(newContent)}
+                          />
+                        </>
                       ) : (
                         <div className="bg-nightshift-bg-light rounded-lg p-4 mb-4">
                           <pre className="whitespace-pre-wrap text-sm text-nightshift-text-primary font-sans">
