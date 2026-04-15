@@ -18,7 +18,7 @@ export function AlterFooter() {
   const inView = useInView(ref, { once: true, amount: 0.3 });
 
   return (
-    <footer className="border-t border-alter-border bg-alter-bg pb-10 pt-16">
+    <footer className="border-t border-alter-border bg-alter-bg/90 backdrop-blur-sm pb-10 pt-16">
       {/* Gold accent line */}
       <div className="pointer-events-none mx-auto mb-8 h-px w-[min(80%,40rem)] bg-gradient-to-r from-transparent via-alter-primary/30 to-transparent" />
 

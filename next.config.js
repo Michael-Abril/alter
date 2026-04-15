@@ -18,8 +18,8 @@ const nextConfig = {
       },
     ],
   },
-  // Webpack dev only (`npm run dev:webpack`): avoid ChunkLoadError when first compile of a
-  // client chunk exceeds the default script timeout (common with heavy root layouts).
+  // Dev (`npm run dev` uses webpack): avoid ChunkLoadError when first compile of a client chunk
+  // exceeds the default script timeout (common with heavy root layouts).
   webpack: (config, { dev }) => {
     if (dev) {
       config.output = config.output || {};
